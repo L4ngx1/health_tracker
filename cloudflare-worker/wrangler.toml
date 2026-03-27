@@ -1,0 +1,14 @@
+name = "healthtracker-r2-upload"
+main = "./r2_upload_worker.js"
+
+compatibility_date = "2026-01-01"
+account_id = "4f5416fd9069f5b597fc4b91b9b89b9f"
+
+[[r2_buckets]]
+binding = "HEALTHTRACKER_BUCKET"
+bucket_name = "healthtracker-r2-upload-healthtracker-bucket"
+
+# Optional: define a route if you don't use a custom domain
+# route = "https://<your-subdomain>.workers.dev/*"
+
+# Bạn cần set API token trong môi trường: CF_API_TOKEN
