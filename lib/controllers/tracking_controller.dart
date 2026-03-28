@@ -59,20 +59,47 @@ class TrackingController {
 
   StreamSubscription<Position>? _positionSub;
   StreamSubscription<AccelerometerEvent>? _accelSub;
+  bool _isDisposed = false;
   Position? _lastPosition;
   DateTime _currentDay = _truncateToDay(DateTime.now());
   DateTime? _stillStart;
   DateTime? _lastMotion;
   SharedPreferences? _prefs;
 
+  bool get isDisposed => _isDisposed;
+
+  void _safeSetSnapshot(TrackingSnapshot newValue) {
+    if (_isDisposed) return;
+    try {
+      snapshot.value = newValue;
+    } catch (_) {
+      // ignore if notifier was disposed concurrently
+    }
+  }
+
+  void _safeUpdateSnapshot(
+    TrackingSnapshot Function(TrackingSnapshot) updater,
+  ) {
+    if (_isDisposed) return;
+    try {
+      snapshot.value = updater(snapshot.value);
+    } catch (_) {
+      // ignore if notifier was disposed concurrently
+    }
+  }
+
   static DateTime _truncateToDay(DateTime dt) =>
       DateTime(dt.year, dt.month, dt.day);
 
   Future<void> start() async {
     _prefs ??= await SharedPreferences.getInstance();
+    if (_isDisposed) return;
+
     await _loadFromPrefs();
+    if (_isDisposed) return;
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (_isDisposed) return;
     if (!serviceEnabled) {
       return;
     }
@@ -110,12 +137,13 @@ class TrackingController {
   }
 
   void _onPosition(Position position) {
+    if (_isDisposed) return;
     final now = DateTime.now();
     final today = _truncateToDay(now);
     if (today != _currentDay) {
       _currentDay = today;
       _lastPosition = null;
-      snapshot.value = const TrackingSnapshot.initial();
+      _safeSetSnapshot(const TrackingSnapshot.initial());
       _prefs?.setString(_prefDayKey, _dayKey(today));
       _prefs?.setDouble(_prefDistance, 0);
       _prefs?.setInt(_prefSleepMinutes, 0);
@@ -131,16 +159,16 @@ class TrackingController {
 
       if (distance > 1 && distance < 500) {
         final newDistance = snapshot.value.distanceMeters + distance;
-        snapshot.value = snapshot.value.copyWith(
-          distanceMeters: newDistance,
-          lastUpdate: now,
+        _safeUpdateSnapshot(
+          (current) =>
+              current.copyWith(distanceMeters: newDistance, lastUpdate: now),
         );
         _prefs?.setDouble(_prefDistance, newDistance);
       } else {
-        snapshot.value = snapshot.value.copyWith(lastUpdate: now);
+        _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
       }
     } else {
-      snapshot.value = snapshot.value.copyWith(lastUpdate: now);
+      _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
     }
 
     _lastPosition = position;
@@ -149,6 +177,7 @@ class TrackingController {
   }
 
   void _onAccelerometer(AccelerometerEvent event) {
+    if (_isDisposed) return;
     final now = DateTime.now();
     final magnitude = sqrt(
       event.x * event.x + event.y * event.y + event.z * event.z,
@@ -165,7 +194,7 @@ class TrackingController {
       final stillDuration = now.difference(_stillStart!).inMinutes;
       if (stillDuration >= minStillMinutes) {
         if (!snapshot.value.isSleeping) {
-          snapshot.value = snapshot.value.copyWith(isSleeping: true);
+          _safeUpdateSnapshot((current) => current.copyWith(isSleeping: true));
           _prefs?.setString(_prefStillStart, _stillStart!.toIso8601String());
         }
       }
@@ -175,13 +204,13 @@ class TrackingController {
         final sleptMinutes = now.difference(_stillStart!).inMinutes;
         if (sleptMinutes > 0) {
           final total = snapshot.value.sleepMinutes + sleptMinutes;
-          snapshot.value = snapshot.value.copyWith(
-            sleepMinutes: total,
-            isSleeping: false,
+          _safeUpdateSnapshot(
+            (current) =>
+                current.copyWith(sleepMinutes: total, isSleeping: false),
           );
           _prefs?.setInt(_prefSleepMinutes, total);
         } else {
-          snapshot.value = snapshot.value.copyWith(isSleeping: false);
+          _safeUpdateSnapshot((current) => current.copyWith(isSleeping: false));
         }
       }
       _stillStart = null;
@@ -195,14 +224,19 @@ class TrackingController {
       _trackingTask,
       _trackingTask,
       frequency: const Duration(minutes: 15),
-      constraints: Constraints(networkType: NetworkType.not_required),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      constraints: Constraints(networkType: NetworkType.notRequired),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
 
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+
     _positionSub?.cancel();
+    _positionSub = null;
     _accelSub?.cancel();
+    _accelSub = null;
     snapshot.dispose();
   }
 
@@ -210,11 +244,13 @@ class TrackingController {
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
   Future<void> _loadFromPrefs() async {
+    if (_isDisposed) return;
     final now = DateTime.now();
     final todayKey = _dayKey(now);
     final storedDay = _prefs?.getString(_prefDayKey);
     if (storedDay != null && storedDay != todayKey) {
-      snapshot.value = const TrackingSnapshot.initial();
+      _safeSetSnapshot(const TrackingSnapshot.initial());
+      if (_isDisposed) return;
       await _prefs?.setString(_prefDayKey, todayKey);
       await _prefs?.setDouble(_prefDistance, 0);
       await _prefs?.setInt(_prefSleepMinutes, 0);
@@ -222,10 +258,13 @@ class TrackingController {
       final distance = _prefs?.getDouble(_prefDistance) ?? 0;
       final sleepMinutes = _prefs?.getInt(_prefSleepMinutes) ?? 0;
       final stillStartIso = _prefs?.getString(_prefStillStart);
-      snapshot.value = snapshot.value.copyWith(
-        distanceMeters: distance,
-        sleepMinutes: sleepMinutes,
-        isSleeping: stillStartIso != null,
+      if (_isDisposed) return;
+      _safeUpdateSnapshot(
+        (current) => current.copyWith(
+          distanceMeters: distance,
+          sleepMinutes: sleepMinutes,
+          isSleeping: stillStartIso != null,
+        ),
       );
       if (stillStartIso != null) {
         _stillStart = DateTime.tryParse(stillStartIso);

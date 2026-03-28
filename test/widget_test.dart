@@ -14,7 +14,7 @@ void main() {
   testWidgets('Login screen renders', (WidgetTester tester) async {
     await tester.pumpWidget(const HealthTrackerApp());
 
-    expect(find.text('Dang nhap'), findsWidgets);
+    expect(find.text('Đăng nhập'), findsWidgets);
     expect(find.byIcon(Icons.eco_outlined), findsOneWidget);
   });
 }
