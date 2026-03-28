@@ -103,11 +103,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ValueListenableBuilder<TrackingSnapshot>(
                 valueListenable: _trackingController.snapshot,
                 builder: (context, snapshot, _) {
+                  final stepText = snapshot.steps.toString();
                   final distanceKm = snapshot.distanceMeters / 1000.0;
                   final distanceText = distanceKm.toStringAsFixed(2);
                   final sleepHours = snapshot.sleepMinutes ~/ 60;
                   final sleepRemaining = snapshot.sleepMinutes % 60;
                   final sleepText = '${sleepHours}h ${sleepRemaining}m';
+
+                  final stepMetric = MetricItem(
+                    title: 'BƯỚC CHÂN HÔM NAY',
+                    value: stepText,
+                    unit: 'bước',
+                    subtitle:
+                        'Đếm bước chân từ cảm biến phần cứng TYPE_STEP_COUNTER.',
+                  );
 
                   final distanceMetric = MetricItem(
                     title: 'QUÃNG ĐƯỜNG HÔM NAY',
@@ -136,7 +145,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     otherMetrics.add(sleepMetric);
                   }
 
-                  return HealthGrid(metrics: [distanceMetric, ...otherMetrics]);
+                  return HealthGrid(
+                    metrics: [stepMetric, distanceMetric, ...otherMetrics],
+                  );
                 },
               ),
               const SizedBox(height: 18),
