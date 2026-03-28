@@ -139,66 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   return HealthGrid(metrics: [distanceMetric, ...otherMetrics]);
                 },
               ),
-<<<<<<< HEAD
-            ),
-            const SizedBox(height: 12),
-            ValueListenableBuilder<TrackingSnapshot>(
-              valueListenable: _trackingController.snapshot,
-              builder: (context, snapshot, _) {
-                final stepText = snapshot.steps.toString();
-                final sleepHours = snapshot.sleepMinutes ~/ 60;
-                final sleepRemaining = snapshot.sleepMinutes % 60;
-                final sleepText = '${sleepHours}h ${sleepRemaining}m';
-
-                final stepMetric = MetricItem(
-                  title: 'BƯỚC CHÂN HÔM NAY',
-                  value: stepText,
-                  unit: 'bước',
-                  subtitle:
-                      'Đếm bước chân từ cảm biến phần cứng TYPE_STEP_COUNTER.',
-                );
-
-                final distanceKm = snapshot.distanceMeters / 1000.0;
-                final distanceText = distanceKm.toStringAsFixed(2);
-                final distanceMetric = MetricItem(
-                  title: 'QUÃNG ĐƯỜNG HÔM NAY',
-                  value: distanceText,
-                  unit: 'km',
-                  subtitle:
-                      'GPS đo quãng đường di chuyển thực tế (outdoor).',
-                );
-
-                final sleepMetric = MetricItem(
-                  title: 'GIẤC NGỦ HÔM NAY',
-                  value: sleepText,
-                  unit: '',
-                  subtitle: snapshot.isSleeping
-                      ? 'Đang nghỉ ngơi - phát hiện đứng yên lâu.'
-                      : 'Ước lượng từ cảm biến gia tốc.',
-                  showProgress: true,
-                );
-
-                // Lay cac metric khac (nuoc, can nang, giac ngu) tu controller cu
-                final otherMetrics = staticMetrics.length > 1
-                    ? staticMetrics.sublist(1)
-                    : <MetricItem>[];
-                if (otherMetrics.isNotEmpty) {
-                  otherMetrics[otherMetrics.length - 1] = sleepMetric;
-                } else {
-                  otherMetrics.add(sleepMetric);
-                }
-
-                return HealthGrid(metrics: [stepMetric, ...otherMetrics]);
-              },
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'Khám phá thêm',
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.w900,
-                color: AppPalette.textMain,
-=======
               const SizedBox(height: 18),
               const Text(
                 'Khám phá thêm',
@@ -207,7 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w900,
                   color: AppPalette.textMain,
                 ),
->>>>>>> main
               ),
               const SizedBox(height: 10),
               Container(
