@@ -35,27 +35,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final items = const [
     BottomNavItem(
-      label: 'Trang chu',
+      label: 'Trang chủ',
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
     ),
     BottomNavItem(
-      label: 'Tap luyen',
+      label: 'Tập luyện',
       icon: Icons.sports_gymnastics_outlined,
       activeIcon: Icons.sports_gymnastics,
     ),
     BottomNavItem(
-      label: 'An uong',
+      label: 'Ăn uống',
       icon: Icons.camera_alt_outlined,
       activeIcon: Icons.camera_alt,
     ),
     BottomNavItem(
-      label: 'Ghi chu',
+      label: 'Ghi chú',
       icon: Icons.article_outlined,
       activeIcon: Icons.article,
     ),
     BottomNavItem(
-      label: 'Nhat ky',
+      label: 'Nhật ký',
       icon: Icons.menu_book_outlined,
       activeIcon: Icons.menu_book,
     ),
