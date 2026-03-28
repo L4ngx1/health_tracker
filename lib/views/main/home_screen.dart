@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../controllers/home_controller.dart';
 import '../../controllers/tracking_controller.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../../models/metric_item.dart';
 import '../widgets/common_widgets.dart';
@@ -50,7 +51,12 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Sống Khỏe\ncùng bạn'),
+              TopBar(
+              title: 'Sống Khỏe\ncùng bạn',
+              onProfileTap: () {
+                Navigator.of(context).pushNamed(AppRoutes.profile);
+              },
+            ),
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
