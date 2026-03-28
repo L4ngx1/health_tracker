@@ -1,0 +1,133 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_palette.dart';
+import '../widgets/common_widgets.dart';
+
+class NutritionScreen extends StatelessWidget {
+  const NutritionScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const TopBar(title: 'Du doan dinh duong -\nSong Khoe'),
+            const SizedBox(height: 8),
+            const Center(
+              child: Text(
+                'Chup hoac tai anh mon an de AI du doan\nluong Calories',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppPalette.textMuted),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  Image.network(
+                    'https://images.unsplash.com/photo-1546793665-c74683f339c1?auto=format&fit=crop&w=900&q=80',
+                    width: double.infinity,
+                    height: 330,
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text(
+                        '# AI Ready',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            PrimaryButton(
+              text: 'Chup anh',
+              icon: Icons.camera_alt_outlined,
+              onPressed: () {},
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () {},
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 56),
+                side: const BorderSide(color: AppPalette.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              icon: const Icon(
+                Icons.photo_library_outlined,
+                color: AppPalette.primaryDark,
+              ),
+              label: const Text(
+                'Chon anh tu thu vien',
+                style: TextStyle(
+                  color: AppPalette.primaryDark,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFDDF5E7),
+              ),
+              child: const Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Color(0xFFB8ECCD),
+                    child: Icon(
+                      Icons.lightbulb_outline,
+                      color: AppPalette.primaryDark,
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Meo nho',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          'Hay dam bao thuc an duoc chieu sang\ntot de AI co the nhan dien thanh phan\nchinh xac nhat.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
