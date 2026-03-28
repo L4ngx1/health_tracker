@@ -10,15 +10,12 @@ class AppTheme {
       brightness: Brightness.light,
     );
 
-    final base = ThemeData.light().textTheme;
-    final sora = GoogleFonts.soraTextTheme(base);
-    final display = GoogleFonts.frauncesTextTheme(base);
+    // Light theme uses explicit TextTheme literals below.
 
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: AppPalette.background,
-      colorScheme:
-          colorScheme,
+      colorScheme: colorScheme,
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
           fontSize: 32,
@@ -86,8 +83,8 @@ class AppTheme {
 
   static ThemeData get dark {
     final colorScheme = ColorScheme.fromSeed(
-          seedColor: AppPalette.primary,
-          brightness: Brightness.dark,
+      seedColor: AppPalette.primary,
+      brightness: Brightness.dark,
     );
 
     return ThemeData(
@@ -95,63 +92,8 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: const Color(0xFF0F1412),
       colorScheme: colorScheme,
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.w900,
-          color: Colors.white,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w800,
-          color: Colors.white,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
-        bodyMedium: TextStyle(fontSize: 15, color: Colors.white),
-        bodySmall: TextStyle(fontSize: 14, color: Colors.white70),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppPalette.primary,
-          foregroundColor: Colors.white,
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            inherit: true,
-          ),
-        ),
-          ).copyWith(
-            primary: AppPalette.primary,
-            secondary: AppPalette.accent,
-            surface: AppPalette.surface,
-          ),
-      textTheme: sora.copyWith(
-        displayLarge: display.displayLarge?.copyWith(
-          color: AppPalette.textMain,
-          fontWeight: FontWeight.w700,
-        ),
-        displayMedium: display.displayMedium?.copyWith(
-          color: AppPalette.textMain,
-          fontWeight: FontWeight.w700,
-        ),
-        displaySmall: display.displaySmall?.copyWith(
-          color: AppPalette.textMain,
-          fontWeight: FontWeight.w700,
-        ),
-        headlineMedium: display.headlineMedium?.copyWith(
-          color: AppPalette.textMain,
-          fontWeight: FontWeight.w700,
-        ),
-        titleLarge: sora.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-      ),
+      // Use specialized dark text theme built from Google Fonts.
+      textTheme: _buildDarkTextTheme(),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -164,4 +106,30 @@ class AppTheme {
       ),
     );
   }
+}
+
+TextTheme _buildDarkTextTheme() {
+  final base = ThemeData.dark().textTheme;
+  final sora = GoogleFonts.soraTextTheme(base);
+  final display = GoogleFonts.frauncesTextTheme(base);
+
+  return sora.copyWith(
+    displayLarge: display.displayLarge?.copyWith(
+      color: AppPalette.textMain,
+      fontWeight: FontWeight.w700,
+    ),
+    displayMedium: display.displayMedium?.copyWith(
+      color: AppPalette.textMain,
+      fontWeight: FontWeight.w700,
+    ),
+    displaySmall: display.displaySmall?.copyWith(
+      color: AppPalette.textMain,
+      fontWeight: FontWeight.w700,
+    ),
+    headlineMedium: display.headlineMedium?.copyWith(
+      color: AppPalette.textMain,
+      fontWeight: FontWeight.w700,
+    ),
+    titleLarge: sora.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+  );
 }

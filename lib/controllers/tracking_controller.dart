@@ -155,20 +155,21 @@ class TrackingController {
   }
 
   void _onPosition(Position position) {
-    if (_isDisposed) return;
     final now = DateTime.now();
     final today = _truncateToDay(now);
     if (today != _currentDay) {
       _currentDay = today;
-      _lastPosition = null;
-      _safeSetSnapshot(const TrackingSnapshot.initial());
+      _lastLat = null;
+      _lastLon = null;
+      snapshot.value = snapshot.value.copyWith(
+        distanceMeters: 0.0,
+        lastUpdate: now,
+      );
       _prefs?.setString(_prefDayKey, _dayKey(today));
       return;
     }
-    if (position == null) return;
-    final lat = position.latitude as double?;
-    final lon = position.longitude as double?;
-    if (lat == null || lon == null) return;
+    final lat = position.latitude;
+    final lon = position.longitude;
     if (_lastLat != null && _lastLon != null) {
       final distance = _distanceBetween(_lastLat!, _lastLon!, lat, lon);
       if (distance > 1 && distance < 500) {
@@ -224,10 +225,9 @@ class TrackingController {
     final storedSteps = _prefs?.getInt(_prefSteps) ?? 0;
     if (_lastStepCount == null) {
       _lastStepCount = event.steps;
-      _safeUpdateSnapshot((current) => current.copyWith(
-        steps: storedSteps,
-        lastUpdate: now,
-      ));
+      _safeUpdateSnapshot(
+        (current) => current.copyWith(steps: storedSteps, lastUpdate: now),
+      );
       return;
     }
 
@@ -343,7 +343,7 @@ class TrackingController {
       _safeUpdateSnapshot(
         (current) => current.copyWith(
           steps: steps,
-        distanceMeters: distance,
+          distanceMeters: distance,
           sleepMinutes: sleepMinutes,
           isSleeping: stillStartIso != null,
         ),

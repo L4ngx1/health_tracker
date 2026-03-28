@@ -67,7 +67,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     _setError(null);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Đường link đặt lại mật khẩu đã được gửi đến hộp thư của bạn nếu email tồn tại trong hệ thống(Vui lòng kiểm tra cả mục thư rác).'),
+        content: Text(
+          'Đường link đặt lại mật khẩu đã được gửi đến hộp thư của bạn nếu email tồn tại trong hệ thống(Vui lòng kiểm tra cả mục thư rác).',
+        ),
         duration: Duration(seconds: 4),
       ),
     );
@@ -90,40 +92,47 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Centered brand and section header (back button is provided by AuthLayout)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    BrandIconOnly(),
-                    SizedBox(height: 10),
-                    Text(
-                      'Sống Khỏe',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: AppPalette.textMain,
-                        height: 1.0,
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const BrandIconOnly(),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Sống Khỏe',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: AppPalette.textMain,
+                          height: 1.0,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Đặt lại mật khẩu',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF202936),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Đặt lại mật khẩu',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF202936),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Nhập email để nhận mail đặt lại mật khẩu.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppPalette.textMuted,
-                        fontSize: 14,
-                        height: 1.35,
+                      const SizedBox(height: 8),
+                      const SizedBox(
+                        width: 360,
+                        child: Text(
+                          'Nhập email để nhận mail đặt lại mật khẩu.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppPalette.textMuted,
+                            fontSize: 14,
+                            height: 1.35,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 14),
@@ -145,7 +154,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 const InputLabel('Email'),
                 const SizedBox(height: 8),
                 RoundedInput(

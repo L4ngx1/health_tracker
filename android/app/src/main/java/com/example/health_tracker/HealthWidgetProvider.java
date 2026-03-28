@@ -1,4 +1,4 @@
-package com.example.baiuoiki;
+package com.example.health_tracker;
 
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
