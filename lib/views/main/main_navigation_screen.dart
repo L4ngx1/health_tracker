@@ -29,27 +29,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final items = const [
     BottomNavItem(
-      label: 'Trang chu',
+      label: 'Trang chủ',
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
     ),
     BottomNavItem(
-      label: 'Tap luyen',
+      label: 'Tập luyện',
       icon: Icons.sports_gymnastics_outlined,
       activeIcon: Icons.sports_gymnastics,
     ),
     BottomNavItem(
-      label: 'An uong',
+      label: 'Ăn uống',
       icon: Icons.camera_alt_outlined,
       activeIcon: Icons.camera_alt,
     ),
     BottomNavItem(
-      label: 'Ghi chu',
+      label: 'Ghi chú',
       icon: Icons.article_outlined,
       activeIcon: Icons.article,
     ),
     BottomNavItem(
-      label: 'Nhat ky',
+      label: 'Nhật ký',
       icon: Icons.menu_book_outlined,
       activeIcon: Icons.menu_book,
     ),
@@ -75,21 +75,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   child: const Icon(Icons.add),
                 )
               : null,
-          bottomNavigationBar: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x22000000),
-                  blurRadius: 18,
-                  offset: Offset(0, -4),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              top: false,
+          bottomNavigationBar: SafeArea(
+            top: false,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: AppPalette.surface,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A1B7D5B),
+                    blurRadius: 20,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
               child: SizedBox(
-                height: 70,
+                height: 62,
                 child: Row(
                   children: List.generate(items.length, (i) {
                     final selected = controller.index == i;
@@ -98,7 +101,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       child: InkWell(
                         onTap: () => controller.setIndex(i),
                         child: Padding(
-                          padding: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.only(top: 6),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -106,7 +109,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                 selected ? item.activeIcon : item.icon,
                                 size: 22,
                                 color: selected
-                                    ? AppPalette.primaryDark
+                                    ? AppPalette.primary
                                     : const Color(0xFF95A39B),
                               ),
                               const SizedBox(height: 3),
@@ -118,7 +121,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                       ? FontWeight.w700
                                       : FontWeight.w500,
                                   color: selected
-                                      ? AppPalette.primaryDark
+                                      ? AppPalette.primary
                                       : const Color(0xFF95A39B),
                                 ),
                               ),
