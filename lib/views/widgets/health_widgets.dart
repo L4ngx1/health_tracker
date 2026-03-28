@@ -34,8 +34,19 @@ class MetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F5F4),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFFFF), Color(0xFFF4F7F4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A0F3A2E),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,8 +93,8 @@ class MetricCard extends StatelessWidget {
               child: const LinearProgressIndicator(
                 value: 0.6,
                 minHeight: 8,
-                color: Color(0xFF27B874),
-                backgroundColor: Color(0xFFDBE6E0),
+                color: AppPalette.primary,
+                backgroundColor: AppPalette.divider,
               ),
             ),
           ],
