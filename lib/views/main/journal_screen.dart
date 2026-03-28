@@ -18,7 +18,7 @@ class JournalScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const TopBar(title: 'Nhat ky suc khoe -\nSong Khoe'),
+            const TopBar(title: 'Nhật ký sức khỏe -\nSống Khỏe'),
             const SizedBox(height: 22),
             Container(
               width: double.infinity,
@@ -31,7 +31,7 @@ class JournalScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Khung trang Nhat ky',
+                    'Khung trang Nhật ký',
                     style: TextStyle(
                       fontSize: 34,
                       height: 0.95,
@@ -40,7 +40,7 @@ class JournalScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    'Trang nay duoc tao san de ban tiep tuc gan noi dung ghi chep sau.',
+                    'Trang này được tạo sẵn để bạn tiếp tục gắn nội dung ghi chép sau.',
                   ),
                 ],
               ),

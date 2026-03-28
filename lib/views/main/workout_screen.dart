@@ -20,7 +20,7 @@ class WorkoutScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const TopBar(title: 'Tap luyen - Song Khoe'),
+            const TopBar(title: 'Tập luyện - Sống Khỏe'),
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
@@ -35,12 +35,12 @@ class WorkoutScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Muc tieu tuan nay',
+                    'Mục tiêu tuần này',
                     style: TextStyle(color: Colors.white70),
                   ),
                   SizedBox(height: 8),
                   Text(
-                    '4/5 Buoi tap',
+                    '4/5 Buổi tập',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 42,
@@ -49,7 +49,7 @@ class WorkoutScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 6),
                   Text(
-                    '1,240 kcal da dot',
+                    '1,240 kcal đã đốt',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -64,11 +64,11 @@ class WorkoutScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Che do tap luyen',
+                  'Chế độ tập luyện',
                   style: TextStyle(fontSize: 38, fontWeight: FontWeight.w900),
                 ),
                 Text(
-                  'TAT CA',
+                  'TẤT CẢ',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppPalette.primaryDark,
@@ -91,7 +91,7 @@ class WorkoutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Lich su tap\nluyen',
+              'Lịch sử tập\nluyện',
               style: TextStyle(
                 fontSize: 40,
                 height: 0.9,

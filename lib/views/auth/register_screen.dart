@@ -29,7 +29,7 @@ class RegisterScreen extends StatelessWidget {
                       ),
                     ),
                     const Text(
-                      'Song Khoe',
+                      'Sống Khỏe',
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
@@ -42,7 +42,7 @@ class RegisterScreen extends StatelessWidget {
                 const BrandIconOnly(),
                 const SizedBox(height: 16),
                 const Text(
-                  'BAT DAU HANH TRINH',
+                  'BẮT ĐẦU HÀNH TRÌNH',
                   style: TextStyle(
                     letterSpacing: 2,
                     fontWeight: FontWeight.w800,
@@ -52,7 +52,7 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Dang ky tai khoan',
+                  'Đăng ký tài khoản',
                   style: TextStyle(
                     fontSize: 44,
                     height: 0.9,
@@ -63,7 +63,7 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Tham gia cong dong song khoe de bat dau\ntheo doi va cai thien suc khoe moi ngay.',
+                  'Tham gia cộng đồng sống khỏe để bắt đầu\ntheo dõi và cải thiện sức khỏe mỗi ngày.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppPalette.textMuted,
@@ -72,21 +72,21 @@ class RegisterScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const InputLabel('Ho va ten'),
+                const InputLabel('Họ và tên'),
                 const SizedBox(height: 10),
                 const RoundedInput(
-                  hint: 'Nguyen Van A',
+                  hint: 'Nguyễn Văn A',
                   icon: Icons.person_outline,
                 ),
                 const SizedBox(height: 14),
-                const InputLabel('So dien thoai / Email'),
+                const InputLabel('Số điện thoại / Email'),
                 const SizedBox(height: 10),
                 const RoundedInput(
                   hint: 'example@gmail.com',
                   icon: Icons.email_outlined,
                 ),
                 const SizedBox(height: 14),
-                const InputLabel('Mat khau'),
+                const InputLabel('Mật khẩu'),
                 const SizedBox(height: 10),
                 const RoundedInput(
                   hint: '................',
@@ -94,14 +94,14 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 PrimaryButton(
-                  text: 'Dang ky',
+                  text: 'Đăng ký',
                   onPressed: () => controller.signup(context),
                 ),
                 const SizedBox(height: 22),
-                const DividerWithText(text: 'HOAC'),
+                const DividerWithText(text: 'HOẶC'),
                 const SizedBox(height: 20),
                 SocialButton(
-                  text: 'Tiep tuc voi Google',
+                  text: 'Tiếp tục với Google',
                   onPressed: () =>
                       controller.continueWithGoogle(context, clearStack: true),
                 ),
@@ -112,13 +112,13 @@ class RegisterScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        'Ban da co tai khoan? ',
+                        'Bạn đã có tài khoản? ',
                         style: TextStyle(color: AppPalette.textMuted),
                       ),
                       GestureDetector(
                         onTap: () => controller.toLogin(context),
                         child: const Text(
-                          'Dang nhap',
+                          'Đăng nhập',
                           style: TextStyle(
                             color: AppPalette.primary,
                             fontWeight: FontWeight.w800,

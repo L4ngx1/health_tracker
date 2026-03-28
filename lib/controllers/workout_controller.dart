@@ -9,23 +9,23 @@ class WorkoutController {
   List<WorkoutItem> getPrograms() {
     return const [
       WorkoutItem(
-        title: 'Chay bo',
-        subtitle: 'Cardio chuyen\nsau',
+        title: 'Chạy bộ',
+        subtitle: 'Cardio chuyên\nsâu',
         icon: Icons.directions_run,
       ),
       WorkoutItem(
         title: 'Gym',
-        subtitle: 'Tang cuong co bap',
+        subtitle: 'Tăng cường cơ bắp',
         icon: Icons.fitness_center,
       ),
       WorkoutItem(
         title: 'Yoga',
-        subtitle: 'Thu gian tam tri',
+        subtitle: 'Thư giãn tâm trí',
         icon: Icons.self_improvement,
       ),
       WorkoutItem(
-        title: 'Dap xe',
-        subtitle: 'Dot mo hieu\nqua',
+        title: 'Đạp xe',
+        subtitle: 'Đốt mỡ hiệu\nquả',
         icon: Icons.pedal_bike,
       ),
     ];

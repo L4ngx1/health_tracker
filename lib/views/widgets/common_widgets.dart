@@ -49,7 +49,7 @@ class BrandHeader extends StatelessWidget {
         const BrandIconOnly(),
         const SizedBox(height: 12),
         const Text(
-          'Song Khoe',
+          'Sống Khỏe',
           style: TextStyle(
             fontSize: 44,
             fontWeight: FontWeight.w900,

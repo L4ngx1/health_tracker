@@ -20,13 +20,13 @@ class LoginScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 30),
                 const BrandHeader(
-                  subTitle: 'Hanh trinh cham soc suc khoe cua ban',
+                  subTitle: 'Hành trình chăm sóc sức khỏe của bạn',
                 ),
                 const SizedBox(height: 28),
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Dang nhap',
+                    'Đăng nhập',
                     style: TextStyle(
                       fontSize: 34,
                       fontWeight: FontWeight.w800,
@@ -35,24 +35,24 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 22),
-                const InputLabel('So dien thoai / Email'),
+                const InputLabel('Số điện thoại / Email'),
                 const SizedBox(height: 10),
                 const RoundedInput(
-                  hint: 'Nhap email hoac so dien thoai',
+                  hint: 'Nhập email hoặc số điện thoại',
                   icon: Icons.person_outline,
                 ),
                 const SizedBox(height: 16),
-                const InputLabel('Mat khau'),
+                const InputLabel('Mật khẩu'),
                 const SizedBox(height: 10),
                 const RoundedInput(
-                  hint: 'Nhap mat khau',
+                  hint: 'Nhập mật khẩu',
                   icon: Icons.visibility_outlined,
                 ),
                 const SizedBox(height: 10),
                 const Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'Quen mat khau?',
+                    'Quên mật khẩu?',
                     style: TextStyle(
                       color: AppPalette.primary,
                       fontWeight: FontWeight.w700,
@@ -61,14 +61,14 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 PrimaryButton(
-                  text: 'Dang nhap',
+                  text: 'Đăng nhập',
                   onPressed: () => controller.login(context),
                 ),
                 const SizedBox(height: 22),
-                const DividerWithText(text: 'HOAC'),
+                const DividerWithText(text: 'HOẶC'),
                 const SizedBox(height: 22),
                 SocialButton(
-                  text: 'Tiep tuc voi Google',
+                  text: 'Tiếp tục với Google',
                   onPressed: () =>
                       controller.continueWithGoogle(context, clearStack: false),
                 ),
@@ -79,13 +79,13 @@ class LoginScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        'Ban chua co tai khoan? ',
+                        'Bạn chưa có tài khoản? ',
                         style: TextStyle(color: AppPalette.textMuted),
                       ),
                       GestureDetector(
                         onTap: () => controller.toRegister(context),
                         child: const Text(
-                          'Dang ky ngay',
+                          'Đăng ký ngay',
                           style: TextStyle(
                             color: AppPalette.primary,
                             fontWeight: FontWeight.w800,

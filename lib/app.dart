@@ -10,7 +10,7 @@ class HealthTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Song Khoe',
+      title: 'Sống Khỏe',
       theme: AppTheme.light,
       initialRoute: AppRoutes.login,
       routes: AppRoutes.routes,

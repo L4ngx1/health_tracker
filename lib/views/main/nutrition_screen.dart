@@ -14,11 +14,11 @@ class NutritionScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const TopBar(title: 'Du doan dinh duong -\nSong Khoe'),
+            const TopBar(title: 'Dự đoán dinh dưỡng -\nSống Khỏe'),
             const SizedBox(height: 8),
             const Center(
               child: Text(
-                'Chup hoac tai anh mon an de AI du doan\nluong Calories',
+                'Chụp hoặc tải ảnh món ăn để AI dự đoán\nlượng Calories',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppPalette.textMuted),
               ),
@@ -60,7 +60,7 @@ class NutritionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             PrimaryButton(
-              text: 'Chup anh',
+              text: 'Chụp ảnh',
               icon: Icons.camera_alt_outlined,
               onPressed: () {},
             ),
@@ -79,7 +79,7 @@ class NutritionScreen extends StatelessWidget {
                 color: AppPalette.primaryDark,
               ),
               label: const Text(
-                'Chon anh tu thu vien',
+                'Chọn ảnh từ thư viện',
                 style: TextStyle(
                   color: AppPalette.primaryDark,
                   fontWeight: FontWeight.w800,
@@ -109,14 +109,14 @@ class NutritionScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Meo nho',
+                          'Mẹo nhỏ',
                           style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
                         Text(
-                          'Hay dam bao thuc an duoc chieu sang\ntot de AI co the nhan dien thanh phan\nchinh xac nhat.',
+                          'Hãy đảm bảo thức ăn được chiếu sáng\ntốt để AI có thể nhận diện thành phần\nchính xác nhất.',
                         ),
                       ],
                     ),

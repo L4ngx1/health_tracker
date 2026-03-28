@@ -6,29 +6,29 @@ class HomeController {
   List<MetricItem> getMetrics() {
     return const [
       MetricItem(
-        title: 'BUOC CHAN HOM\nNAY',
+        title: 'BƯỚC CHÂN HÔM\nNAY',
         value: '6,432',
-        unit: 'buoc',
-        subtitle: '321 kcal\nda tieu\nthu',
+        unit: 'bước',
+        subtitle: '321 kcal\nđã tiêu\nthụ',
       ),
       MetricItem(
-        title: 'UONG NUOC',
+        title: 'UỐNG NƯỚC',
         value: '1.2',
         unit: '/2.0L',
-        subtitle: 'Muc tieu ngay',
+        subtitle: 'Mục tiêu ngày',
         showProgress: true,
       ),
       MetricItem(
-        title: 'CAN NANG',
+        title: 'CÂN NẶNG',
         value: '65',
         unit: 'kg',
-        subtitle: 'On dinh\ntrong 7 ngay\ngan day',
+        subtitle: 'Ổn định\ntrong 7 ngày\ngần đây',
       ),
       MetricItem(
-        title: 'GIAC NGU HOM\nNAY',
+        title: 'GIẤC NGỦ HÔM\nNAY',
         value: '7h 30m',
         unit: '',
-        subtitle: 'Chat luong: Tot\nBan da ngu du giac\nhon hom qua 35\nphut.',
+        subtitle: 'Chất lượng: Tốt\nBạn đã ngủ đủ giấc\nhơn hôm qua 35\nphút.',
         showProgress: true,
       ),
     ];
