@@ -55,6 +55,7 @@ class BrandHeader extends StatelessWidget {
             fontWeight: FontWeight.w900,
             color: AppPalette.textMain,
             height: 0.95,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
@@ -73,8 +74,19 @@ class BrandIconOnly extends StatelessWidget {
       width: 82,
       height: 82,
       decoration: BoxDecoration(
-        color: const Color(0xFFA8E7C7),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFCEBD9), Color(0xFFAEE7D0)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(40),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A1B7D5B),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: const Icon(
         Icons.eco_outlined,
@@ -118,8 +130,9 @@ class RoundedInput extends StatelessWidget {
     return Container(
       height: 56,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF0ED),
+        color: AppPalette.surfaceMuted,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppPalette.divider),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
