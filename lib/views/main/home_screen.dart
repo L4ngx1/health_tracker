@@ -99,23 +99,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              ValueListenableBuilder<TrackingSnapshot>(
-                valueListenable: _trackingController.snapshot,
-                builder: (context, snapshot, _) {
-                  final distanceKm = snapshot.distanceMeters / 1000.0;
-                  final distanceText = distanceKm.toStringAsFixed(2);
-                  final sleepHours = snapshot.sleepMinutes ~/ 60;
-                  final sleepRemaining = snapshot.sleepMinutes % 60;
-                  final sleepText = '${sleepHours}h ${sleepRemaining}m';
+            ),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<TrackingSnapshot>(
+              valueListenable: _trackingController.snapshot,
+              builder: (context, snapshot, _) {
+                final stepText = snapshot.steps.toString();
+                final sleepHours = snapshot.sleepMinutes ~/ 60;
+                final sleepRemaining = snapshot.sleepMinutes % 60;
+                final sleepText = '${sleepHours}h ${sleepRemaining}m';
 
-                  final distanceMetric = MetricItem(
-                    title: 'QUÃNG ĐƯỜNG HÔM NAY',
-                    value: distanceText,
-                    unit: 'km',
-                    subtitle:
-                        'Sử dụng GPS để tính quãng đường di chuyển hôm nay.',
-                  );
+                final stepMetric = MetricItem(
+                  title: 'BƯỚC CHÂN HÔM NAY',
+                  value: stepText,
+                  unit: 'bước',
+                  subtitle:
+                      'Đếm bước chân từ cảm biến phần cứng TYPE_STEP_COUNTER.',
+                );
+
+                final distanceKm = snapshot.distanceMeters / 1000.0;
+                final distanceText = distanceKm.toStringAsFixed(2);
+                final distanceMetric = MetricItem(
+                  title: 'QUÃNG ĐƯỜNG HÔM NAY',
+                  value: distanceText,
+                  unit: 'km',
+                  subtitle:
+                      'GPS đo quãng đường di chuyển thực tế (outdoor).',
+                );
 
                   final sleepMetric = MetricItem(
                     title: 'GIẤC NGỦ HÔM NAY',
@@ -136,8 +146,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     otherMetrics.add(sleepMetric);
                   }
 
-                  return HealthGrid(metrics: [distanceMetric, ...otherMetrics]);
-                },
+                return HealthGrid(metrics: [stepMetric, ...otherMetrics]);
+              },
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Khám phá thêm',
+              style: TextStyle(
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+                color: AppPalette.textMain,
               ),
               const SizedBox(height: 18),
               const Text(
