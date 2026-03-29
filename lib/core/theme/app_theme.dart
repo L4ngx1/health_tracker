@@ -4,100 +4,100 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_palette.dart';
 
 class AppTheme {
-  static ThemeData get light {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppPalette.primary,
-      brightness: Brightness.light,
-    );
+  static WidgetStateProperty<Color?> _pressOverlay(Color color) {
+    return WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.pressed)) {
+        return color.withValues(alpha: 0.18);
+      }
+      if (states.contains(WidgetState.hovered) ||
+          states.contains(WidgetState.focused)) {
+        return color.withValues(alpha: 0.1);
+      }
+      return null;
+    });
+  }
 
-    // Light theme uses explicit TextTheme literals below.
+  static ThemeData get light {
+    final base = ThemeData.light().textTheme;
+    final vietnamese = GoogleFonts.beVietnamProTextTheme(base);
 
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: AppPalette.background,
-      colorScheme: colorScheme,
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.w900,
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: AppPalette.primary,
+            brightness: Brightness.light,
+          ).copyWith(
+            primary: AppPalette.primary,
+            secondary: AppPalette.accent,
+            surface: AppPalette.surface,
+          ),
+      textTheme: vietnamese.copyWith(
+        displayLarge: vietnamese.displayLarge?.copyWith(
           color: AppPalette.textMain,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 24,
           fontWeight: FontWeight.w800,
-          color: AppPalette.textMain,
         ),
-        titleMedium: TextStyle(
-          fontSize: 18,
+        displayMedium: vietnamese.displayMedium?.copyWith(
+          color: AppPalette.textMain,
+          fontWeight: FontWeight.w800,
+        ),
+        displaySmall: vietnamese.displaySmall?.copyWith(
+          color: AppPalette.textMain,
+          fontWeight: FontWeight.w800,
+        ),
+        headlineMedium: vietnamese.headlineMedium?.copyWith(
+          color: AppPalette.textMain,
+          fontWeight: FontWeight.w800,
+        ),
+        titleLarge: vietnamese.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
-          color: AppPalette.textMain,
-        ),
-        bodyMedium: TextStyle(fontSize: 15, color: AppPalette.textMain),
-        bodySmall: TextStyle(fontSize: 14, color: AppPalette.textMuted),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppPalette.surfaceMuted,
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 16,
-          horizontal: 14,
-        ),
-        hintStyle: const TextStyle(color: AppPalette.textMuted),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppPalette.divider, width: 1),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppPalette.divider, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: AppPalette.primary, width: 2),
         ),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppPalette.primary,
-          foregroundColor: Colors.white,
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppPalette.primary,
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: AppPalette.primary),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-
-  static ThemeData get dark {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppPalette.primary,
-      brightness: Brightness.dark,
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF0F1412),
-      colorScheme: colorScheme,
-      // Use specialized dark text theme built from Google Fonts.
-      textTheme: _buildDarkTextTheme(),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: AppPalette.textMain,
+      ),
+      splashFactory: InkRipple.splashFactory,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          animationDuration: const Duration(milliseconds: 140),
+          overlayColor: _pressOverlay(Colors.white),
+          elevation: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return 1;
+            }
+            return 3;
+          }),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          animationDuration: const Duration(milliseconds: 140),
+          overlayColor: _pressOverlay(AppPalette.primary),
+          side: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return const BorderSide(
+                color: AppPalette.primaryDark,
+                width: 1.3,
+              );
+            }
+            return const BorderSide(color: AppPalette.primary, width: 1);
+          }),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          animationDuration: const Duration(milliseconds: 140),
+          overlayColor: _pressOverlay(AppPalette.primary),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          animationDuration: const Duration(milliseconds: 120),
+          overlayColor: _pressOverlay(AppPalette.primary),
+        ),
       ),
       cardTheme: CardThemeData(
         color: AppPalette.surface,
@@ -106,30 +106,4 @@ class AppTheme {
       ),
     );
   }
-}
-
-TextTheme _buildDarkTextTheme() {
-  final base = ThemeData.dark().textTheme;
-  final sora = GoogleFonts.soraTextTheme(base);
-  final display = GoogleFonts.frauncesTextTheme(base);
-
-  return sora.copyWith(
-    displayLarge: display.displayLarge?.copyWith(
-      color: AppPalette.textMain,
-      fontWeight: FontWeight.w700,
-    ),
-    displayMedium: display.displayMedium?.copyWith(
-      color: AppPalette.textMain,
-      fontWeight: FontWeight.w700,
-    ),
-    displaySmall: display.displaySmall?.copyWith(
-      color: AppPalette.textMain,
-      fontWeight: FontWeight.w700,
-    ),
-    headlineMedium: display.headlineMedium?.copyWith(
-      color: AppPalette.textMain,
-      fontWeight: FontWeight.w700,
-    ),
-    titleLarge: sora.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-  );
 }

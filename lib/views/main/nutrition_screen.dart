@@ -22,7 +22,7 @@ class NutritionScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Dự đoán dinh dưỡng -\nSống Khỏe'),
+              const TopBar(title: 'Dự đoán dinh dưỡng'),
               const SizedBox(height: 8),
               const Center(
                 child: Text(
@@ -67,10 +67,25 @@ class NutritionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              PrimaryButton(
-                text: 'Chụp ảnh',
-                icon: Icons.camera_alt_outlined,
-                onPressed: () {},
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    elevation: 3,
+                    backgroundColor: AppPalette.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text(
+                    'Chụp ảnh',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               OutlinedButton.icon(

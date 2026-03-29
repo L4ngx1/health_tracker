@@ -28,7 +28,7 @@ class WorkoutScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Tập luyện - Sống Khỏe'),
+              const TopBar(title: 'Tập luyện'),
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
@@ -76,12 +76,19 @@ class WorkoutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Chế độ tập luyện',
-                    style: TextStyle(fontSize: 38, fontWeight: FontWeight.w900),
+                  Expanded(
+                    child: Text(
+                      'Chế độ tập luyện',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
+                  SizedBox(width: 8),
                   Text(
                     'TẤT CẢ',
                     style: TextStyle(
@@ -106,12 +113,10 @@ class WorkoutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Lịch sử tập\nluyện',
-                style: TextStyle(
-                  fontSize: 40,
-                  height: 0.9,
-                  fontWeight: FontWeight.w900,
-                ),
+                'Lịch sử tập luyện',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               ...history.map(

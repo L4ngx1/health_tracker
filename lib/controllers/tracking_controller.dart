@@ -23,6 +23,16 @@ enum DailyGoalType { steps, distanceKm }
 const _defaultStepGoal = 8000.0;
 const _defaultDistanceGoalKm = 6.0;
 
+bool get _supportsRealtimeTrackingOnCurrentPlatform =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS);
+
+bool get _supportsWorkmanagerOnCurrentPlatform =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS);
+
 @immutable
 class TrackingSnapshot {
   const TrackingSnapshot({
@@ -232,6 +242,10 @@ class TrackingController {
       },
     );
 
+    if (!_supportsRealtimeTrackingOnCurrentPlatform) {
+      return;
+    }
+
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (_isDisposed) return;
     if (serviceEnabled) {
@@ -368,7 +382,7 @@ class TrackingController {
   }
 
   Future<void> registerBackgroundTracking() async {
-    if (kIsWeb) return;
+    if (!_supportsWorkmanagerOnCurrentPlatform) return;
     await Workmanager().registerPeriodicTask(
       _trackingTask,
       _trackingTask,

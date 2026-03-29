@@ -23,7 +23,7 @@ class NotesScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Ghi chú sức khỏe - Sống Khỏe'),
+              const TopBar(title: 'Ghi chú sức khỏe'),
               const SizedBox(height: 20),
               const Center(
                 child: CircleAvatar(

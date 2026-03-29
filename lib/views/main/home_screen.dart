@@ -1,12 +1,10 @@
-import 'dart:math';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/cupertino.dart';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/home_controller.dart';
 import '../../controllers/tracking_controller.dart';
-import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../../models/metric_item.dart';
 import '../widgets/common_widgets.dart';
@@ -20,13 +18,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-  DateTime? _lastGoalNotifyDate;
-  final HomeController _homeController = HomeController();
-  final double _defaultStepGoal = 8000;
-  final double _defaultDistanceGoalKm = 6;
+  static const HomeController _homeController = HomeController();
+  static const _prefGoalKm = 'home.movementGoalKm';
+  static const _prefDistanceHistory = 'home.distanceHistoryKm';
+
   late final TrackingController _trackingController;
+  SharedPreferences? _prefs;
+  double _dailyGoalKm = 6.0;
+  final Map<String, double> _distanceHistoryKm = <String, double>{};
 
   @override
   void initState() {
@@ -34,45 +33,257 @@ class _HomeScreenState extends State<HomeScreen> {
     _trackingController = TrackingController();
     _trackingController.start();
     _trackingController.registerBackgroundTracking();
-    _lastGoalNotifyDate = null;
+    _trackingController.snapshot.addListener(_syncTodayDistanceHistory);
+    _loadMovementConfig();
   }
 
   @override
   void dispose() {
+    _trackingController.snapshot.removeListener(_syncTodayDistanceHistory);
     _trackingController.dispose();
     super.dispose();
   }
 
-  Future<void> _checkAndNotifyGoal(TrackingSnapshot snapshot) async {
-    final isStepGoal = snapshot.goalType == DailyGoalType.steps;
-    final currentValue = isStepGoal
-        ? snapshot.steps.toDouble()
-        : snapshot.distanceMeters / 1000.0;
-    final goalValue = snapshot.goalValue;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    if (_lastGoalNotifyDate == today) return;
-    if (goalValue > 0 && currentValue >= goalValue) {
-      _lastGoalNotifyDate = today;
-      final goalText = isStepGoal
-          ? '${goalValue.toInt()} bước'
-          : '${goalValue.toStringAsFixed(1)} km';
-      await flutterLocalNotificationsPlugin.show(
-        1001,
-        'Chúc mừng! 🎉',
-        'Bạn đã hoàn thành mục tiêu $goalText hôm nay.',
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'goal_channel',
-            'Mục tiêu ngày',
-            channelDescription: 'Thông báo khi hoàn thành mục tiêu ngày',
-            importance: Importance.max,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-          ),
-        ),
-      );
+  String _dayKey(DateTime dt) =>
+      '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  String _shortDayLabel(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+
+  String _formatNumber(num value) {
+    final raw = value.round().toString();
+    return raw.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+  }
+
+  Future<void> _loadMovementConfig() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    _dailyGoalKm = _prefs?.getDouble(_prefGoalKm) ?? 6.0;
+    final historyRaw = _prefs?.getString(_prefDistanceHistory);
+    if (historyRaw != null && historyRaw.isNotEmpty) {
+      final decoded = jsonDecode(historyRaw);
+      if (decoded is Map<String, dynamic>) {
+        for (final entry in decoded.entries) {
+          final value = entry.value;
+          if (value is num) {
+            _distanceHistoryKm[entry.key] = value.toDouble();
+          }
+        }
+      }
     }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _persistMovementConfig() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs?.setDouble(_prefGoalKm, _dailyGoalKm);
+    await _prefs?.setString(
+      _prefDistanceHistory,
+      jsonEncode(_distanceHistoryKm),
+    );
+  }
+
+  void _trimHistory() {
+    if (_distanceHistoryKm.length <= 30) {
+      return;
+    }
+    final sortedKeys = _distanceHistoryKm.keys.toList()..sort();
+    final removeCount = sortedKeys.length - 30;
+    for (var i = 0; i < removeCount; i++) {
+      _distanceHistoryKm.remove(sortedKeys[i]);
+    }
+  }
+
+  void _syncTodayDistanceHistory() {
+    if (_prefs == null) {
+      return;
+    }
+    final today = _dayKey(DateTime.now());
+    final todayKm = _trackingController.snapshot.value.distanceMeters / 1000.0;
+    final previous = _distanceHistoryKm[today] ?? 0;
+    if ((todayKm - previous).abs() < 0.01) {
+      return;
+    }
+    _distanceHistoryKm[today] = todayKm;
+    _trimHistory();
+    _persistMovementConfig();
+  }
+
+  List<MapEntry<DateTime, double>> _last7DaysHistory(double todayKm) {
+    final now = DateTime.now();
+    final map = Map<String, double>.from(_distanceHistoryKm);
+    map[_dayKey(now)] = todayKm;
+    return List.generate(7, (index) {
+      final day = DateTime(now.year, now.month, now.day - (6 - index));
+      final km = map[_dayKey(day)] ?? 0;
+      return MapEntry(day, km);
+    });
+  }
+
+  Future<void> _showMovementSheet({
+    required double distanceKm,
+    required int steps,
+    required int calories,
+  }) async {
+    var draftGoal = _dailyGoalKm;
+    final history = _last7DaysHistory(distanceKm);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 46,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD8E4DD),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Mục tiêu di chuyển',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Hôm nay: ${distanceKm.toStringAsFixed(2)} km • ${_formatNumber(steps)} bước • ${_formatNumber(calories)} kcal',
+                      style: const TextStyle(color: AppPalette.textMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Mục tiêu mỗi ngày: ${draftGoal.toStringAsFixed(1)} km',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppPalette.primaryDark,
+                      ),
+                    ),
+                    Slider(
+                      value: draftGoal,
+                      min: 1,
+                      max: 20,
+                      divisions: 38,
+                      label: '${draftGoal.toStringAsFixed(1)} km',
+                      activeColor: AppPalette.primary,
+                      onChanged: (value) {
+                        setModalState(() {
+                          draftGoal = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Lịch sử 7 ngày gần nhất',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: history.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (_, index) {
+                          final day = history[index].key;
+                          final km = history[index].value;
+                          final ratio = (km / draftGoal).clamp(0.0, 1.0);
+                          return Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FAF8),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE1ECE6),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      _shortDayLabel(day),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${km.toStringAsFixed(2)} km',
+                                      style: const TextStyle(
+                                        color: AppPalette.primaryDark,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: LinearProgressIndicator(
+                                    value: ratio,
+                                    minHeight: 8,
+                                    backgroundColor: const Color(0xFFDCE9E2),
+                                    color: AppPalette.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _dailyGoalKm = draftGoal;
+                          });
+                          _persistMovementConfig();
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text(
+                          'Lưu mục tiêu',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -93,12 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TopBar(
-                title: 'Sống Khỏe\ncùng bạn',
-                onProfileTap: () {
-                  Navigator.of(context).pushNamed(AppRoutes.profile);
-                },
-              ),
+              const TopBar(title: 'Sống khỏe cùng bạn'),
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
@@ -118,9 +324,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'TỔNG QUAN SỨC KHỎE',
                       style: TextStyle(
@@ -151,31 +357,21 @@ class _HomeScreenState extends State<HomeScreen> {
               ValueListenableBuilder<TrackingSnapshot>(
                 valueListenable: _trackingController.snapshot,
                 builder: (context, snapshot, _) {
-                  _checkAndNotifyGoal(snapshot);
-                  final isStepGoal = snapshot.goalType == DailyGoalType.steps;
-                  final stepText = snapshot.steps.toString();
                   final distanceKm = snapshot.distanceMeters / 1000.0;
                   final distanceText = distanceKm.toStringAsFixed(2);
+                  final estimatedSteps = (snapshot.distanceMeters / 0.78)
+                      .round();
+                  final estimatedCalories = (distanceKm * 55).round();
                   final sleepHours = snapshot.sleepMinutes ~/ 60;
                   final sleepRemaining = snapshot.sleepMinutes % 60;
                   final sleepText = '${sleepHours}h ${sleepRemaining}m';
-
-                  final stepMetric = MetricItem(
-                    title: 'BƯỚC CHÂN HÔM NAY',
-                    value: stepText,
-                    unit: 'bước',
-                    subtitle: isStepGoal
-                        ? 'Mục tiêu: ${snapshot.goalValue.toInt()} bước/ngày.'
-                        : 'Đếm bước chân từ cảm biến phần cứng TYPE_STEP_COUNTER.',
-                  );
 
                   final distanceMetric = MetricItem(
                     title: 'QUÃNG ĐƯỜNG HÔM NAY',
                     value: distanceText,
                     unit: 'km',
-                    subtitle: !isStepGoal
-                        ? 'Mục tiêu: ${snapshot.goalValue.toStringAsFixed(1)} km/ngày.'
-                        : 'Sử dụng GPS để tính quãng đường di chuyển hôm nay.',
+                    subtitle:
+                        '${_formatNumber(estimatedSteps)} bước\n${_formatNumber(estimatedCalories)} kcal\nMục tiêu: ${_dailyGoalKm.toStringAsFixed(1)} km/ngày',
                   );
 
                   final sleepMetric = MetricItem(
@@ -197,19 +393,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     otherMetrics.add(sleepMetric);
                   }
 
-                  return Column(
-                    children: [
-                      _buildDailyGoalCard(snapshot),
-                      const SizedBox(height: 10),
-                      HealthGrid(
-                        metrics: [stepMetric, distanceMetric, ...otherMetrics],
-                      ),
-                    ],
+                  return HealthGrid(
+                    metrics: [distanceMetric, ...otherMetrics],
+                    onMetricTap: (index, _) {
+                      if (index != 0) {
+                        return;
+                      }
+                      _showMovementSheet(
+                        distanceKm: distanceKm,
+                        steps: estimatedSteps,
+                        calories: estimatedCalories,
+                      );
+                    },
                   );
                 },
               ),
               const SizedBox(height: 18),
-              Text(
+              const Text(
                 'Khám phá thêm',
                 style: TextStyle(
                   fontSize: 34,
@@ -282,252 +482,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildDailyGoalCard(TrackingSnapshot snapshot) {
-    final isStepGoal = snapshot.goalType == DailyGoalType.steps;
-    final currentValue = isStepGoal
-        ? snapshot.steps.toDouble()
-        : snapshot.distanceMeters / 1000.0;
-    final goalValue = snapshot.goalValue;
-    final progress = goalValue <= 0
-        ? 0.0
-        : (currentValue / goalValue).clamp(0.0, 1.0);
-    final remaining = max(0.0, goalValue - currentValue);
-
-    final goalLabel = isStepGoal
-        ? '${goalValue.toInt()} bước/ngày'
-        : '${goalValue.toStringAsFixed(1)} km/ngày';
-    final remainingLabel = isStepGoal
-        ? '${remaining.toInt()} bước còn lại'
-        : '${remaining.toStringAsFixed(1)} km còn lại';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'MỤC TIÊU HÔM NAY',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              ChoiceChip(
-                label: const Text('Số bước'),
-                selected: isStepGoal,
-                onSelected: (selected) {
-                  if (!selected || isStepGoal) return;
-                  _trackingController.setDailyGoal(
-                    type: DailyGoalType.steps,
-                    value: _defaultStepGoal,
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('KM'),
-                selected: !isStepGoal,
-                onSelected: (selected) {
-                  if (!selected || !isStepGoal) return;
-                  _trackingController.setDailyGoal(
-                    type: DailyGoalType.distanceKm,
-                    value: _defaultDistanceGoalKm,
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Mục tiêu: $goalLabel',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          if (isStepGoal)
-            GestureDetector(
-              onTap: () => _showStepGoalPicker(context, snapshot.goalValue),
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4F4F4),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${snapshot.goalValue.toInt()} bước',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.keyboard_arrow_down_rounded),
-                  ],
-                ),
-              ),
-            )
-          else
-            Slider(
-              value: goalValue,
-              min: 1,
-              max: 30,
-              divisions: 29,
-              label: '${goalValue.toStringAsFixed(1)} km',
-              onChanged: (value) {
-                _trackingController.setDailyGoal(
-                  type: snapshot.goalType,
-                  value: value,
-                );
-              },
-            ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(value: progress, minHeight: 9),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            progress >= 1
-                ? 'Bạn đã hoàn thành mục tiêu hôm nay.'
-                : remainingLabel,
-            style: const TextStyle(color: AppPalette.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showStepGoalPicker(BuildContext context, double currentGoal) {
-    final min = 1000;
-    final max = 30000;
-    final step = 100;
-    final count = ((max - min) ~/ step) + 1;
-    final initialIndex = ((currentGoal - min) ~/ step).clamp(0, count - 1);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.only(
-            top: 18,
-            bottom: 24,
-            left: 18,
-            right: 18,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
-                'Đặt mục tiêu',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Đặt mục tiêu số bước hằng ngày để giúp bạn luôn năng động và khỏe mạnh.',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF181818),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 18,
-                  horizontal: 12,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Số bước hằng ngày',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                      ),
-                    ),
-                    SizedBox(
-                      height: 180,
-                      child: CupertinoPicker(
-                        scrollController: FixedExtentScrollController(
-                          initialItem: initialIndex,
-                        ),
-                        itemExtent: 48,
-                        magnification: 1.3,
-                        useMagnifier: true,
-                        backgroundColor: Colors.transparent,
-                        onSelectedItemChanged: (index) {
-                          final value = min + index * step;
-                          _trackingController.setDailyGoal(
-                            type: DailyGoalType.steps,
-                            value: value.toDouble(),
-                          );
-                        },
-                        children: List.generate(count, (i) {
-                          final value = min + i * step;
-                          return Center(
-                            child: Text(
-                              value.toString().replaceAllMapped(
-                                RegExp(r'\B(?=(\d{3})+(?!\d))'),
-                                (match) => '.',
-                              ),
-                              style: TextStyle(
-                                fontSize: i == initialIndex ? 32 : 22,
-                                color: i == initialIndex
-                                    ? Colors.white
-                                    : Colors.white38,
-                                fontWeight: i == initialIndex
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text(
-                  'Xong',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
