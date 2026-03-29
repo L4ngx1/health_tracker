@@ -1,15 +1,12 @@
 import 'dart:math';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
 
 import '../../controllers/home_controller.dart';
 import '../../controllers/tracking_controller.dart';
-<<<<<<< HEAD
 import '../../core/routes/app_routes.dart';
-=======
-import '../../main.dart';
->>>>>>> TTuan
 import '../../core/theme/app_palette.dart';
 import '../../models/metric_item.dart';
 import '../widgets/common_widgets.dart';
@@ -23,10 +20,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   DateTime? _lastGoalNotifyDate;
-  static const HomeController _homeController = HomeController();
-  static const double _defaultStepGoal = 8000;
-  static const double _defaultDistanceGoalKm = 6;
+  final HomeController _homeController = HomeController();
+  final double _defaultStepGoal = 8000;
+  final double _defaultDistanceGoalKm = 6;
   late final TrackingController _trackingController;
 
   @override
@@ -42,6 +41,38 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _trackingController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkAndNotifyGoal(TrackingSnapshot snapshot) async {
+    final isStepGoal = snapshot.goalType == DailyGoalType.steps;
+    final currentValue = isStepGoal
+        ? snapshot.steps.toDouble()
+        : snapshot.distanceMeters / 1000.0;
+    final goalValue = snapshot.goalValue;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (_lastGoalNotifyDate == today) return;
+    if (goalValue > 0 && currentValue >= goalValue) {
+      _lastGoalNotifyDate = today;
+      final goalText = isStepGoal
+          ? '${goalValue.toInt()} bước'
+          : '${goalValue.toStringAsFixed(1)} km';
+      await flutterLocalNotificationsPlugin.show(
+        1001,
+        'Chúc mừng! 🎉',
+        'Bạn đã hoàn thành mục tiêu $goalText hôm nay.',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'goal_channel',
+            'Mục tiêu ngày',
+            channelDescription: 'Thông báo khi hoàn thành mục tiêu ngày',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -63,11 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TopBar(
-              title: 'Sống Khỏe\ncùng bạn',
-              onProfileTap: () {
-                Navigator.of(context).pushNamed(AppRoutes.profile);
-              },
-            ),
+                title: 'Sống Khỏe\ncùng bạn',
+                onProfileTap: () {
+                  Navigator.of(context).pushNamed(AppRoutes.profile);
+                },
+              ),
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
@@ -87,9 +118,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: const [
                     Text(
                       'TỔNG QUAN SỨC KHỎE',
                       style: TextStyle(
@@ -117,44 +148,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-
               ValueListenableBuilder<TrackingSnapshot>(
                 valueListenable: _trackingController.snapshot,
                 builder: (context, snapshot, _) {
                   _checkAndNotifyGoal(snapshot);
-                  void _checkAndNotifyGoal(TrackingSnapshot snapshot) async {
-                    final isStepGoal = snapshot.goalType == DailyGoalType.steps;
-                    final currentValue = isStepGoal
-                        ? snapshot.steps.toDouble()
-                        : snapshot.distanceMeters / 1000.0;
-                    final goalValue = snapshot.goalValue;
-                    final now = DateTime.now();
-                    final today = DateTime(now.year, now.month, now.day);
-                    if (_lastGoalNotifyDate == today) return;
-                    if (goalValue > 0 && currentValue >= goalValue) {
-                      _lastGoalNotifyDate = today;
-                      final goalText = isStepGoal
-                          ? '${goalValue.toInt()} bước'
-                          : '${goalValue.toStringAsFixed(1)} km';
-                      await flutterLocalNotificationsPlugin.show(
-                        1001,
-                        'Chúc mừng! 🎉',
-                        'Bạn đã hoàn thành mục tiêu $goalText hôm nay.',
-                        const NotificationDetails(
-                          android: AndroidNotificationDetails(
-                            'goal_channel',
-                            'Mục tiêu ngày',
-                            channelDescription:
-                                'Thông báo khi hoàn thành mục tiêu ngày',
-                            importance: Importance.max,
-                            priority: Priority.high,
-                            icon: '@mipmap/ic_launcher',
-                          ),
-                        ),
-                      );
-                    }
-                  }
-
                   final isStepGoal = snapshot.goalType == DailyGoalType.steps;
                   final stepText = snapshot.steps.toString();
                   final distanceKm = snapshot.distanceMeters / 1000.0;
@@ -212,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Khám phá thêm',
                 style: TextStyle(
                   fontSize: 34,
@@ -427,56 +424,104 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.black,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          padding: const EdgeInsets.only(top: 18, bottom: 24),
+          padding: const EdgeInsets.only(
+            top: 18,
+            bottom: 24,
+            left: 18,
+            right: 18,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
-                'Đặt mục tiêu số bước',
+                'Đặt mục tiêu',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                height: 180,
-                child: CupertinoPicker(
-                  scrollController: FixedExtentScrollController(
-                    initialItem: initialIndex,
-                  ),
-                  itemExtent: 48,
-                  magnification: 1.2,
-                  useMagnifier: true,
-                  backgroundColor: Colors.transparent,
-                  onSelectedItemChanged: (index) {
-                    final value = min + index * step;
-                    _trackingController.setDailyGoal(
-                      type: DailyGoalType.steps,
-                      value: value.toDouble(),
-                    );
-                  },
-                  children: List.generate(count, (i) {
-                    final value = min + i * step;
-                    return Center(
-                      child: Text(
-                        value.toString(),
-                        style: const TextStyle(
-                          fontSize: 24,
-                          color: Colors.white,
-                        ),
+              const Text(
+                'Đặt mục tiêu số bước hằng ngày để giúp bạn luôn năng động và khỏe mạnh.',
+                style: TextStyle(fontSize: 16, color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF181818),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: 12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Số bước hằng ngày',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
                       ),
-                    );
-                  }),
+                    ),
+                    SizedBox(
+                      height: 180,
+                      child: CupertinoPicker(
+                        scrollController: FixedExtentScrollController(
+                          initialItem: initialIndex,
+                        ),
+                        itemExtent: 48,
+                        magnification: 1.3,
+                        useMagnifier: true,
+                        backgroundColor: Colors.transparent,
+                        onSelectedItemChanged: (index) {
+                          final value = min + index * step;
+                          _trackingController.setDailyGoal(
+                            type: DailyGoalType.steps,
+                            value: value.toDouble(),
+                          );
+                        },
+                        children: List.generate(count, (i) {
+                          final value = min + i * step;
+                          return Center(
+                            child: Text(
+                              value.toString().replaceAllMapped(
+                                RegExp(r'\B(?=(\d{3})+(?!\d))'),
+                                (match) => '.',
+                              ),
+                              style: TextStyle(
+                                fontSize: i == initialIndex ? 32 : 22,
+                                color: i == initialIndex
+                                    ? Colors.white
+                                    : Colors.white38,
+                                fontWeight: i == initialIndex
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text(
                   'Xong',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
