@@ -58,7 +58,12 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Sống Khỏe\ncùng bạn'),
+              TopBar(
+              title: 'Sống Khỏe\ncùng bạn',
+              onProfileTap: () {
+                Navigator.of(context).pushNamed(AppRoutes.profile);
+              },
+            ),
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,

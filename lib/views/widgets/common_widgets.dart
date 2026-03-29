@@ -2,19 +2,28 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_palette.dart';
 
+const double _kInputRadius = 14.0;
+const double _kButtonRadius = 14.0;
+const double _kControlHeight = 52.0;
+const Color _kInputFill = Color(0xFFF1F6F2);
+
 class TopBar extends StatelessWidget {
-  const TopBar({super.key, required this.title});
+  const TopBar({super.key, required this.title, this.onProfileTap});
 
   final String title;
+  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const CircleAvatar(
-          radius: 16,
-          backgroundColor: Color(0xFFD5E6DE),
-          child: Icon(Icons.person, color: AppPalette.primaryDark, size: 18),
+        GestureDetector(
+          onTap: onProfileTap,
+          child: const CircleAvatar(
+            radius: 16,
+            backgroundColor: Color(0xFFD5E6DE),
+            child: Icon(Icons.person, color: AppPalette.primaryDark, size: 18),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -46,7 +55,7 @@ class BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const BrandIconOnly(),
+        const Hero(tag: 'brandIcon', child: BrandIconOnly()),
         const SizedBox(height: 12),
         const Text(
           'Sống Khỏe',
@@ -70,16 +79,17 @@ class BrandIconOnly extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const double brandSize = 72.0;
     return Container(
-      width: 82,
-      height: 82,
+      width: brandSize,
+      height: brandSize,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFFCEBD9), Color(0xFFAEE7D0)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(brandSize / 2),
         boxShadow: const [
           BoxShadow(
             color: Color(0x1A1B7D5B),
@@ -90,9 +100,47 @@ class BrandIconOnly extends StatelessWidget {
       ),
       child: const Icon(
         Icons.eco_outlined,
-        size: 38,
+        size: 34,
         color: AppPalette.primaryDark,
       ),
+    );
+  }
+}
+
+class AuthSectionHeader extends StatelessWidget {
+  const AuthSectionHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            color: AppPalette.textMain,
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 15,
+            color: AppPalette.textMuted,
+            height: 1.35,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -119,35 +167,82 @@ class InputLabel extends StatelessWidget {
   }
 }
 
-class RoundedInput extends StatelessWidget {
-  const RoundedInput({super.key, required this.hint, required this.icon});
+class RoundedInput extends StatefulWidget {
+  const RoundedInput({
+    super.key,
+    required this.hint,
+    required this.icon,
+    this.controller,
+    this.obscureText = false,
+    this.keyboardType,
+    this.validator,
+    this.focusNode,
+    this.textInputAction,
+    this.onFieldSubmitted,
+    this.autofocus = false,
+  });
 
   final String hint;
   final IconData icon;
+  final TextEditingController? controller;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+  final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
+  final void Function(String)? onFieldSubmitted;
+  final bool autofocus;
+
+  @override
+  State<RoundedInput> createState() => _RoundedInputState();
+}
+
+class _RoundedInputState extends State<RoundedInput> {
+  late bool _obscure;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscure = widget.obscureText;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color: AppPalette.surfaceMuted,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppPalette.divider),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              hint,
-              style: const TextStyle(
-                color: Color(0xFF91A39A),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Icon(icon, color: AppPalette.primaryDark),
-        ],
+    return TextFormField(
+      controller: widget.controller,
+      obscureText: _obscure,
+      keyboardType: widget.keyboardType,
+      validator: widget.validator,
+      focusNode: widget.focusNode,
+      textInputAction: widget.textInputAction,
+      onFieldSubmitted: widget.onFieldSubmitted,
+      autofocus: widget.autofocus,
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        filled: true,
+        fillColor: _kInputFill,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 14,
+          horizontal: 16,
+        ),
+        prefixIcon: Icon(widget.icon, color: AppPalette.primaryDark),
+        suffixIcon: widget.obscureText
+            ? IconButton(
+                icon: Icon(
+                  _obscure ? Icons.visibility_off : Icons.visibility,
+                  color: AppPalette.primaryDark,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscure = !_obscure;
+                  });
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_kInputRadius),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
@@ -158,32 +253,45 @@ class PrimaryButton extends StatelessWidget {
     super.key,
     required this.text,
     this.icon,
+    this.isLoading = false,
     required this.onPressed,
   });
 
   final String text;
   final IconData? icon;
+  final bool isLoading;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      height: _kControlHeight,
       child: ElevatedButton.icon(
-        onPressed: onPressed,
+        onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          elevation: 3,
+          elevation: 4,
           backgroundColor: AppPalette.primary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(_kButtonRadius),
           ),
         ),
-        icon: icon == null ? const SizedBox.shrink() : Icon(icon),
+        icon: isLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: Colors.white,
+                ),
+              )
+            : icon == null
+            ? const SizedBox.shrink()
+            : Icon(icon),
         label: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          isLoading ? 'Đang xử lý...' : text,
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
         ),
       ),
     );
@@ -200,15 +308,15 @@ class SocialButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 56,
-      child: ElevatedButton.icon(
+      height: _kControlHeight,
+      child: OutlinedButton.icon(
         onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          backgroundColor: const Color(0xFFE28A8D),
-          foregroundColor: const Color(0xFF202936),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: AppPalette.primary),
+          backgroundColor: Colors.white,
+          foregroundColor: AppPalette.primaryDark,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(_kButtonRadius),
           ),
         ),
         icon: const CircleAvatar(
@@ -221,7 +329,7 @@ class SocialButton extends StatelessWidget {
         ),
         label: Text(
           text,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
         ),
       ),
     );

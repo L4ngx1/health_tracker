@@ -84,6 +84,7 @@ class TrackingController {
 
   StreamSubscription<StepCount>? _stepSub;
   StreamSubscription<AccelerometerEvent>? _accelSub;
+  bool _isDisposed = false;
   StreamSubscription<Position>? _positionSub;
   int? _lastStepCount;
   double? _lastLat;
@@ -92,6 +93,28 @@ class TrackingController {
   DateTime? _stillStart;
   DateTime? _lastMotion;
   SharedPreferences? _prefs;
+
+  bool get isDisposed => _isDisposed;
+
+  void _safeSetSnapshot(TrackingSnapshot newValue) {
+    if (_isDisposed) return;
+    try {
+      snapshot.value = newValue;
+    } catch (_) {
+      // ignore if notifier was disposed concurrently
+    }
+  }
+
+  void _safeUpdateSnapshot(
+    TrackingSnapshot Function(TrackingSnapshot) updater,
+  ) {
+    if (_isDisposed) return;
+    try {
+      snapshot.value = updater(snapshot.value);
+    } catch (_) {
+      // ignore if notifier was disposed concurrently
+    }
+  }
 
   static DateTime _truncateToDay(DateTime dt) =>
       DateTime(dt.year, dt.month, dt.day);
@@ -112,7 +135,10 @@ class TrackingController {
 
   Future<void> start() async {
     _prefs ??= await SharedPreferences.getInstance();
+    if (_isDisposed) return;
+
     await _loadFromPrefs();
+    if (_isDisposed) return;
 
     if (kIsWeb) return;
 
@@ -125,6 +151,7 @@ class TrackingController {
     );
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (_isDisposed) return;
     if (serviceEnabled) {
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -171,17 +198,15 @@ class TrackingController {
       _prefs?.setString(_prefDayKey, _dayKey(today));
       return;
     }
-    if (position == null) return;
-    final lat = position.latitude as double?;
-    final lon = position.longitude as double?;
-    if (lat == null || lon == null) return;
+    final lat = position.latitude;
+    final lon = position.longitude;
     if (_lastLat != null && _lastLon != null) {
       final distance = _distanceBetween(_lastLat!, _lastLon!, lat, lon);
       if (distance > 1 && distance < 500) {
         final newDistance = snapshot.value.distanceMeters + distance;
-        snapshot.value = snapshot.value.copyWith(
-          distanceMeters: newDistance,
-          lastUpdate: now,
+        _safeUpdateSnapshot(
+          (current) =>
+              current.copyWith(distanceMeters: newDistance, lastUpdate: now),
         );
       }
     }
@@ -236,9 +261,8 @@ class TrackingController {
     final storedSteps = _prefs?.getInt(_prefSteps) ?? 0;
     if (_lastStepCount == null) {
       _lastStepCount = event.steps;
-      snapshot.value = snapshot.value.copyWith(
-        steps: storedSteps,
-        lastUpdate: now,
+      _safeUpdateSnapshot(
+        (current) => current.copyWith(steps: storedSteps, lastUpdate: now),
       );
       return;
     }
@@ -253,11 +277,12 @@ class TrackingController {
       );
       _prefs?.setInt(_prefSteps, newSteps);
     } else {
-      snapshot.value = snapshot.value.copyWith(lastUpdate: now);
+      _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
     }
   }
 
   void _onAccelerometer(AccelerometerEvent event) {
+    if (_isDisposed) return;
     final now = DateTime.now();
     final magnitude = sqrt(
       event.x * event.x + event.y * event.y + event.z * event.z,
@@ -274,7 +299,7 @@ class TrackingController {
       final stillDuration = now.difference(_stillStart!).inMinutes;
       if (stillDuration >= minStillMinutes) {
         if (!snapshot.value.isSleeping) {
-          snapshot.value = snapshot.value.copyWith(isSleeping: true);
+          _safeUpdateSnapshot((current) => current.copyWith(isSleeping: true));
           _prefs?.setString(_prefStillStart, _stillStart!.toIso8601String());
         }
       }
@@ -284,13 +309,13 @@ class TrackingController {
         final sleptMinutes = now.difference(_stillStart!).inMinutes;
         if (sleptMinutes > 0) {
           final total = snapshot.value.sleepMinutes + sleptMinutes;
-          snapshot.value = snapshot.value.copyWith(
-            sleepMinutes: total,
-            isSleeping: false,
+          _safeUpdateSnapshot(
+            (current) =>
+                current.copyWith(sleepMinutes: total, isSleeping: false),
           );
           _prefs?.setInt(_prefSleepMinutes, total);
         } else {
-          snapshot.value = snapshot.value.copyWith(isSleeping: false);
+          _safeUpdateSnapshot((current) => current.copyWith(isSleeping: false));
         }
       }
       _stillStart = null;
@@ -304,15 +329,20 @@ class TrackingController {
       _trackingTask,
       _trackingTask,
       frequency: const Duration(minutes: 15),
-      constraints: Constraints(networkType: NetworkType.not_required),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      constraints: Constraints(networkType: NetworkType.notRequired),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
 
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+
     _stepSub?.cancel();
     _positionSub?.cancel();
+    _positionSub = null;
     _accelSub?.cancel();
+    _accelSub = null;
     snapshot.dispose();
   }
 
@@ -320,6 +350,7 @@ class TrackingController {
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
   Future<void> _loadFromPrefs() async {
+    if (_isDisposed) return;
     final now = DateTime.now();
     final todayKey = _dayKey(now);
     final storedDay = _prefs?.getString(_prefDayKey);
