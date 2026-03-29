@@ -1,20 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../core/theme/app_palette.dart';
 
 class TopBar extends StatelessWidget {
-  const TopBar({super.key, required this.title});
+  const TopBar({super.key, required this.title, this.onUserTap});
 
   final String title;
+  final VoidCallback? onUserTap;
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final hasGoogleProvider =
+        user?.providerData.any((p) => p.providerId == 'google.com') ?? false;
+    final photoUrl = user?.photoURL?.trim();
+    final showGoogleAvatar =
+        hasGoogleProvider && photoUrl != null && photoUrl.isNotEmpty;
+
     return Row(
       children: [
-        const CircleAvatar(
-          radius: 16,
-          backgroundColor: Color(0xFFD5E6DE),
-          child: Icon(Icons.person, color: AppPalette.primaryDark, size: 18),
+        InkWell(
+          onTap: onUserTap,
+          borderRadius: BorderRadius.circular(18),
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: const Color(0xFFD5E6DE),
+            foregroundImage: showGoogleAvatar ? NetworkImage(photoUrl) : null,
+            child: showGoogleAvatar
+                ? null
+                : const Icon(
+                    Icons.person,
+                    color: AppPalette.primaryDark,
+                    size: 18,
+                  ),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -120,34 +140,61 @@ class InputLabel extends StatelessWidget {
 }
 
 class RoundedInput extends StatelessWidget {
-  const RoundedInput({super.key, required this.hint, required this.icon});
+  const RoundedInput({
+    super.key,
+    required this.hint,
+    required this.icon,
+    this.controller,
+    this.keyboardType,
+    this.focusNode,
+    this.textInputAction,
+    this.autofocus = false,
+    this.obscureText = false,
+    this.onFieldSubmitted,
+    this.validator,
+    this.enabled = true,
+  });
 
   final String hint;
   final IconData icon;
+  final TextEditingController? controller;
+  final TextInputType? keyboardType;
+  final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
+  final bool autofocus;
+  final bool obscureText;
+  final ValueChanged<String>? onFieldSubmitted;
+  final String? Function(String?)? validator;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56,
       decoration: BoxDecoration(
         color: AppPalette.surfaceMuted,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppPalette.divider),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              hint,
-              style: const TextStyle(
-                color: Color(0xFF91A39A),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        focusNode: focusNode,
+        textInputAction: textInputAction,
+        autofocus: autofocus,
+        obscureText: obscureText,
+        onFieldSubmitted: onFieldSubmitted,
+        validator: validator,
+        enabled: enabled,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(
+            color: Color(0xFF91A39A),
+            fontWeight: FontWeight.w500,
           ),
-          Icon(icon, color: AppPalette.primaryDark),
-        ],
+          border: InputBorder.none,
+          suffixIcon: Icon(icon, color: AppPalette.primaryDark),
+        ),
       ),
     );
   }
@@ -158,11 +205,13 @@ class PrimaryButton extends StatelessWidget {
     super.key,
     required this.text,
     this.icon,
+    this.isLoading = false,
     required this.onPressed,
   });
 
   final String text;
   final IconData? icon;
+  final bool isLoading;
   final VoidCallback onPressed;
 
   @override
@@ -171,7 +220,7 @@ class PrimaryButton extends StatelessWidget {
       width: double.infinity,
       height: 56,
       child: ElevatedButton.icon(
-        onPressed: onPressed,
+        onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           elevation: 3,
           backgroundColor: AppPalette.primary,
@@ -180,9 +229,18 @@ class PrimaryButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        icon: icon == null ? const SizedBox.shrink() : Icon(icon),
+        icon: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : (icon == null ? const SizedBox.shrink() : Icon(icon)),
         label: Text(
-          text,
+          isLoading ? 'Đang xử lý...' : text,
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),

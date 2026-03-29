@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/workout_controller.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
@@ -28,7 +29,11 @@ class WorkoutScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Tập luyện'),
+              TopBar(
+                title: 'Tập luyện',
+                onUserTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.profile),
+              ),
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,

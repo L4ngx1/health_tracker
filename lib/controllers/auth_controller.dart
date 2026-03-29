@@ -8,6 +8,14 @@ import '../core/routes/app_routes.dart';
 class AuthController {
   const AuthController();
 
+  static bool _googleInitialized = false;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleInitialized) return;
+    await GoogleSignIn.instance.initialize();
+    _googleInitialized = true;
+  }
+
   bool isValidEmail(String? value) {
     if (value == null || value.trim().isEmpty) return false;
     final pattern = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}");
@@ -121,18 +129,21 @@ class AuthController {
         final provider = GoogleAuthProvider();
         await FirebaseAuth.instance.signInWithPopup(provider);
       } else {
-        // Ensure the account chooser appears by signing out any previous
-        // GoogleSignIn session first. This prevents automatic reuse of the
-        // last-used account and lets the user pick a different one.
-        await GoogleSignIn().signOut();
-        final googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) {
-          return 'Đăng nhập Google đã bị hủy.';
+        if (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS) {
+          return 'Google Sign-In hiện chỉ hỗ trợ Android/iOS/Web.';
         }
+        await _ensureGoogleSignInInitialized();
 
-        final googleAuth = await googleUser.authentication;
+        // Force account chooser to avoid silently reusing the previous account.
+        await GoogleSignIn.instance.signOut();
+        final googleUser = await GoogleSignIn.instance.authenticate();
+
+        final googleAuth = googleUser.authentication;
+        if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
+          return 'Không lấy được Google ID token. Vui lòng thử lại.';
+        }
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
         await FirebaseAuth.instance.signInWithCredential(credential);
@@ -140,9 +151,21 @@ class AuthController {
 
       return null;
     } on FirebaseAuthException catch (e) {
+      debugPrint('Google FirebaseAuthException: ${e.code} - ${e.message}');
       return _friendlyError(e);
-    } catch (_) {
-      return 'Có lỗi khi đăng nhập Google.';
+    } on UnimplementedError {
+      return 'Google Sign-In chưa hỗ trợ trên nền tảng hiện tại.';
+    } catch (e) {
+      final raw = e.toString();
+      debugPrint('Google sign-in error: $raw');
+      if (raw.contains('INVALID_CERT_HASH') ||
+          raw.contains('DEVELOPER_ERROR')) {
+        return 'Google Sign-In bị từ chối do SHA1/SHA256 chưa khớp Firebase.';
+      }
+      if (raw.contains('canceled') || raw.contains('cancelled')) {
+        return 'Bạn đã hủy đăng nhập Google.';
+      }
+      return 'Có lỗi khi đăng nhập Google: $raw';
     }
   }
 

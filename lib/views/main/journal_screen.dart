@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/journal_controller.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 
@@ -26,7 +27,11 @@ class JournalScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Nhật ký sức khỏe'),
+              TopBar(
+                title: 'Nhật ký sức khỏe',
+                onUserTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.profile),
+              ),
               const SizedBox(height: 22),
               Container(
                 width: double.infinity,

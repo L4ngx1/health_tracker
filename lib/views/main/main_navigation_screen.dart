@@ -68,7 +68,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       animation: controller,
       builder: (context, _) {
         return Scaffold(
-          body: IndexedStack(index: controller.index, children: pages),
+          body: Stack(
+            children: List.generate(pages.length, (i) {
+              final active = controller.index == i;
+              return IgnorePointer(
+                ignoring: !active,
+                child: AnimatedOpacity(
+                  opacity: active ? 1 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  child: AnimatedSlide(
+                    offset: active ? Offset.zero : const Offset(0.03, 0),
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    child: pages[i],
+                  ),
+                ),
+              );
+            }),
+          ),
           floatingActionButton: controller.index == 1
               ? FloatingActionButton(
                   onPressed: () {},

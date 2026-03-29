@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "607294559860-mc2us7pduuvred23pgfvot58kkn5eap0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.health_tracker",
+            "certificate_hash": "cef8e548ad51546eda939e29d20a702094d1eac5"
+          }
+        },
+        {
+          "client_id": "607294559860-uoe9rl7qarr442j5k56ckrrb9urtpjka.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.health_tracker",
+            "certificate_hash": "1502a1b100d9d82d05873f77b5d3def9593f9a88"
+          }
+        },
+        {
           "client_id": "607294559860-4c9d2skv4vdd1rdffq42fovvtjketikd.apps.googleusercontent.com",
           "client_type": 3
         }

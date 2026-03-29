@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
+
+import '../services/health_cloud_sync_service.dart';
 
 const _trackingTask = 'tracking_background_task';
 const _prefSteps = 'tracking.steps';
@@ -17,11 +20,19 @@ const _prefDayKey = 'tracking.dayKey';
 const _prefStillStart = 'tracking.stillStart';
 const _prefGoalType = 'tracking.goalType';
 const _prefGoalValue = 'tracking.goalValue';
+const _prefMigrationDone = 'tracking.migration.v1';
 
 enum DailyGoalType { steps, distanceKm }
 
 const _defaultStepGoal = 8000.0;
 const _defaultDistanceGoalKm = 6.0;
+
+@pragma('vm:entry-point')
+void trackingCallbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    return true;
+  });
+}
 
 bool get _supportsRealtimeTrackingOnCurrentPlatform =>
     !kIsWeb &&
@@ -84,6 +95,19 @@ class TrackingSnapshot {
 }
 
 class TrackingController {
+  final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
+  DateTime? _lastCloudSyncAt;
+
+  String get _userScope {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 'guest';
+    if (user.isAnonymous) return 'anon_${user.uid}';
+    return user.uid;
+  }
+
+  String _scopedKey(String base) => '$base.$_userScope';
+  String get _migrationKey => '$_prefMigrationDone.$_userScope';
+
   DailyGoalType _goalTypeFromString(String? raw) {
     if (raw == DailyGoalType.distanceKm.name) {
       return DailyGoalType.distanceKm;
@@ -109,6 +133,135 @@ class TrackingController {
   SharedPreferences? _prefs;
 
   bool get isDisposed => _isDisposed;
+
+  Future<void> _migrateLegacyTrackingIfNeeded() async {
+    if (_prefs == null) return;
+    if (_prefs!.getBool(_migrationKey) == true) return;
+
+    final scopedSamples = <String>[
+      _scopedKey(_prefSteps),
+      _scopedKey(_prefDistance),
+      _scopedKey(_prefSleepMinutes),
+      _scopedKey(_prefGoalType),
+      _scopedKey(_prefGoalValue),
+    ];
+    final hasScoped = scopedSamples.any(_prefs!.containsKey);
+
+    if (!hasScoped) {
+      if (_prefs!.containsKey(_prefSteps)) {
+        final v = _prefs!.getInt(_prefSteps);
+        if (v != null) await _prefs!.setInt(_scopedKey(_prefSteps), v);
+      }
+      if (_prefs!.containsKey(_prefDistance)) {
+        final v = _prefs!.getDouble(_prefDistance);
+        if (v != null) await _prefs!.setDouble(_scopedKey(_prefDistance), v);
+      }
+      if (_prefs!.containsKey(_prefSleepMinutes)) {
+        final v = _prefs!.getInt(_prefSleepMinutes);
+        if (v != null) {
+          await _prefs!.setInt(_scopedKey(_prefSleepMinutes), v);
+        }
+      }
+      if (_prefs!.containsKey(_prefGoalType)) {
+        final v = _prefs!.getString(_prefGoalType);
+        if (v != null && v.isNotEmpty) {
+          await _prefs!.setString(_scopedKey(_prefGoalType), v);
+        }
+      }
+      if (_prefs!.containsKey(_prefGoalValue)) {
+        final v = _prefs!.getDouble(_prefGoalValue);
+        if (v != null) await _prefs!.setDouble(_scopedKey(_prefGoalValue), v);
+      }
+      if (_prefs!.containsKey(_prefDayKey)) {
+        final v = _prefs!.getString(_prefDayKey);
+        if (v != null && v.isNotEmpty) {
+          await _prefs!.setString(_scopedKey(_prefDayKey), v);
+        }
+      }
+      if (_prefs!.containsKey(_prefLastLat)) {
+        final v = _prefs!.getDouble(_prefLastLat);
+        if (v != null) await _prefs!.setDouble(_scopedKey(_prefLastLat), v);
+      }
+      if (_prefs!.containsKey(_prefLastLon)) {
+        final v = _prefs!.getDouble(_prefLastLon);
+        if (v != null) await _prefs!.setDouble(_scopedKey(_prefLastLon), v);
+      }
+      if (_prefs!.containsKey(_prefStillStart)) {
+        final v = _prefs!.getString(_prefStillStart);
+        if (v != null && v.isNotEmpty) {
+          await _prefs!.setString(_scopedKey(_prefStillStart), v);
+        }
+      }
+    }
+
+    await _prefs!.setBool(_migrationKey, true);
+  }
+
+  Future<void> _mergeTodayFromCloud() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final cloud = await _cloudSync.loadTodayTracking(uid: uid);
+      if (cloud == null || _isDisposed) return;
+
+      final current = snapshot.value;
+      final cloudGoalType = cloud.goalType == null
+          ? current.goalType
+          : _goalTypeFromString(cloud.goalType);
+      final cloudGoalValue = cloud.goalValue == null
+          ? current.goalValue
+          : _normalizeGoalValue(cloudGoalType, cloud.goalValue!);
+
+      final merged = current.copyWith(
+        steps: max(current.steps, cloud.steps ?? 0),
+        distanceMeters: max(current.distanceMeters, cloud.distanceMeters ?? 0),
+        sleepMinutes: max(current.sleepMinutes, cloud.sleepMinutes ?? 0),
+        goalType: cloudGoalType,
+        goalValue: cloudGoalValue,
+        lastUpdate: DateTime.now(),
+      );
+
+      _safeSetSnapshot(merged);
+      await _prefs?.setInt(_scopedKey(_prefSteps), merged.steps);
+      await _prefs?.setDouble(_scopedKey(_prefDistance), merged.distanceMeters);
+      await _prefs?.setInt(_scopedKey(_prefSleepMinutes), merged.sleepMinutes);
+      await _prefs?.setString(_scopedKey(_prefGoalType), merged.goalType.name);
+      await _prefs?.setDouble(_scopedKey(_prefGoalValue), merged.goalValue);
+      await _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(DateTime.now()));
+    } catch (e) {
+      debugPrint('Cloud merge tracking failed: $e');
+    }
+  }
+
+  void _syncTodayToCloud({bool force = false}) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final now = DateTime.now();
+    if (!force &&
+        _lastCloudSyncAt != null &&
+        now.difference(_lastCloudSyncAt!) < const Duration(seconds: 5)) {
+      return;
+    }
+    _lastCloudSyncAt = now;
+
+    final current = snapshot.value;
+    unawaited(
+      _cloudSync
+          .saveTodayTracking(
+            uid: uid,
+            steps: current.steps,
+            distanceMeters: current.distanceMeters,
+            sleepMinutes: current.sleepMinutes,
+            goalType: current.goalType.name,
+            goalValue: current.goalValue,
+          )
+          .catchError((Object e) {
+            debugPrint('Cloud save tracking failed: $e');
+          }),
+    );
+  }
 
   void _safeSetSnapshot(TrackingSnapshot newValue) {
     if (_isDisposed) return;
@@ -172,17 +325,20 @@ class TrackingController {
       goalValue: normalized,
       lastUpdate: DateTime.now(),
     );
-    await _prefs?.setString(_prefGoalType, type.name);
-    await _prefs?.setDouble(_prefGoalValue, normalized);
+    await _prefs?.setString(_scopedKey(_prefGoalType), type.name);
+    await _prefs?.setDouble(_scopedKey(_prefGoalValue), normalized);
+    _syncTodayToCloud(force: true);
   }
 
   Future<void> _loadFromPrefs() async {
     if (_isDisposed) return;
     final now = DateTime.now();
     final todayKey = _dayKey(now);
-    final storedDay = _prefs?.getString(_prefDayKey);
-    final goalType = _goalTypeFromString(_prefs?.getString(_prefGoalType));
-    final storedGoalValue = _prefs?.getDouble(_prefGoalValue);
+    final storedDay = _prefs?.getString(_scopedKey(_prefDayKey));
+    final goalType = _goalTypeFromString(
+      _prefs?.getString(_scopedKey(_prefGoalType)),
+    );
+    final storedGoalValue = _prefs?.getDouble(_scopedKey(_prefGoalValue));
     final goalValue = _normalizeGoalValue(
       goalType,
       storedGoalValue ??
@@ -198,17 +354,17 @@ class TrackingController {
         ),
       );
       if (_isDisposed) return;
-      await _prefs?.remove(_prefLastLat);
-      await _prefs?.remove(_prefLastLon);
+      await _prefs?.remove(_scopedKey(_prefLastLat));
+      await _prefs?.remove(_scopedKey(_prefLastLon));
       _lastLat = null;
       _lastLon = null;
     } else {
-      final steps = _prefs?.getInt(_prefSteps) ?? 0;
-      final distance = _prefs?.getDouble(_prefDistance) ?? 0.0;
-      final sleepMinutes = _prefs?.getInt(_prefSleepMinutes) ?? 0;
-      final stillStartIso = _prefs?.getString(_prefStillStart);
-      final lastLat = _prefs?.getDouble(_prefLastLat);
-      final lastLon = _prefs?.getDouble(_prefLastLon);
+      final steps = _prefs?.getInt(_scopedKey(_prefSteps)) ?? 0;
+      final distance = _prefs?.getDouble(_scopedKey(_prefDistance)) ?? 0.0;
+      final sleepMinutes = _prefs?.getInt(_scopedKey(_prefSleepMinutes)) ?? 0;
+      final stillStartIso = _prefs?.getString(_scopedKey(_prefStillStart));
+      final lastLat = _prefs?.getDouble(_scopedKey(_prefLastLat));
+      final lastLon = _prefs?.getDouble(_scopedKey(_prefLastLon));
       _lastLat = lastLat;
       _lastLon = lastLon;
       if (_isDisposed) return;
@@ -229,10 +385,18 @@ class TrackingController {
     _prefs ??= await SharedPreferences.getInstance();
     if (_isDisposed) return;
 
-    await _loadFromPrefs();
+    await _migrateLegacyTrackingIfNeeded();
     if (_isDisposed) return;
 
-    if (kIsWeb) return;
+    await _loadFromPrefs();
+    if (_isDisposed) return;
+    await _mergeTodayFromCloud();
+    if (_isDisposed) return;
+    _syncTodayToCloud(force: true);
+
+    if (kIsWeb || !_supportsRealtimeTrackingOnCurrentPlatform) {
+      return;
+    }
 
     _stepSub?.cancel();
     _stepSub = Pedometer.stepCountStream.listen(
@@ -241,10 +405,6 @@ class TrackingController {
         debugPrint('Step counter error: $error');
       },
     );
-
-    if (!_supportsRealtimeTrackingOnCurrentPlatform) {
-      return;
-    }
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (_isDisposed) return;
@@ -298,7 +458,8 @@ class TrackingController {
         steps: newSteps,
         lastUpdate: now,
       );
-      _prefs?.setInt(_prefSteps, newSteps);
+      _prefs?.setInt(_scopedKey(_prefSteps), newSteps);
+      _syncTodayToCloud();
     } else {
       _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
     }
@@ -316,7 +477,7 @@ class TrackingController {
         distanceMeters: 0.0,
         lastUpdate: now,
       );
-      _prefs?.setString(_prefDayKey, _dayKey(today));
+      _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(today));
     }
     // Update distance if lastLat/lon exist
     if (_lastLat != null && _lastLon != null) {
@@ -327,19 +488,21 @@ class TrackingController {
         position.longitude,
       );
       if (distance > 1 && distance < 500) {
-        final currentDistance = _prefs?.getDouble(_prefDistance) ?? 0.0;
+        final currentDistance =
+            _prefs?.getDouble(_scopedKey(_prefDistance)) ?? 0.0;
         final newDistance = currentDistance + distance;
-        _prefs?.setDouble(_prefDistance, newDistance);
+        _prefs?.setDouble(_scopedKey(_prefDistance), newDistance);
         _safeUpdateSnapshot(
           (current) =>
               current.copyWith(distanceMeters: newDistance, lastUpdate: now),
         );
+        _syncTodayToCloud();
       }
     }
     _lastLat = position.latitude;
     _lastLon = position.longitude;
-    _prefs?.setDouble(_prefLastLat, _lastLat!);
-    _prefs?.setDouble(_prefLastLon, _lastLon!);
+    _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
+    _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
   }
 
   void _onAccelerometer(AccelerometerEvent event) {
@@ -358,7 +521,11 @@ class TrackingController {
       if (stillDuration >= minStillMinutes) {
         if (!snapshot.value.isSleeping) {
           _safeUpdateSnapshot((current) => current.copyWith(isSleeping: true));
-          _prefs?.setString(_prefStillStart, _stillStart!.toIso8601String());
+          _prefs?.setString(
+            _scopedKey(_prefStillStart),
+            _stillStart!.toIso8601String(),
+          );
+          _syncTodayToCloud();
         }
       }
     } else {
@@ -371,13 +538,14 @@ class TrackingController {
             (current) =>
                 current.copyWith(sleepMinutes: total, isSleeping: false),
           );
-          _prefs?.setInt(_prefSleepMinutes, total);
+          _prefs?.setInt(_scopedKey(_prefSleepMinutes), total);
+          _syncTodayToCloud();
         } else {
           _safeUpdateSnapshot((current) => current.copyWith(isSleeping: false));
         }
       }
       _stillStart = null;
-      _prefs?.remove(_prefStillStart);
+      _prefs?.remove(_scopedKey(_prefStillStart));
     }
   }
 
@@ -387,8 +555,8 @@ class TrackingController {
       _trackingTask,
       _trackingTask,
       frequency: const Duration(minutes: 15),
-      constraints: Constraints(networkType: NetworkType.notRequired),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+      constraints: Constraints(networkType: NetworkType.not_required),
+      existingWorkPolicy: ExistingWorkPolicy.replace,
     );
   }
 

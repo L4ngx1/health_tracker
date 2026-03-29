@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/home_controller.dart';
 import '../../controllers/tracking_controller.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../../models/metric_item.dart';
+import '../../services/health_cloud_sync_service.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/health_widgets.dart';
 
@@ -21,11 +25,54 @@ class _HomeScreenState extends State<HomeScreen> {
   static const HomeController _homeController = HomeController();
   static const _prefGoalKm = 'home.movementGoalKm';
   static const _prefDistanceHistory = 'home.distanceHistoryKm';
+  static const _prefMigrationDone = 'home.migration.v1';
 
   late final TrackingController _trackingController;
+  final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
   SharedPreferences? _prefs;
+  DateTime? _lastCloudConfigSyncAt;
   double _dailyGoalKm = 6.0;
   final Map<String, double> _distanceHistoryKm = <String, double>{};
+
+  String get _userScope {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 'guest';
+    if (user.isAnonymous) return 'anon_${user.uid}';
+    return user.uid;
+  }
+
+  String _accountKey(String base) => '$base.$_userScope';
+  String get _migrationKey => '$_prefMigrationDone.$_userScope';
+
+  String? get _cloudUid => FirebaseAuth.instance.currentUser?.uid;
+
+  Future<void> _migrateLegacyMovementIfNeeded() async {
+    if (_prefs == null) return;
+    if (_prefs!.getBool(_migrationKey) == true) return;
+
+    final scopedGoalKey = _accountKey(_prefGoalKm);
+    final scopedHistoryKey = _accountKey(_prefDistanceHistory);
+    final hasScoped =
+        _prefs!.containsKey(scopedGoalKey) ||
+        _prefs!.containsKey(scopedHistoryKey);
+
+    if (!hasScoped) {
+      if (_prefs!.containsKey(_prefGoalKm)) {
+        final legacyGoal = _prefs!.getDouble(_prefGoalKm);
+        if (legacyGoal != null) {
+          await _prefs!.setDouble(scopedGoalKey, legacyGoal);
+        }
+      }
+      if (_prefs!.containsKey(_prefDistanceHistory)) {
+        final legacyHistory = _prefs!.getString(_prefDistanceHistory);
+        if (legacyHistory != null && legacyHistory.isNotEmpty) {
+          await _prefs!.setString(scopedHistoryKey, legacyHistory);
+        }
+      }
+    }
+
+    await _prefs!.setBool(_migrationKey, true);
+  }
 
   @override
   void initState() {
@@ -57,8 +104,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadMovementConfig() async {
     _prefs ??= await SharedPreferences.getInstance();
-    _dailyGoalKm = _prefs?.getDouble(_prefGoalKm) ?? 6.0;
-    final historyRaw = _prefs?.getString(_prefDistanceHistory);
+    await _migrateLegacyMovementIfNeeded();
+    _dailyGoalKm = _prefs?.getDouble(_accountKey(_prefGoalKm)) ?? 6.0;
+    final historyRaw = _prefs?.getString(_accountKey(_prefDistanceHistory));
+    _distanceHistoryKm.clear();
     if (historyRaw != null && historyRaw.isNotEmpty) {
       final decoded = jsonDecode(historyRaw);
       if (decoded is Map<String, dynamic>) {
@@ -70,18 +119,67 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     }
+
+    final uid = _cloudUid;
+    if (uid != null) {
+      try {
+        final cloud = await _cloudSync.loadMovementConfig(uid: uid);
+        if (cloud != null) {
+          if (cloud.dailyGoalKm != null) {
+            _dailyGoalKm = cloud.dailyGoalKm!;
+          }
+          if (cloud.distanceHistoryKm != null) {
+            _distanceHistoryKm
+              ..clear()
+              ..addAll(cloud.distanceHistoryKm!);
+          }
+          await _prefs?.setDouble(_accountKey(_prefGoalKm), _dailyGoalKm);
+          await _prefs?.setString(
+            _accountKey(_prefDistanceHistory),
+            jsonEncode(_distanceHistoryKm),
+          );
+        }
+      } catch (e) {
+        debugPrint('Cloud load movement config failed: $e');
+      }
+    }
+
+    await _persistMovementConfig(forceCloud: true);
+
     if (mounted) {
       setState(() {});
     }
   }
 
-  Future<void> _persistMovementConfig() async {
+  Future<void> _persistMovementConfig({bool forceCloud = false}) async {
     _prefs ??= await SharedPreferences.getInstance();
-    await _prefs?.setDouble(_prefGoalKm, _dailyGoalKm);
+    await _prefs?.setDouble(_accountKey(_prefGoalKm), _dailyGoalKm);
     await _prefs?.setString(
-      _prefDistanceHistory,
+      _accountKey(_prefDistanceHistory),
       jsonEncode(_distanceHistoryKm),
     );
+
+    final uid = _cloudUid;
+    if (uid != null) {
+      final now = DateTime.now();
+      if (forceCloud ||
+          _lastCloudConfigSyncAt == null ||
+          now.difference(_lastCloudConfigSyncAt!) >
+              const Duration(seconds: 8)) {
+        _lastCloudConfigSyncAt = now;
+        unawaited(
+          _cloudSync
+              .saveMovementConfig(
+                uid: uid,
+                dailyGoalKm: _dailyGoalKm,
+                distanceHistoryKm: Map<String, double>.from(_distanceHistoryKm),
+              )
+              .catchError((Object e) {
+                debugPrint('Cloud save movement config failed: $e');
+              }),
+        );
+      }
+    }
   }
 
   void _trimHistory() {
@@ -264,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           setState(() {
                             _dailyGoalKm = draftGoal;
                           });
-                          _persistMovementConfig();
+                          _persistMovementConfig(forceCloud: true);
                           Navigator.of(context).pop();
                         },
                         child: const Text(
@@ -304,7 +402,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Sống khỏe cùng bạn'),
+              TopBar(
+                title: 'Sống khỏe cùng bạn',
+                onUserTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.profile),
+              ),
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,

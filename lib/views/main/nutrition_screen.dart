@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 
@@ -22,7 +23,11 @@ class NutritionScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Dự đoán dinh dưỡng'),
+              TopBar(
+                title: 'Dự đoán dinh dưỡng',
+                onUserTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.profile),
+              ),
               const SizedBox(height: 8),
               const Center(
                 child: Text(
