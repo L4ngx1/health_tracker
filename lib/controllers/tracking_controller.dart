@@ -18,6 +18,13 @@ const _prefLastLon = 'tracking.lastLon';
 const _prefSleepMinutes = 'tracking.sleepMinutes';
 const _prefDayKey = 'tracking.dayKey';
 const _prefStillStart = 'tracking.stillStart';
+const _prefGoalType = 'tracking.goalType';
+const _prefGoalValue = 'tracking.goalValue';
+
+enum DailyGoalType { steps, distanceKm }
+
+const _defaultStepGoal = 8000.0;
+const _defaultDistanceGoalKm = 6.0;
 
 @immutable
 class TrackingSnapshot {
@@ -26,6 +33,8 @@ class TrackingSnapshot {
     required this.distanceMeters,
     required this.sleepMinutes,
     required this.isSleeping,
+    required this.goalType,
+    required this.goalValue,
     this.lastUpdate,
   });
 
@@ -34,12 +43,16 @@ class TrackingSnapshot {
       distanceMeters = 0.0,
       sleepMinutes = 0,
       isSleeping = false,
+      goalType = DailyGoalType.steps,
+      goalValue = _defaultStepGoal,
       lastUpdate = null;
 
   final int steps;
   final double distanceMeters;
   final int sleepMinutes;
   final bool isSleeping;
+  final DailyGoalType goalType;
+  final double goalValue;
   final DateTime? lastUpdate;
 
   TrackingSnapshot copyWith({
@@ -47,6 +60,8 @@ class TrackingSnapshot {
     double? distanceMeters,
     int? sleepMinutes,
     bool? isSleeping,
+    DailyGoalType? goalType,
+    double? goalValue,
     DateTime? lastUpdate,
   }) {
     return TrackingSnapshot(
@@ -54,6 +69,8 @@ class TrackingSnapshot {
       distanceMeters: distanceMeters ?? this.distanceMeters,
       sleepMinutes: sleepMinutes ?? this.sleepMinutes,
       isSleeping: isSleeping ?? this.isSleeping,
+      goalType: goalType ?? this.goalType,
+      goalValue: goalValue ?? this.goalValue,
       lastUpdate: lastUpdate ?? this.lastUpdate,
     );
   }
@@ -78,6 +95,20 @@ class TrackingController {
 
   static DateTime _truncateToDay(DateTime dt) =>
       DateTime(dt.year, dt.month, dt.day);
+
+  Future<void> setDailyGoal({
+    required DailyGoalType type,
+    required double value,
+  }) async {
+    final normalized = _normalizeGoalValue(type, value);
+    snapshot.value = snapshot.value.copyWith(
+      goalType: type,
+      goalValue: normalized,
+      lastUpdate: DateTime.now(),
+    );
+    await _prefs?.setString(_prefGoalType, type.name);
+    await _prefs?.setDouble(_prefGoalValue, normalized);
+  }
 
   Future<void> start() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -182,10 +213,17 @@ class TrackingController {
     final today = _truncateToDay(now);
     if (today != _currentDay) {
       _currentDay = today;
-      snapshot.value = const TrackingSnapshot.initial();
+      snapshot.value = snapshot.value.copyWith(
+        steps: 0,
+        distanceMeters: 0,
+        sleepMinutes: 0,
+        isSleeping: false,
+        lastUpdate: now,
+      );
       _prefs?.setString(_prefDayKey, _dayKey(today));
       _prefs?.setInt(_prefSteps, 0);
       _prefs?.setDouble(_prefDistance, 0);
+      _prefs?.setInt(_prefSleepMinutes, 0);
       _prefs?.remove(_prefLastLat);
       _prefs?.remove(_prefLastLon);
       _prefs?.setInt(_prefLastStep, event.steps);
@@ -285,12 +323,30 @@ class TrackingController {
     final now = DateTime.now();
     final todayKey = _dayKey(now);
     final storedDay = _prefs?.getString(_prefDayKey);
+    final goalType = _goalTypeFromString(_prefs?.getString(_prefGoalType));
+    final storedGoalValue = _prefs?.getDouble(_prefGoalValue);
+    final goalValue = _normalizeGoalValue(
+      goalType,
+      storedGoalValue ??
+          (goalType == DailyGoalType.steps
+              ? _defaultStepGoal
+              : _defaultDistanceGoalKm),
+    );
     if (storedDay != null && storedDay != todayKey) {
-      snapshot.value = const TrackingSnapshot.initial();
+      snapshot.value = snapshot.value.copyWith(
+        steps: 0,
+        distanceMeters: 0,
+        sleepMinutes: 0,
+        isSleeping: false,
+        goalType: goalType,
+        goalValue: goalValue,
+      );
       await _prefs?.setString(_prefDayKey, todayKey);
       await _prefs?.setInt(_prefSteps, 0);
       await _prefs?.setDouble(_prefDistance, 0);
       await _prefs?.setInt(_prefSleepMinutes, 0);
+      await _prefs?.setString(_prefGoalType, goalType.name);
+      await _prefs?.setDouble(_prefGoalValue, goalValue);
       await _prefs?.remove(_prefLastLat);
       await _prefs?.remove(_prefLastLon);
       _lastLat = null;
@@ -309,11 +365,29 @@ class TrackingController {
         distanceMeters: distance,
         sleepMinutes: sleepMinutes,
         isSleeping: stillStartIso != null,
+        goalType: goalType,
+        goalValue: goalValue,
       );
       if (stillStartIso != null) {
         _stillStart = DateTime.tryParse(stillStartIso);
       }
     }
+  }
+
+  DailyGoalType _goalTypeFromString(String? raw) {
+    if (raw == DailyGoalType.distanceKm.name) {
+      return DailyGoalType.distanceKm;
+    }
+    return DailyGoalType.steps;
+  }
+
+  double _normalizeGoalValue(DailyGoalType type, double value) {
+    if (type == DailyGoalType.steps) {
+      final rounded = (value / 100).round() * 100;
+      return rounded.clamp(1000, 50000).toDouble();
+    }
+    final normalized = (value * 10).round() / 10;
+    return normalized.clamp(1.0, 50.0).toDouble();
   }
 }
 
@@ -348,7 +422,12 @@ void trackingCallbackDispatcher() {
       if (lastLat != null && lastLon != null) {
         final latitude = position.latitude;
         final longitude = position.longitude;
-        final distance = _backgroundDistanceBetween(lastLat, lastLon, latitude, longitude);
+        final distance = _backgroundDistanceBetween(
+          lastLat,
+          lastLon,
+          latitude,
+          longitude,
+        );
         if (distance > 1 && distance < 500) {
           final currentDistance = prefs.getDouble(_prefDistance) ?? 0;
           await prefs.setDouble(_prefDistance, currentDistance + distance);
@@ -365,7 +444,12 @@ void trackingCallbackDispatcher() {
   });
 }
 
-double _backgroundDistanceBetween(double lat1, double lon1, double lat2, double lon2) {
+double _backgroundDistanceBetween(
+  double lat1,
+  double lon1,
+  double lat2,
+  double lon2,
+) {
   const double R = 6371000;
   final dLat = _backgroundDeg2rad(lat2 - lat1);
   final dLon = _backgroundDeg2rad(lon2 - lon1);
@@ -373,7 +457,8 @@ double _backgroundDistanceBetween(double lat1, double lon1, double lat2, double 
       sin(dLat / 2) * sin(dLat / 2) +
       cos(_backgroundDeg2rad(lat1)) *
           cos(_backgroundDeg2rad(lat2)) *
-          sin(dLon / 2) * sin(dLon / 2);
+          sin(dLon / 2) *
+          sin(dLon / 2);
   final c = 2 * atan2(sqrt(a), sqrt(1 - a));
   return R * c;
 }
