@@ -8,7 +8,6 @@ import 'package:pedometer/pedometer.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
-import '../widget_updater.dart';
 
 const _trackingTask = 'tracking_background_task';
 const _prefSteps = 'tracking.steps';
@@ -185,7 +184,6 @@ class TrackingController {
     _prefs?.setDouble(_prefDistance, snapshot.value.distanceMeters);
     _prefs?.setDouble(_prefLastLat, lat);
     _prefs?.setDouble(_prefLastLon, lon);
-    updateHomeWidget();
   }
 
   double _distanceBetween(double lat1, double lon1, double lat2, double lon2) {
@@ -240,7 +238,6 @@ class TrackingController {
         lastUpdate: now,
       );
       _prefs?.setInt(_prefSteps, newSteps);
-      updateHomeWidget();
     } else {
       _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
     }
@@ -386,12 +383,7 @@ void trackingCallbackDispatcher() {
       if (lastLat != null && lastLon != null) {
         final latitude = position.latitude;
         final longitude = position.longitude;
-        final distance = _backgroundDistanceBetween(
-          lastLat,
-          lastLon,
-          latitude,
-          longitude,
-        );
+        final distance = _backgroundDistanceBetween(lastLat, lastLon, latitude, longitude);
         if (distance > 1 && distance < 500) {
           final currentDistance = prefs.getDouble(_prefDistance) ?? 0;
           await prefs.setDouble(_prefDistance, currentDistance + distance);
@@ -408,12 +400,7 @@ void trackingCallbackDispatcher() {
   });
 }
 
-double _backgroundDistanceBetween(
-  double lat1,
-  double lon1,
-  double lat2,
-  double lon2,
-) {
+double _backgroundDistanceBetween(double lat1, double lon1, double lat2, double lon2) {
   const double R = 6371000;
   final dLat = _backgroundDeg2rad(lat2 - lat1);
   final dLon = _backgroundDeg2rad(lon2 - lon1);
@@ -421,8 +408,7 @@ double _backgroundDistanceBetween(
       sin(dLat / 2) * sin(dLat / 2) +
       cos(_backgroundDeg2rad(lat1)) *
           cos(_backgroundDeg2rad(lat2)) *
-          sin(dLon / 2) *
-          sin(dLon / 2);
+          sin(dLon / 2) * sin(dLon / 2);
   final c = 2 * atan2(sqrt(a), sqrt(1 - a));
   return R * c;
 }
