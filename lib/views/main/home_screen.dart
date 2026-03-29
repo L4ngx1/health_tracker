@@ -1,136 +1,485 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/home_controller.dart';
+import '../../controllers/tracking_controller.dart';
 import '../../core/theme/app_palette.dart';
+import '../../models/metric_item.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/health_widgets.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    const controller = HomeController();
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const TopBar(title: 'Song Khoe\ncung ban'),
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1EA96C), Color(0xFF0E995E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+class _HomeScreenState extends State<HomeScreen> {
+  static const HomeController _homeController = HomeController();
+  static const _prefGoalKm = 'home.movementGoalKm';
+  static const _prefDistanceHistory = 'home.distanceHistoryKm';
+
+  late final TrackingController _trackingController;
+  SharedPreferences? _prefs;
+  double _dailyGoalKm = 6.0;
+  final Map<String, double> _distanceHistoryKm = <String, double>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _trackingController = TrackingController();
+    _trackingController.start();
+    _trackingController.registerBackgroundTracking();
+    _trackingController.snapshot.addListener(_syncTodayDistanceHistory);
+    _loadMovementConfig();
+  }
+
+  @override
+  void dispose() {
+    _trackingController.snapshot.removeListener(_syncTodayDistanceHistory);
+    _trackingController.dispose();
+    super.dispose();
+  }
+
+  String _dayKey(DateTime dt) =>
+      '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  String _shortDayLabel(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+
+  String _formatNumber(num value) {
+    final raw = value.round().toString();
+    return raw.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+  }
+
+  Future<void> _loadMovementConfig() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    _dailyGoalKm = _prefs?.getDouble(_prefGoalKm) ?? 6.0;
+    final historyRaw = _prefs?.getString(_prefDistanceHistory);
+    if (historyRaw != null && historyRaw.isNotEmpty) {
+      final decoded = jsonDecode(historyRaw);
+      if (decoded is Map<String, dynamic>) {
+        for (final entry in decoded.entries) {
+          final value = entry.value;
+          if (value is num) {
+            _distanceHistoryKm[entry.key] = value.toDouble();
+          }
+        }
+      }
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _persistMovementConfig() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs?.setDouble(_prefGoalKm, _dailyGoalKm);
+    await _prefs?.setString(
+      _prefDistanceHistory,
+      jsonEncode(_distanceHistoryKm),
+    );
+  }
+
+  void _trimHistory() {
+    if (_distanceHistoryKm.length <= 30) {
+      return;
+    }
+    final sortedKeys = _distanceHistoryKm.keys.toList()..sort();
+    final removeCount = sortedKeys.length - 30;
+    for (var i = 0; i < removeCount; i++) {
+      _distanceHistoryKm.remove(sortedKeys[i]);
+    }
+  }
+
+  void _syncTodayDistanceHistory() {
+    if (_prefs == null) {
+      return;
+    }
+    final today = _dayKey(DateTime.now());
+    final todayKm = _trackingController.snapshot.value.distanceMeters / 1000.0;
+    final previous = _distanceHistoryKm[today] ?? 0;
+    if ((todayKm - previous).abs() < 0.01) {
+      return;
+    }
+    _distanceHistoryKm[today] = todayKm;
+    _trimHistory();
+    _persistMovementConfig();
+  }
+
+  List<MapEntry<DateTime, double>> _last7DaysHistory(double todayKm) {
+    final now = DateTime.now();
+    final map = Map<String, double>.from(_distanceHistoryKm);
+    map[_dayKey(now)] = todayKm;
+    return List.generate(7, (index) {
+      final day = DateTime(now.year, now.month, now.day - (6 - index));
+      final km = map[_dayKey(day)] ?? 0;
+      return MapEntry(day, km);
+    });
+  }
+
+  Future<void> _showMovementSheet({
+    required double distanceKm,
+    required int steps,
+    required int calories,
+  }) async {
+    var draftGoal = _dailyGoalKm;
+    final history = _last7DaysHistory(distanceKm);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 46,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD8E4DD),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Mục tiêu di chuyển',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Hôm nay: ${distanceKm.toStringAsFixed(2)} km • ${_formatNumber(steps)} bước • ${_formatNumber(calories)} kcal',
+                      style: const TextStyle(color: AppPalette.textMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Mục tiêu mỗi ngày: ${draftGoal.toStringAsFixed(1)} km',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppPalette.primaryDark,
+                      ),
+                    ),
+                    Slider(
+                      value: draftGoal,
+                      min: 1,
+                      max: 20,
+                      divisions: 38,
+                      label: '${draftGoal.toStringAsFixed(1)} km',
+                      activeColor: AppPalette.primary,
+                      onChanged: (value) {
+                        setModalState(() {
+                          draftGoal = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Lịch sử 7 ngày gần nhất',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: history.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (_, index) {
+                          final day = history[index].key;
+                          final km = history[index].value;
+                          final ratio = (km / draftGoal).clamp(0.0, 1.0);
+                          return Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FAF8),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE1ECE6),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      _shortDayLabel(day),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${km.toStringAsFixed(2)} km',
+                                      style: const TextStyle(
+                                        color: AppPalette.primaryDark,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: LinearProgressIndicator(
+                                    value: ratio,
+                                    minHeight: 8,
+                                    backgroundColor: const Color(0xFFDCE9E2),
+                                    color: AppPalette.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _dailyGoalKm = draftGoal;
+                          });
+                          _persistMovementConfig();
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text(
+                          'Lưu mục tiêu',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'TONG QUAN SUC KHOE',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final staticMetrics = _homeController.getMetrics();
+
+    return SafeArea(
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF7F3EC), Color(0xFFF2F8F4)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const TopBar(title: 'Sống khỏe cùng bạn'),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1B7D5B), Color(0xFF0E5C41)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A0F3A2E),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
                     ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Tuyet voi! Ban\ndang di dung\nhuong.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      height: 1.05,
+                  ],
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TỔNG QUAN SỨC KHỎE',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Hom nay ban da giu nhip sinh hoat\ndeu va ngu kha tot.',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ],
+                    SizedBox(height: 10),
+                    Text(
+                      'Tuyệt vời! Bạn\nđang đi đúng\nhướng.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        height: 1.05,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Hôm nay bạn đã giữ nhịp sinh hoạt\nđều và ngủ khá tốt.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            HealthGrid(metrics: controller.getMetrics()),
-            const SizedBox(height: 18),
-            const Text(
-              'Kham pha them',
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.w900,
-                color: AppPalette.textMain,
+              const SizedBox(height: 12),
+              ValueListenableBuilder<TrackingSnapshot>(
+                valueListenable: _trackingController.snapshot,
+                builder: (context, snapshot, _) {
+                  final distanceKm = snapshot.distanceMeters / 1000.0;
+                  final distanceText = distanceKm.toStringAsFixed(2);
+                  final estimatedSteps = (snapshot.distanceMeters / 0.78)
+                      .round();
+                  final estimatedCalories = (distanceKm * 55).round();
+                  final sleepHours = snapshot.sleepMinutes ~/ 60;
+                  final sleepRemaining = snapshot.sleepMinutes % 60;
+                  final sleepText = '${sleepHours}h ${sleepRemaining}m';
+
+                  final distanceMetric = MetricItem(
+                    title: 'QUÃNG ĐƯỜNG HÔM NAY',
+                    value: distanceText,
+                    unit: 'km',
+                    subtitle:
+                        '${_formatNumber(estimatedSteps)} bước\n${_formatNumber(estimatedCalories)} kcal\nMục tiêu: ${_dailyGoalKm.toStringAsFixed(1)} km/ngày',
+                  );
+
+                  final sleepMetric = MetricItem(
+                    title: 'GIẤC NGỦ HÔM NAY',
+                    value: sleepText,
+                    unit: '',
+                    subtitle: snapshot.isSleeping
+                        ? 'Đang nghỉ ngơi - phát hiện đứng yên lâu.'
+                        : 'Ước lượng từ cảm biến gia tốc.',
+                    showProgress: true,
+                  );
+
+                  final otherMetrics = staticMetrics.length > 1
+                      ? staticMetrics.sublist(1)
+                      : <MetricItem>[];
+                  if (otherMetrics.isNotEmpty) {
+                    otherMetrics[otherMetrics.length - 1] = sleepMetric;
+                  } else {
+                    otherMetrics.add(sleepMetric);
+                  }
+
+                  return HealthGrid(
+                    metrics: [distanceMetric, ...otherMetrics],
+                    onMetricTap: (index, _) {
+                      if (index != 0) {
+                        return;
+                      }
+                      _showMovementSheet(
+                        distanceKm: distanceKm,
+                        steps: estimatedSteps,
+                        calories: estimatedCalories,
+                      );
+                    },
+                  );
+                },
               ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: Colors.white,
+              const SizedBox(height: 18),
+              const Text(
+                'Khám phá thêm',
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  color: AppPalette.textMain,
+                ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: const Color(0xFFE7F1EC),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.white,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFFE7F1EC),
+                      ),
+                      child: const Icon(
+                        Icons.self_improvement,
+                        color: AppPalette.primaryDark,
+                        size: 34,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.self_improvement,
-                      color: AppPalette.primaryDark,
-                      size: 34,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'LUYEN TAP',
-                          style: TextStyle(
-                            color: AppPalette.textMuted,
-                            fontSize: 11,
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'LUYỆN TẬP',
+                            style: TextStyle(
+                              color: AppPalette.textMuted,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          '10 phut Yoga\nsang',
-                          style: TextStyle(
-                            fontSize: 32,
-                            height: 0.95,
-                            fontWeight: FontWeight.w900,
+                          SizedBox(height: 3),
+                          Text(
+                            '10 phút Yoga\nsáng',
+                            style: TextStyle(
+                              fontSize: 32,
+                              height: 0.95,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 5),
-                        Text('Thu gian co the va bat\ndau ngay moi nhe nhang'),
-                      ],
+                          SizedBox(height: 5),
+                          Text(
+                            'Thư giãn cơ thể và bắt\nđầu ngày mới nhẹ nhàng',
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const CircleAvatar(
-                    backgroundColor: Color(0xFFE4EFEA),
-                    child: Icon(
-                      Icons.chevron_right,
-                      color: AppPalette.primaryDark,
+                    const CircleAvatar(
+                      backgroundColor: Color(0xFFE4EFEA),
+                      child: Icon(
+                        Icons.chevron_right,
+                        color: AppPalette.primaryDark,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-          ],
+              const SizedBox(height: 14),
+            ],
+          ),
         ),
       ),
     );

@@ -14,13 +14,21 @@ class WorkoutCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F7F5),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDCE9E2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A0F3A2E),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: const Color(0xFFA8E7C7),
+            backgroundColor: const Color(0xFFBDEFD5),
             child: Icon(item.icon, color: AppPalette.primaryDark),
           ),
           const SizedBox(width: 8),
@@ -31,13 +39,18 @@ class WorkoutCard extends StatelessWidget {
               children: [
                 Text(
                   item.title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                  ),
                 ),
                 Text(
                   item.subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppPalette.textMuted,
-                    fontSize: 11,
+                    fontSize: 12,
                   ),
                 ),
               ],

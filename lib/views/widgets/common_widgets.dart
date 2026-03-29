@@ -49,12 +49,13 @@ class BrandHeader extends StatelessWidget {
         const BrandIconOnly(),
         const SizedBox(height: 12),
         const Text(
-          'Song Khoe',
+          'Sống Khỏe',
           style: TextStyle(
             fontSize: 44,
             fontWeight: FontWeight.w900,
             color: AppPalette.textMain,
             height: 0.95,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
@@ -73,8 +74,19 @@ class BrandIconOnly extends StatelessWidget {
       width: 82,
       height: 82,
       decoration: BoxDecoration(
-        color: const Color(0xFFA8E7C7),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFCEBD9), Color(0xFFAEE7D0)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(40),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A1B7D5B),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: const Icon(
         Icons.eco_outlined,
@@ -118,8 +130,9 @@ class RoundedInput extends StatelessWidget {
     return Container(
       height: 56,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF0ED),
+        color: AppPalette.surfaceMuted,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppPalette.divider),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
@@ -188,27 +201,39 @@ class SocialButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: ElevatedButton.icon(
+      child: OutlinedButton(
         onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          backgroundColor: const Color(0xFFE28A8D),
-          foregroundColor: const Color(0xFF202936),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1F1F1F),
+          side: const BorderSide(color: Color(0xFFDADCE0)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
         ),
-        icon: const CircleAvatar(
-          radius: 11,
-          backgroundColor: Colors.white,
-          child: Text(
-            'G',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.red),
-          ),
-        ),
-        label: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/google_logo.png',
+              width: 22,
+              height: 22,
+              filterQuality: FilterQuality.high,
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                text,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  color: Color(0xFF202124),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
