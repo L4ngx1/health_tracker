@@ -9,15 +9,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../services/health_cloud_sync_service.dart';
+import '../services/widget_sync_service.dart';
 
 const _trackingTask = 'tracking_background_task';
 const _prefSteps = 'tracking.steps';
+const _prefStepBase = 'tracking.stepBase';
 const _prefDistance = 'tracking.distanceMeters';
 const _prefLastLat = 'tracking.lastLat';
 const _prefLastLon = 'tracking.lastLon';
 const _prefSleepMinutes = 'tracking.sleepMinutes';
 const _prefDayKey = 'tracking.dayKey';
-const _prefStillStart = 'tracking.stillStart';
 const _prefGoalType = 'tracking.goalType';
 const _prefGoalValue = 'tracking.goalValue';
 const _prefMigrationDone = 'tracking.migration.v1';
@@ -124,15 +125,50 @@ class TrackingController {
   StreamSubscription<AccelerometerEvent>? _accelSub;
   bool _isDisposed = false;
   StreamSubscription<Position>? _positionSub;
-  int? _lastStepCount;
+  int? _stepBase;
+  int _distanceStepAnchor = 0;
+  DateTime? _lastStepIncreaseAt;
   double? _lastLat;
   double? _lastLon;
   DateTime _currentDay = _truncateToDay(DateTime.now());
-  DateTime? _stillStart;
-  DateTime? _lastMotion;
+  DateTime? _currentEpochMinute;
+  DateTime? _lastMovementSpikeAt;
+  int _movementCountCurrentMinute = 0;
+  int _stepsCurrentMinute = 0;
+  final Map<int, int> _activityByMinute = <int, int>{};
+  final Map<int, int> _stepsByMinute = <int, int>{};
+  final Set<int> _finalizedSleepMinutes = <int>{};
   SharedPreferences? _prefs;
 
+  static const double _movementThreshold = 0.45;
+  static const int _spikeCooldownMs = 800;
+  static const double _sleepScoreThreshold = 3.2;
+  static const int _windowKeepMinutes = 180;
+  static const int _stepWakeThresholdPerMinute = 8;
+  static const double _maxAcceptedAccuracyMeters = 30.0;
+  static const double _minMovementDistanceMeters = 2.5;
+  static const double _maxSingleJumpMeters = 120.0;
+  static const double _maxStationaryDriftMeters = 15.0;
+  static const int _stepMovementFreshSeconds = 75;
+  static const double _minSpeedMetersPerSecond = 1.2;
+
   bool get isDisposed => _isDisposed;
+
+  Future<void> _syncDistanceWidget() {
+    final double distanceKm = snapshot.value.distanceMeters / 1000.0;
+    final int steps = snapshot.value.steps;
+    final int calories = (distanceKm * 55).round();
+    final double goalKm = snapshot.value.goalType == DailyGoalType.distanceKm
+        ? snapshot.value.goalValue
+        : _defaultDistanceGoalKm;
+
+    return WidgetSyncService.instance.syncDistanceCard(
+      steps: steps,
+      distanceKm: distanceKm,
+      calories: calories,
+      goalKm: goalKm,
+    );
+  }
 
   Future<void> _migrateLegacyTrackingIfNeeded() async {
     if (_prefs == null) return;
@@ -140,6 +176,7 @@ class TrackingController {
 
     final scopedSamples = <String>[
       _scopedKey(_prefSteps),
+      _scopedKey(_prefStepBase),
       _scopedKey(_prefDistance),
       _scopedKey(_prefSleepMinutes),
       _scopedKey(_prefGoalType),
@@ -151,6 +188,10 @@ class TrackingController {
       if (_prefs!.containsKey(_prefSteps)) {
         final v = _prefs!.getInt(_prefSteps);
         if (v != null) await _prefs!.setInt(_scopedKey(_prefSteps), v);
+      }
+      if (_prefs!.containsKey(_prefStepBase)) {
+        final v = _prefs!.getInt(_prefStepBase);
+        if (v != null) await _prefs!.setInt(_scopedKey(_prefStepBase), v);
       }
       if (_prefs!.containsKey(_prefDistance)) {
         final v = _prefs!.getDouble(_prefDistance);
@@ -185,12 +226,6 @@ class TrackingController {
       if (_prefs!.containsKey(_prefLastLon)) {
         final v = _prefs!.getDouble(_prefLastLon);
         if (v != null) await _prefs!.setDouble(_scopedKey(_prefLastLon), v);
-      }
-      if (_prefs!.containsKey(_prefStillStart)) {
-        final v = _prefs!.getString(_prefStillStart);
-        if (v != null && v.isNotEmpty) {
-          await _prefs!.setString(_scopedKey(_prefStillStart), v);
-        }
       }
     }
 
@@ -229,6 +264,7 @@ class TrackingController {
       await _prefs?.setString(_scopedKey(_prefGoalType), merged.goalType.name);
       await _prefs?.setDouble(_scopedKey(_prefGoalValue), merged.goalValue);
       await _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(DateTime.now()));
+      unawaited(_syncDistanceWidget());
     } catch (e) {
       debugPrint('Cloud merge tracking failed: $e');
     }
@@ -328,6 +364,41 @@ class TrackingController {
     await _prefs?.setString(_scopedKey(_prefGoalType), type.name);
     await _prefs?.setDouble(_scopedKey(_prefGoalValue), normalized);
     _syncTodayToCloud(force: true);
+    unawaited(_syncDistanceWidget());
+  }
+
+  Future<void> resetTodayMovement() async {
+    final DateTime now = DateTime.now();
+    final String todayKey = _dayKey(now);
+
+    if (_stepBase != null) {
+      _stepBase = _stepBase! + snapshot.value.steps;
+      await _prefs?.setInt(_scopedKey(_prefStepBase), _stepBase!);
+    } else {
+      await _prefs?.remove(_scopedKey(_prefStepBase));
+    }
+
+    _lastLat = null;
+    _lastLon = null;
+    await _prefs?.remove(_scopedKey(_prefLastLat));
+    await _prefs?.remove(_scopedKey(_prefLastLon));
+
+    _stepsCurrentMinute = 0;
+    _stepsByMinute.clear();
+    _distanceStepAnchor = 0;
+    _lastStepIncreaseAt = null;
+
+    _safeUpdateSnapshot(
+      (current) =>
+          current.copyWith(steps: 0, distanceMeters: 0.0, lastUpdate: now),
+    );
+
+    await _prefs?.setInt(_scopedKey(_prefSteps), 0);
+    await _prefs?.setDouble(_scopedKey(_prefDistance), 0.0);
+    await _prefs?.setString(_scopedKey(_prefDayKey), todayKey);
+
+    _syncTodayToCloud(force: true);
+    await _syncDistanceWidget();
   }
 
   Future<void> _loadFromPrefs() async {
@@ -356,15 +427,20 @@ class TrackingController {
       if (_isDisposed) return;
       await _prefs?.remove(_scopedKey(_prefLastLat));
       await _prefs?.remove(_scopedKey(_prefLastLon));
+      await _prefs?.remove(_scopedKey(_prefStepBase));
       _lastLat = null;
       _lastLon = null;
+      _stepBase = null;
+      await _prefs?.setString(_scopedKey(_prefDayKey), todayKey);
     } else {
       final steps = _prefs?.getInt(_scopedKey(_prefSteps)) ?? 0;
       final distance = _prefs?.getDouble(_scopedKey(_prefDistance)) ?? 0.0;
       final sleepMinutes = _prefs?.getInt(_scopedKey(_prefSleepMinutes)) ?? 0;
-      final stillStartIso = _prefs?.getString(_scopedKey(_prefStillStart));
+      final stepBase = _prefs?.getInt(_scopedKey(_prefStepBase));
       final lastLat = _prefs?.getDouble(_scopedKey(_prefLastLat));
       final lastLon = _prefs?.getDouble(_scopedKey(_prefLastLon));
+      _stepBase = stepBase;
+      _distanceStepAnchor = steps;
       _lastLat = lastLat;
       _lastLon = lastLon;
       if (_isDisposed) return;
@@ -373,12 +449,115 @@ class TrackingController {
           steps: steps,
           distanceMeters: distance,
           sleepMinutes: sleepMinutes,
-          isSleeping: stillStartIso != null,
+          isSleeping: false,
           goalType: goalType,
           goalValue: goalValue,
         ),
       );
+      if (storedDay == null || storedDay.isEmpty) {
+        await _prefs?.setString(_scopedKey(_prefDayKey), todayKey);
+      }
+      unawaited(_syncDistanceWidget());
     }
+  }
+
+  int _minuteIndex(DateTime dt) => dt.millisecondsSinceEpoch ~/ 60000;
+
+  DateTime _minuteStart(DateTime dt) =>
+      DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute);
+
+  bool _isSleepingMinute(int minuteIndex) {
+    final int pMinus2 = _activityByMinute[minuteIndex - 2] ?? 0;
+    final int pMinus1 = _activityByMinute[minuteIndex - 1] ?? 0;
+    final int p0 = _activityByMinute[minuteIndex] ?? 0;
+    final int pPlus1 = _activityByMinute[minuteIndex + 1] ?? 0;
+    final int stepDelta = _stepsByMinute[minuteIndex] ?? 0;
+
+    if (stepDelta >= _stepWakeThresholdPerMinute) {
+      return false;
+    }
+
+    final double score =
+        (0.15 * pMinus2) +
+        (0.25 * pMinus1) +
+        (0.4 * p0) +
+        (0.2 * pPlus1) +
+        (stepDelta * 0.25);
+    return score < _sleepScoreThreshold;
+  }
+
+  void _finalizeSleepMinuteIfReady(int minuteIndex, DateTime now) {
+    if (_finalizedSleepMinutes.contains(minuteIndex)) {
+      return;
+    }
+    if (!_activityByMinute.containsKey(minuteIndex + 1)) {
+      return;
+    }
+
+    _finalizedSleepMinutes.add(minuteIndex);
+    final bool sleeping = _isSleepingMinute(minuteIndex);
+    final int added = sleeping ? 1 : 0;
+    final int total = snapshot.value.sleepMinutes + added;
+
+    _safeUpdateSnapshot(
+      (current) => current.copyWith(
+        sleepMinutes: total,
+        isSleeping: sleeping,
+        lastUpdate: now,
+      ),
+    );
+    _prefs?.setInt(_scopedKey(_prefSleepMinutes), total);
+    _syncTodayToCloud();
+  }
+
+  void _pruneSleepWindows(int currentMinuteIndex) {
+    final int keepFrom = currentMinuteIndex - _windowKeepMinutes;
+    _activityByMinute.removeWhere((key, _) => key < keepFrom);
+    _stepsByMinute.removeWhere((key, _) => key < keepFrom);
+    _finalizedSleepMinutes.removeWhere((key) => key < keepFrom);
+  }
+
+  void _resetDailySleep(DateTime now) {
+    _safeUpdateSnapshot(
+      (current) =>
+          current.copyWith(sleepMinutes: 0, isSleeping: false, lastUpdate: now),
+    );
+    _prefs?.setInt(_scopedKey(_prefSleepMinutes), 0);
+    _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(now));
+
+    _currentEpochMinute = _minuteStart(now);
+    _movementCountCurrentMinute = 0;
+    _stepsCurrentMinute = 0;
+    _activityByMinute.clear();
+    _stepsByMinute.clear();
+    _finalizedSleepMinutes.clear();
+  }
+
+  void _rollEpochWindow(DateTime now) {
+    final DateTime minute = _minuteStart(now);
+    _currentEpochMinute ??= minute;
+
+    if (minute == _currentEpochMinute) {
+      return;
+    }
+
+    final int previousMinuteIndex = _minuteIndex(_currentEpochMinute!);
+    final int currentMinuteIndex = _minuteIndex(minute);
+
+    _activityByMinute[previousMinuteIndex] = _movementCountCurrentMinute;
+    _stepsByMinute[previousMinuteIndex] = _stepsCurrentMinute;
+    _finalizeSleepMinuteIfReady(previousMinuteIndex - 1, now);
+
+    for (int idx = previousMinuteIndex + 1; idx < currentMinuteIndex; idx++) {
+      _activityByMinute[idx] = 0;
+      _stepsByMinute[idx] = 0;
+      _finalizeSleepMinuteIfReady(idx - 1, now);
+    }
+
+    _movementCountCurrentMinute = 0;
+    _stepsCurrentMinute = 0;
+    _currentEpochMinute = minute;
+    _pruneSleepWindows(currentMinuteIndex);
   }
 
   Future<void> start() async {
@@ -393,6 +572,7 @@ class TrackingController {
     await _mergeTodayFromCloud();
     if (_isDisposed) return;
     _syncTodayToCloud(force: true);
+    unawaited(_syncDistanceWidget());
 
     if (kIsWeb || !_supportsRealtimeTrackingOnCurrentPlatform) {
       return;
@@ -443,26 +623,49 @@ class TrackingController {
   void _onStepCount(StepCount event) {
     if (_isDisposed) return;
     final now = DateTime.now();
-    if (_lastStepCount == null) {
-      _lastStepCount = event.steps;
+    _rollEpochWindow(now);
+
+    final String todayKey = _dayKey(now);
+    final String? storedDay = _prefs?.getString(_scopedKey(_prefDayKey));
+    if (storedDay != todayKey) {
+      _prefs?.setString(_scopedKey(_prefDayKey), todayKey);
+      _prefs?.setInt(_scopedKey(_prefSteps), 0);
+      _prefs?.setInt(_scopedKey(_prefStepBase), event.steps);
+      _stepBase = event.steps;
+      _distanceStepAnchor = 0;
+      _lastStepIncreaseAt = null;
       _safeUpdateSnapshot(
-        (current) => current.copyWith(steps: event.steps, lastUpdate: now),
+        (current) => current.copyWith(steps: 0, lastUpdate: now),
       );
+      _syncTodayToCloud(force: true);
+      unawaited(_syncDistanceWidget());
       return;
     }
-    final delta = event.steps - _lastStepCount!;
-    _lastStepCount = event.steps;
+
+    if (_stepBase == null) {
+      _stepBase = _prefs?.getInt(_scopedKey(_prefStepBase)) ?? event.steps;
+      _prefs?.setInt(_scopedKey(_prefStepBase), _stepBase!);
+    }
+
+    final int nextSteps = max(0, event.steps - _stepBase!);
+    final int delta = max(0, nextSteps - snapshot.value.steps);
     if (delta > 0) {
-      final newSteps = snapshot.value.steps + delta;
+      _stepsCurrentMinute += delta;
+      _lastStepIncreaseAt = now;
+    }
+
+    if (nextSteps != snapshot.value.steps) {
       snapshot.value = snapshot.value.copyWith(
-        steps: newSteps,
+        steps: nextSteps,
         lastUpdate: now,
       );
-      _prefs?.setInt(_scopedKey(_prefSteps), newSteps);
+      _prefs?.setInt(_scopedKey(_prefSteps), nextSteps);
       _syncTodayToCloud();
-    } else {
-      _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
+      unawaited(_syncDistanceWidget());
+      return;
     }
+
+    _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
   }
 
   void _onPosition(Position position) {
@@ -473,13 +676,39 @@ class TrackingController {
       _currentDay = today;
       _lastLat = null;
       _lastLon = null;
+      _stepBase = null;
       snapshot.value = snapshot.value.copyWith(
+        steps: 0,
         distanceMeters: 0.0,
         lastUpdate: now,
       );
+      _prefs?.setInt(_scopedKey(_prefSteps), 0);
+      _prefs?.setDouble(_scopedKey(_prefDistance), 0.0);
+      _prefs?.remove(_scopedKey(_prefStepBase));
       _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(today));
+      _distanceStepAnchor = 0;
+      _lastStepIncreaseAt = null;
     }
-    // Update distance if lastLat/lon exist
+
+    final accuracy = position.accuracy;
+    if (accuracy > _maxAcceptedAccuracyMeters) {
+      if (_lastLat == null || _lastLon == null) {
+        _lastLat = position.latitude;
+        _lastLon = position.longitude;
+        _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
+        _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
+      }
+      return;
+    }
+
+    if (_lastLat == null || _lastLon == null) {
+      _lastLat = position.latitude;
+      _lastLon = position.longitude;
+      _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
+      _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
+      return;
+    }
+
     if (_lastLat != null && _lastLon != null) {
       final distance = _backgroundDistanceBetween(
         _lastLat!,
@@ -487,16 +716,49 @@ class TrackingController {
         position.latitude,
         position.longitude,
       );
-      if (distance > 1 && distance < 500) {
+
+      final int stepDeltaSinceAnchor = max(
+        0,
+        snapshot.value.steps - _distanceStepAnchor,
+      );
+      final bool hasRecentStep =
+          _lastStepIncreaseAt != null &&
+          now.difference(_lastStepIncreaseAt!).inSeconds <=
+              _stepMovementFreshSeconds;
+      final bool speedSuggestsMovement =
+          position.speed >= _minSpeedMetersPerSecond;
+      final bool movementLikely =
+          hasRecentStep || stepDeltaSinceAnchor > 0 || speedSuggestsMovement;
+
+      if (!movementLikely) {
+        if (distance <= _maxStationaryDriftMeters) {
+          _lastLat = position.latitude;
+          _lastLon = position.longitude;
+          _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
+          _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
+        }
+        return;
+      }
+
+      if (distance >= _minMovementDistanceMeters &&
+          distance <= _maxSingleJumpMeters) {
         final currentDistance =
             _prefs?.getDouble(_scopedKey(_prefDistance)) ?? 0.0;
         final newDistance = currentDistance + distance;
         _prefs?.setDouble(_scopedKey(_prefDistance), newDistance);
+        _distanceStepAnchor = snapshot.value.steps;
         _safeUpdateSnapshot(
           (current) =>
               current.copyWith(distanceMeters: newDistance, lastUpdate: now),
         );
         _syncTodayToCloud();
+        unawaited(_syncDistanceWidget());
+      } else if (distance > _maxSingleJumpMeters) {
+        _lastLat = position.latitude;
+        _lastLon = position.longitude;
+        _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
+        _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
+        return;
       }
     }
     _lastLat = position.latitude;
@@ -508,44 +770,28 @@ class TrackingController {
   void _onAccelerometer(AccelerometerEvent event) {
     if (_isDisposed) return;
     final now = DateTime.now();
+    final today = _truncateToDay(now);
+    if (today != _currentDay) {
+      _currentDay = today;
+      _resetDailySleep(now);
+    }
+
+    _rollEpochWindow(now);
+
     final magnitude = sqrt(
       event.x * event.x + event.y * event.y + event.z * event.z,
     );
     final delta = (magnitude - 9.81).abs();
-    const stillThreshold = 0.5;
-    const minStillMinutes = 20;
-    if (delta < stillThreshold) {
-      _stillStart ??= now;
-      _lastMotion ??= now;
-      final stillDuration = now.difference(_stillStart!).inMinutes;
-      if (stillDuration >= minStillMinutes) {
-        if (!snapshot.value.isSleeping) {
-          _safeUpdateSnapshot((current) => current.copyWith(isSleeping: true));
-          _prefs?.setString(
-            _scopedKey(_prefStillStart),
-            _stillStart!.toIso8601String(),
-          );
-          _syncTodayToCloud();
-        }
+
+    if (delta > _movementThreshold) {
+      final bool canCountSpike =
+          _lastMovementSpikeAt == null ||
+          now.difference(_lastMovementSpikeAt!).inMilliseconds >=
+              _spikeCooldownMs;
+      if (canCountSpike) {
+        _movementCountCurrentMinute++;
+        _lastMovementSpikeAt = now;
       }
-    } else {
-      _lastMotion = now;
-      if (snapshot.value.isSleeping && _stillStart != null) {
-        final sleptMinutes = now.difference(_stillStart!).inMinutes;
-        if (sleptMinutes > 0) {
-          final total = snapshot.value.sleepMinutes + sleptMinutes;
-          _safeUpdateSnapshot(
-            (current) =>
-                current.copyWith(sleepMinutes: total, isSleeping: false),
-          );
-          _prefs?.setInt(_scopedKey(_prefSleepMinutes), total);
-          _syncTodayToCloud();
-        } else {
-          _safeUpdateSnapshot((current) => current.copyWith(isSleeping: false));
-        }
-      }
-      _stillStart = null;
-      _prefs?.remove(_scopedKey(_prefStillStart));
     }
   }
 

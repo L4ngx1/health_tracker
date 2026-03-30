@@ -11,8 +11,10 @@ import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../../models/metric_item.dart';
 import '../../services/health_cloud_sync_service.dart';
+import '../../services/widget_sync_service.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/health_widgets.dart';
+import 'sleep_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _prefGoalKm = 'home.movementGoalKm';
   static const _prefDistanceHistory = 'home.distanceHistoryKm';
   static const _prefMigrationDone = 'home.migration.v1';
+  static const _prefTodayResetDone = 'home.movementTodayResetDone';
+  static const _manualResetTestDay = '2026-03-30';
+  static const _manualResetVersion = 'r2';
 
   late final TrackingController _trackingController;
   final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
@@ -81,7 +86,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _trackingController.start();
     _trackingController.registerBackgroundTracking();
     _trackingController.snapshot.addListener(_syncTodayDistanceHistory);
-    _loadMovementConfig();
+    unawaited(_initializeMovementData());
+  }
+
+  Future<void> _initializeMovementData() async {
+    await _loadMovementConfig();
+    await _resetTodayMovementForTestingOnce();
   }
 
   @override
@@ -93,6 +103,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _dayKey(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  String _todayResetKey(DateTime dt) =>
+      '${_accountKey(_prefTodayResetDone)}.${_dayKey(dt)}.$_manualResetVersion';
 
   String _shortDayLabel(DateTime dt) =>
       '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
@@ -151,6 +164,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _resetTodayMovementForTestingOnce() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    if (_dayKey(now) != _manualResetTestDay) {
+      return;
+    }
+    final resetKey = _todayResetKey(now);
+    final alreadyReset = _prefs?.getBool(resetKey) ?? false;
+    if (alreadyReset) {
+      return;
+    }
+
+    await _trackingController.resetTodayMovement();
+    _distanceHistoryKm[_dayKey(now)] = 0;
+    await _persistMovementConfig(forceCloud: true);
+    await _prefs?.setBool(resetKey, true);
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _persistMovementConfig({bool forceCloud = false}) async {
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs?.setDouble(_accountKey(_prefGoalKm), _dailyGoalKm);
@@ -180,6 +215,19 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+
+    final snapshot = _trackingController.snapshot.value;
+    final distanceKm = snapshot.distanceMeters / 1000.0;
+    final steps = snapshot.steps;
+    final calories = (distanceKm * 55).round();
+    unawaited(
+      WidgetSyncService.instance.syncDistanceCard(
+        steps: steps,
+        distanceKm: distanceKm,
+        calories: calories,
+        goalKm: _dailyGoalKm,
+      ),
+    );
   }
 
   void _trimHistory() {
@@ -226,6 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) async {
     var draftGoal = _dailyGoalKm;
     final history = _last7DaysHistory(distanceKm);
+    var selectedIndex = history.length - 1;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -306,52 +355,217 @@ class _HomeScreenState extends State<HomeScreen> {
                           final day = history[index].key;
                           final km = history[index].value;
                           final ratio = (km / draftGoal).clamp(0.0, 1.0);
-                          return Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF7FAF8),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFE1ECE6),
+                          final isSelected = index == selectedIndex;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              setModalState(() {
+                                selectedIndex = index;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFEAF6F0)
+                                    : const Color(0xFFF7FAF8),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppPalette.primary
+                                      : const Color(0xFFE1ECE6),
+                                  width: isSelected ? 1.4 : 1,
+                                ),
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _shortDayLabel(day),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        _shortDayLabel(day),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: isSelected
+                                              ? AppPalette.primaryDark
+                                              : AppPalette.textMain,
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      '${km.toStringAsFixed(2)} km',
-                                      style: const TextStyle(
-                                        color: AppPalette.primaryDark,
-                                        fontWeight: FontWeight.w800,
+                                      Text(
+                                        '${km.toStringAsFixed(2)} km',
+                                        style: const TextStyle(
+                                          color: AppPalette.primaryDark,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(999),
-                                  child: LinearProgressIndicator(
-                                    value: ratio,
-                                    minHeight: 8,
-                                    backgroundColor: const Color(0xFFDCE9E2),
-                                    color: AppPalette.primary,
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 6),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: LinearProgressIndicator(
+                                      value: ratio,
+                                      minHeight: 8,
+                                      backgroundColor: const Color(0xFFDCE9E2),
+                                      color: isSelected
+                                          ? AppPalette.primaryDark
+                                          : AppPalette.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    Builder(
+                      builder: (context) {
+                        final selectedDay = history[selectedIndex].key;
+                        final selectedKm = history[selectedIndex].value;
+                        final isToday =
+                            _dayKey(selectedDay) == _dayKey(DateTime.now());
+                        final selectedSteps = isToday
+                            ? steps
+                            : ((selectedKm * 1000) / 0.78).round();
+                        final selectedCalories = (selectedKm * 55).round();
+                        final selectedPercent = draftGoal <= 0
+                            ? 0
+                            : ((selectedKm / draftGoal) * 100)
+                                  .clamp(0.0, 999.0)
+                                  .round();
+
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7FAF8),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFFE1ECE6)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Thống kê ${_shortDayLabel(selectedDay)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppPalette.primaryDark,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD5F2E2),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      '$selectedPercent% mục tiêu',
+                                      style: const TextStyle(
+                                        color: AppPalette.primaryDark,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatCell(
+                                      label: 'QUÃNG ĐƯỜNG',
+                                      value: selectedKm.toStringAsFixed(2),
+                                      unit: 'km',
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _buildStatCell(
+                                      label: 'BƯỚC CHÂN',
+                                      value: _formatNumber(selectedSteps),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _buildStatCell(
+                                      label: 'CALO',
+                                      value: _formatNumber(selectedCalories),
+                                      unit: 'kcal',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                height: 90,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: List.generate(history.length, (
+                                    index,
+                                  ) {
+                                    final day = history[index].key;
+                                    final km = history[index].value;
+                                    final selected = index == selectedIndex;
+                                    final ratio = draftGoal <= 0
+                                        ? 0.0
+                                        : (km / draftGoal).clamp(0.0, 1.0);
+                                    final barHeight = 18.0 + (ratio * 52.0);
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 3,
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            AnimatedContainer(
+                                              duration: const Duration(
+                                                milliseconds: 220,
+                                              ),
+                                              height: barHeight,
+                                              width: double.infinity,
+                                              decoration: BoxDecoration(
+                                                color: selected
+                                                    ? AppPalette.primary
+                                                    : const Color(0xFFD7E1DD),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              '${day.day}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: selected
+                                                    ? FontWeight.w800
+                                                    : FontWeight.w600,
+                                                color: selected
+                                                    ? AppPalette.primaryDark
+                                                    : AppPalette.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     SizedBox(
@@ -381,6 +595,50 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildStatCell({
+    required String label,
+    required String value,
+    String? unit,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppPalette.textMuted,
+          ),
+        ),
+        const SizedBox(height: 2),
+        RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: AppPalette.textMain,
+                ),
+              ),
+              if (unit != null)
+                TextSpan(
+                  text: ' $unit',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.primaryDark,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -461,8 +719,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (context, snapshot, _) {
                   final distanceKm = snapshot.distanceMeters / 1000.0;
                   final distanceText = distanceKm.toStringAsFixed(2);
-                  final estimatedSteps = (snapshot.distanceMeters / 0.78)
-                      .round();
+                  final estimatedSteps = snapshot.steps;
                   final estimatedCalories = (distanceKm * 55).round();
                   final sleepHours = snapshot.sleepMinutes ~/ 60;
                   final sleepRemaining = snapshot.sleepMinutes % 60;
@@ -481,8 +738,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     value: sleepText,
                     unit: '',
                     subtitle: snapshot.isSleeping
-                        ? 'Đang nghỉ ngơi - phát hiện đứng yên lâu.'
-                        : 'Ước lượng từ cảm biến gia tốc.',
+                        ? 'Đang ngủ (chấm điểm theo epoch + cửa sổ trượt).'
+                        : 'Ước lượng từ gia tốc + bước chân theo từng phút.',
                     showProgress: true,
                   );
 
@@ -497,15 +754,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   return HealthGrid(
                     metrics: [distanceMetric, ...otherMetrics],
-                    onMetricTap: (index, _) {
-                      if (index != 0) {
+                    onMetricTap: (index, item) {
+                      if (index == 0) {
+                        _showMovementSheet(
+                          distanceKm: distanceKm,
+                          steps: estimatedSteps,
+                          calories: estimatedCalories,
+                        );
                         return;
                       }
-                      _showMovementSheet(
-                        distanceKm: distanceKm,
-                        steps: estimatedSteps,
-                        calories: estimatedCalories,
-                      );
+
+                      if (item.title.toUpperCase().contains('GIẤC NGỦ')) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => SleepManagementScreen(
+                              trackingController: _trackingController,
+                            ),
+                          ),
+                        );
+                      }
                     },
                   );
                 },
