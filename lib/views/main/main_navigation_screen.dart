@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../controllers/main_navigation_controller.dart';
 import '../../core/theme/app_palette.dart';
@@ -41,8 +42,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ),
     BottomNavItem(
       label: 'Ăn uống',
-      icon: Icons.camera_alt_outlined,
-      activeIcon: Icons.camera_alt,
+      icon: Icons.restaurant_menu_outlined,
+      activeIcon: Icons.restaurant_menu,
     ),
     BottomNavItem(
       label: 'Ghi chú',
@@ -73,15 +74,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               final active = controller.index == i;
               return IgnorePointer(
                 ignoring: !active,
-                child: AnimatedOpacity(
-                  opacity: active ? 1 : 0,
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  child: AnimatedSlide(
-                    offset: active ? Offset.zero : const Offset(0.03, 0),
-                    duration: const Duration(milliseconds: 260),
-                    curve: Curves.easeOutCubic,
-                    child: pages[i],
+                child: RepaintBoundary(
+                  child: AnimatedOpacity(
+                    opacity: active ? 1 : 0,
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOut,
+                    child: AnimatedSlide(
+                      offset: active ? Offset.zero : const Offset(0.028, 0),
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeOutCubic,
+                      child: pages[i],
+                    ),
                   ),
                 ),
               );
@@ -136,7 +139,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                 _pressedIndex = isPressed ? i : null;
                               });
                             },
-                            onTap: () => controller.setIndex(i),
+                            onTap: () {
+                              if (controller.index != i) {
+                                HapticFeedback.selectionClick();
+                              }
+                              controller.setIndex(i);
+                            },
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 4,
