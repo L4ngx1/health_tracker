@@ -1,13 +1,34 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/workout_controller.dart';
+import '../../controllers/ai_controller.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
 
-class WorkoutScreen extends StatelessWidget {
+class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
+
+  @override
+  State<WorkoutScreen> createState() => _WorkoutScreenState();
+}
+
+class _WorkoutScreenState extends State<WorkoutScreen> {
+  final AIController _aiController = AIController();
+  String? _aiWorkoutPlan;
+  bool _isLoading = false;
+
+  Future<void> _getAIWorkout() async {
+    setState(() => _isLoading = true);
+    // In real app, get these from user data
+    final plan = await _aiController.getPersonalizedWorkout(
+        "Build muscle and improve stamina", "Beginner, works out 2 times/week");
+    setState(() {
+      _aiWorkoutPlan = plan;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +100,59 @@ class WorkoutScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 20),
+              
+              // AI Workout Suggestion Section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppPalette.primary.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.auto_awesome, color: Colors.orangeAccent),
+                        SizedBox(width: 8),
+                        Text(
+                          'Gợi ý luyện tập AI',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (_isLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_aiWorkoutPlan != null)
+                      Text(_aiWorkoutPlan!)
+                    else
+                      const Text('Nhấn để nhận lịch tập cá nhân hóa từ AI'),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _getAIWorkout,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppPalette.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Tạo lịch tập với AI'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 18),
               const Row(
                 children: [
