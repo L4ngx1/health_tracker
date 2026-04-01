@@ -23,7 +23,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     setState(() => _isLoading = true);
     // In real app, get these from user data
     final plan = await _aiController.getPersonalizedWorkout(
-        "Build muscle and improve stamina", "Beginner, works out 2 times/week");
+      "Build muscle and improve stamina",
+      "Beginner, works out 2 times/week",
+    );
     setState(() {
       _aiWorkoutPlan = plan;
       _isLoading = false;
@@ -101,7 +103,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // AI Workout Suggestion Section
               Container(
                 width: double.infinity,
@@ -109,7 +111,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppPalette.primary.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppPalette.primary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
