@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/routes/route_transitions.dart';
-import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/auth_layout.dart';
 import 'forgot_password_screen.dart';
@@ -68,6 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: AuthLayout(
         child: SingleChildScrollView(
@@ -85,33 +86,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         BrandIconOnly(),
                         SizedBox(height: 10),
                         Text(
-                          'Sống Khỏe',
+                          AppStrings.appTitle(context),
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
-                            color: AppPalette.textMain,
+                            color: colorScheme.onSurface,
                             height: 1.0,
                           ),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Chào mừng trở lại',
+                          AppStrings.loginWelcomeBack(context),
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF202936),
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Đăng nhập để tiếp tục theo dõi và cải thiện sức khỏe của bạn.',
+                          AppStrings.loginSubtitle(context),
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: AppPalette.textMuted,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.72,
+                            ),
                             fontSize: 14,
                             height: 1.35,
                           ),
@@ -125,24 +128,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.all(12),
                       margin: const EdgeInsets.only(top: 12, bottom: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F0),
-                        border: Border.all(color: const Color(0xFFEB5757)),
+                        color: colorScheme.errorContainer,
+                        border: Border.all(color: colorScheme.error),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(
-                          color: Color(0xFFB41F1F),
+                        style: TextStyle(
+                          color: colorScheme.onErrorContainer,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   const SizedBox(height: 20),
-                  const InputLabel('Email'),
+                  InputLabel(AppStrings.emailLabel(context)),
                   const SizedBox(height: 8),
                   RoundedInput(
                     controller: _userController,
-                    hint: 'Nhập email',
+                    hint: AppStrings.emailHint(context),
                     icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     focusNode: _emailFocus,
@@ -152,22 +155,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         FocusScope.of(context).requestFocus(_passwordFocus),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Vui lòng nhập email';
+                        return AppStrings.emailRequired(context);
                       }
                       if (!RegExp(
                         r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}",
                       ).hasMatch(value.trim())) {
-                        return 'Email không hợp lệ';
+                        return AppStrings.emailInvalid(context);
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 14),
-                  const InputLabel('Mật khẩu'),
+                  InputLabel(AppStrings.passwordLabel(context)),
                   const SizedBox(height: 8),
                   RoundedInput(
                     controller: _passwordController,
-                    hint: 'Nhập mật khẩu',
+                    hint: AppStrings.passwordHint(context),
                     icon: Icons.lock_outline,
                     obscureText: true,
                     focusNode: _passwordFocus,
@@ -175,10 +178,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     onFieldSubmitted: (_) => _submit(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Vui lòng nhập mật khẩu';
+                        return AppStrings.passwordRequired(context);
                       }
                       if (value.length < 6) {
-                        return 'Mật khẩu phải ít nhất 6 ký tự';
+                        return AppStrings.passwordTooShort(context);
                       }
                       return null;
                     },
@@ -196,10 +199,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      child: const Text(
-                        'Quên mật khẩu?',
+                      child: Text(
+                        AppStrings.forgotPassword(context),
                         style: TextStyle(
-                          color: AppPalette.primary,
+                          color: colorScheme.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -207,15 +210,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 14),
                   PrimaryButton(
-                    text: 'Đăng nhập',
+                    text: AppStrings.login(context),
                     isLoading: _isLoading,
                     onPressed: _submit,
                   ),
                   const SizedBox(height: 18),
-                  const DividerWithText(text: 'HOẶC'),
+                  DividerWithText(text: AppStrings.orLabel(context)),
                   const SizedBox(height: 18),
                   SocialButton(
-                    text: 'Tiếp tục với Google',
+                    text: AppStrings.continueWithGoogle(context),
                     onPressed: () async {
                       if (_isLoading) return;
                       final messenger = ScaffoldMessenger.of(context);
@@ -266,13 +269,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        side: const BorderSide(color: AppPalette.primary),
+                        side: BorderSide(color: colorScheme.primary),
                       ),
-                      child: const Text(
-                        'Đăng nhập ẩn danh',
+                      child: Text(
+                        AppStrings.anonymousLogin(context),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: AppPalette.primary,
+                          color: colorScheme.primary,
                         ),
                       ),
                     ),
@@ -287,16 +290,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         spacing: 4,
                         runSpacing: 4,
                         children: [
-                          const Text(
-                            'Bạn chưa có tài khoản?',
-                            style: TextStyle(color: AppPalette.textMuted),
-                          ),
+                          Text(AppStrings.noAccount(context)),
                           GestureDetector(
                             onTap: () => _controller.toRegister(context),
-                            child: const Text(
-                              'Đăng ký ngay',
+                            child: Text(
+                              AppStrings.registerNow(context),
                               style: TextStyle(
-                                color: AppPalette.primary,
+                                color: colorScheme.primary,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),

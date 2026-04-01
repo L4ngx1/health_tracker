@@ -1,34 +1,37 @@
+import 'package:flutter/material.dart';
+
+import '../core/localization/app_strings.dart';
 import '../models/metric_item.dart';
 
 class HomeController {
   const HomeController();
 
-  List<MetricItem> getMetrics() {
-    return const [
+  List<MetricItem> getMetrics(BuildContext context) {
+    return [
       MetricItem(
-        title: 'BƯỚC CHÂN HÔM\nNAY',
+        title: AppStrings.homeMetricStepsTitle(context),
         value: '6,432',
-        unit: 'bước',
-        subtitle: '321 kcal\nđã tiêu\nthụ',
+        unit: AppStrings.homeMetricStepsUnit(context),
+        subtitle: AppStrings.homeMetricStepsSubtitle(context),
       ),
       MetricItem(
-        title: 'UỐNG NƯỚC',
+        title: AppStrings.homeMetricWaterTitle(context),
         value: '1.2',
         unit: '/2.0L',
-        subtitle: 'Mục tiêu ngày',
+        subtitle: AppStrings.homeMetricWaterSubtitle(context),
         showProgress: true,
       ),
       MetricItem(
-        title: 'CÂN NẶNG',
+        title: AppStrings.homeMetricWeightTitle(context),
         value: '65',
         unit: 'kg',
-        subtitle: 'Ổn định\ntrong 7 ngày\ngần đây',
+        subtitle: AppStrings.homeMetricWeightSubtitle(context),
       ),
       MetricItem(
-        title: 'GIẤC NGỦ HÔM\nNAY',
+        title: AppStrings.homeMetricSleepTodayTitle(context),
         value: '7h 30m',
         unit: '',
-        subtitle: 'Chất lượng: Tốt\nBạn đã ngủ đủ giấc\nhơn hôm qua 35\nphút.',
+        subtitle: AppStrings.homeMetricSleepTodaySubtitle(context),
         showProgress: true,
       ),
     ];

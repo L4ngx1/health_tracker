@@ -8,8 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/home_controller.dart';
 import '../../controllers/tracking_controller.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 import '../../models/metric_item.dart';
 import '../../services/health_cloud_sync_service.dart';
 import '../../services/widget_sync_service.dart';
@@ -112,22 +112,19 @@ class _HomeScreenState extends State<HomeScreen> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: const Text('Cần quyền vị trí'),
-            content: const Text(
-              'Bạn đã tắt quyền vị trí vĩnh viễn (Don\'t ask again).\n'
-              'Vui lòng vào Cài đặt để bật lại quyền Vị trí để tính quãng đường.',
-            ),
+            title: Text(AppStrings.homePermissionTitle(context)),
+            content: Text(AppStrings.homePermissionContent(context)),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Để sau'),
+                child: Text(AppStrings.later(context)),
               ),
               TextButton(
                 onPressed: () async {
                   Navigator.of(context).pop();
                   await Geolocator.openAppSettings();
                 },
-                child: const Text('Mở cài đặt'),
+                child: Text(AppStrings.openSettings(context)),
               ),
             ],
           );
@@ -319,6 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required int steps,
     required int calories,
   }) async {
+    final colorScheme = Theme.of(context).colorScheme;
     var draftGoal = _dailyGoalKm;
     final history = _last7DaysHistory(distanceKm);
     var selectedIndex = history.length - 1;
@@ -331,8 +329,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
@@ -347,14 +345,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 46,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFD8E4DD),
+                          color: colorScheme.outlineVariant,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Mục tiêu di chuyển',
+                    Text(
+                      AppStrings.movementGoalTitle(context),
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
@@ -362,15 +360,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Hôm nay: ${distanceKm.toStringAsFixed(2)} km • ${_formatNumber(steps)} bước • ${_formatNumber(calories)} kcal',
-                      style: const TextStyle(color: AppPalette.textMuted),
+                      AppStrings.todayStats(
+                        context,
+                        distanceKm.toStringAsFixed(2),
+                        _formatNumber(steps),
+                        _formatNumber(calories),
+                      ),
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.72),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Mục tiêu mỗi ngày: ${draftGoal.toStringAsFixed(1)} km',
-                      style: const TextStyle(
+                      AppStrings.dailyGoalLabel(
+                        context,
+                        draftGoal.toStringAsFixed(1),
+                      ),
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppPalette.primaryDark,
+                        color: colorScheme.primary,
                       ),
                     ),
                     Slider(
@@ -379,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       max: 20,
                       divisions: 38,
                       label: '${draftGoal.toStringAsFixed(1)} km',
-                      activeColor: AppPalette.primary,
+                      activeColor: colorScheme.primary,
                       onChanged: (value) {
                         setModalState(() {
                           draftGoal = value;
@@ -387,8 +395,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Lịch sử 7 ngày gần nhất',
+                    Text(
+                      AppStrings.last7DaysHistory(context),
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
@@ -414,13 +422,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFFEAF6F0)
-                                    : const Color(0xFFF7FAF8),
+                                    ? colorScheme.primary.withValues(
+                                        alpha: 0.12,
+                                      )
+                                    : colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isSelected
-                                      ? AppPalette.primary
-                                      : const Color(0xFFE1ECE6),
+                                      ? colorScheme.primary
+                                      : colorScheme.outlineVariant,
                                   width: isSelected ? 1.4 : 1,
                                 ),
                               ),
@@ -436,14 +446,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
                                           color: isSelected
-                                              ? AppPalette.primaryDark
-                                              : AppPalette.textMain,
+                                              ? colorScheme.primary
+                                              : colorScheme.onSurface,
                                         ),
                                       ),
                                       Text(
                                         '${km.toStringAsFixed(2)} km',
-                                        style: const TextStyle(
-                                          color: AppPalette.primaryDark,
+                                        style: TextStyle(
+                                          color: colorScheme.primary,
                                           fontWeight: FontWeight.w800,
                                         ),
                                       ),
@@ -455,10 +465,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: LinearProgressIndicator(
                                       value: ratio,
                                       minHeight: 8,
-                                      backgroundColor: const Color(0xFFDCE9E2),
+                                      backgroundColor:
+                                          colorScheme.outlineVariant,
                                       color: isSelected
-                                          ? AppPalette.primaryDark
-                                          : AppPalette.primary,
+                                          ? colorScheme.primary
+                                          : colorScheme.primary.withValues(
+                                              alpha: 0.74,
+                                            ),
                                     ),
                                   ),
                                 ],
@@ -489,9 +502,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF7FAF8),
+                            color: colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFE1ECE6)),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,10 +514,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               Row(
                                 children: [
                                   Text(
-                                    'Thống kê ${_shortDayLabel(selectedDay)}',
-                                    style: const TextStyle(
+                                    AppStrings.statsForDay(
+                                      context,
+                                      _shortDayLabel(selectedDay),
+                                    ),
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
-                                      color: AppPalette.primaryDark,
+                                      color: colorScheme.primary,
                                     ),
                                   ),
                                   const Spacer(),
@@ -512,13 +530,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFD5F2E2),
+                                      color: colorScheme.primary.withValues(
+                                        alpha: 0.18,
+                                      ),
                                       borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: Text(
-                                      '$selectedPercent% mục tiêu',
-                                      style: const TextStyle(
-                                        color: AppPalette.primaryDark,
+                                      AppStrings.goalPercent(
+                                        context,
+                                        selectedPercent,
+                                      ),
+                                      style: TextStyle(
+                                        color: colorScheme.primary,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 12,
                                       ),
@@ -531,20 +554,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   Expanded(
                                     child: _buildStatCell(
-                                      label: 'QUÃNG ĐƯỜNG',
+                                      label: AppStrings.distanceLabel(context),
                                       value: selectedKm.toStringAsFixed(2),
                                       unit: 'km',
                                     ),
                                   ),
                                   Expanded(
                                     child: _buildStatCell(
-                                      label: 'BƯỚC CHÂN',
+                                      label: AppStrings.stepsLabel(context),
                                       value: _formatNumber(selectedSteps),
                                     ),
                                   ),
                                   Expanded(
                                     child: _buildStatCell(
-                                      label: 'CALO',
+                                      label: AppStrings.caloriesLabel(context),
                                       value: _formatNumber(selectedCalories),
                                       unit: 'kcal',
                                     ),
@@ -583,8 +606,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                               width: double.infinity,
                                               decoration: BoxDecoration(
                                                 color: selected
-                                                    ? AppPalette.primary
-                                                    : const Color(0xFFD7E1DD),
+                                                    ? colorScheme.primary
+                                                    : colorScheme
+                                                          .outlineVariant,
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                               ),
@@ -598,8 +622,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     ? FontWeight.w800
                                                     : FontWeight.w600,
                                                 color: selected
-                                                    ? AppPalette.primaryDark
-                                                    : AppPalette.textMuted,
+                                                    ? colorScheme.primary
+                                                    : colorScheme.onSurface
+                                                          .withValues(
+                                                            alpha: 0.72,
+                                                          ),
                                               ),
                                             ),
                                           ],
@@ -626,8 +653,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           _persistMovementConfig(forceCloud: true);
                           Navigator.of(context).pop();
                         },
-                        child: const Text(
-                          'Lưu mục tiêu',
+                        child: Text(
+                          AppStrings.saveGoal(context),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -650,15 +677,16 @@ class _HomeScreenState extends State<HomeScreen> {
     required String value,
     String? unit,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: AppPalette.textMuted,
+            color: colorScheme.onSurface.withValues(alpha: 0.72),
           ),
         ),
         const SizedBox(height: 2),
@@ -667,19 +695,19 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               TextSpan(
                 text: value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
-                  color: AppPalette.textMain,
+                  color: colorScheme.onSurface,
                 ),
               ),
               if (unit != null)
                 TextSpan(
                   text: ' $unit',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: AppPalette.primaryDark,
+                    color: colorScheme.primary,
                   ),
                 ),
             ],
@@ -691,13 +719,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final staticMetrics = _homeController.getMetrics();
+    final staticMetrics = _homeController.getMetrics(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF7F3EC), Color(0xFFF2F8F4)],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -708,7 +737,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TopBar(
-                title: 'Sống khỏe cùng bạn',
+                title: AppStrings.homeTopTitle(context),
                 onUserTap: () =>
                     Navigator.of(context).pushNamed(AppRoutes.profile),
               ),
@@ -718,35 +747,38 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1B7D5B), Color(0xFF0E5C41)],
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.primary.withValues(alpha: 0.84),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x1A0F3A2E),
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
                       blurRadius: 18,
                       offset: Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'TỔNG QUAN SỨC KHỎE',
+                      AppStrings.overviewHealthTitle(context),
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: colorScheme.onPrimary.withValues(alpha: 0.82),
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
                       ),
                     ),
                     SizedBox(height: 10),
                     Text(
-                      'Tuyệt vời! Bạn\nđang đi đúng\nhướng.',
+                      AppStrings.overviewMotivation(context),
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colorScheme.onPrimary,
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
                         height: 1.05,
@@ -754,8 +786,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 10),
                     Text(
-                      'Hôm nay bạn đã giữ nhịp sinh hoạt\nđều và ngủ khá tốt.',
-                      style: TextStyle(color: Colors.white70),
+                      AppStrings.overviewSubtitle(context),
+                      style: TextStyle(
+                        color: colorScheme.onPrimary.withValues(alpha: 0.82),
+                      ),
                     ),
                   ],
                 ),
@@ -773,20 +807,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   final sleepText = '${sleepHours}h ${sleepRemaining}m';
 
                   final distanceMetric = MetricItem(
-                    title: 'QUÃNG ĐƯỜNG HÔM NAY',
+                    title: AppStrings.distanceTodayTitle(context),
                     value: distanceText,
                     unit: 'km',
-                    subtitle:
-                        '${_formatNumber(estimatedSteps)} bước\n${_formatNumber(estimatedCalories)} kcal\nMục tiêu: ${_dailyGoalKm.toStringAsFixed(1)} km/ngày',
+                    subtitle: AppStrings.distanceSubtitle(
+                      context,
+                      _formatNumber(estimatedSteps),
+                      _formatNumber(estimatedCalories),
+                      _dailyGoalKm.toStringAsFixed(1),
+                    ),
                   );
 
                   final sleepMetric = MetricItem(
-                    title: 'PHIÊN NGỦ GẦN NHẤT',
+                    title: AppStrings.sleepRecentTitle(context),
                     value: sleepText,
                     unit: '',
                     subtitle: snapshot.isSleeping
-                        ? 'Đang ngủ (chấm điểm theo epoch + cửa sổ trượt).'
-                        : 'Ước lượng từ gia tốc + bước chân theo từng phút.',
+                        ? AppStrings.sleepScoringSleep(context)
+                        : AppStrings.sleepScoringAwake(context),
                     showProgress: true,
                   );
 
@@ -811,7 +849,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         return;
                       }
 
-                      if (item.title.toUpperCase().contains('GIẤC NGỦ')) {
+                      if (item.showProgress && index != 0) {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => SleepManagementScreen(
@@ -825,20 +863,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Khám phá thêm',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                  color: AppPalette.textMain,
-                ),
+              Text(
+                AppStrings.exploreMore(context),
+                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
-                  color: Colors.white,
+                  color: colorScheme.surface,
                 ),
                 child: Row(
                   children: [
@@ -847,29 +881,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 76,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        color: const Color(0xFFE7F1EC),
+                        color: colorScheme.surfaceContainerHighest,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.self_improvement,
-                        color: AppPalette.primaryDark,
+                        color: colorScheme.primary,
                         size: 34,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'LUYỆN TẬP',
+                            AppStrings.trainingLabel(context),
                             style: TextStyle(
-                              color: AppPalette.textMuted,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
                               fontSize: 11,
                             ),
                           ),
                           SizedBox(height: 3),
                           Text(
-                            '10 phút Yoga\nsáng',
+                            AppStrings.yogaMorningTitle(context),
                             style: TextStyle(
                               fontSize: 32,
                               height: 0.95,
@@ -877,17 +913,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           SizedBox(height: 5),
-                          Text(
-                            'Thư giãn cơ thể và bắt\nđầu ngày mới nhẹ nhàng',
-                          ),
+                          Text(AppStrings.yogaMorningSubtitle(context)),
                         ],
                       ),
                     ),
-                    const CircleAvatar(
-                      backgroundColor: Color(0xFFE4EFEA),
+                    CircleAvatar(
+                      backgroundColor: colorScheme.surfaceContainerHighest,
                       child: Icon(
                         Icons.chevron_right,
-                        color: AppPalette.primaryDark,
+                        color: colorScheme.primary,
                       ),
                     ),
                   ],

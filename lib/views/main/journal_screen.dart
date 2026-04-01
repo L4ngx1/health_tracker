@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/journal_controller.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 
 class JournalScreen extends StatelessWidget {
@@ -11,13 +11,14 @@ class JournalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const controller = JournalController();
-    final entries = controller.getEntries();
+    final entries = controller.getEntries(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF7F3EC), Color(0xFFF1F7F3)],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -28,7 +29,7 @@ class JournalScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TopBar(
-                title: 'Nhật ký sức khỏe',
+                title: AppStrings.journalScreenTitle(context),
                 onUserTap: () =>
                     Navigator.of(context).pushNamed(AppRoutes.profile),
               ),
@@ -37,21 +38,21 @@ class JournalScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x1A1B7D5B),
+                      color: colorScheme.shadow.withValues(alpha: 0.16),
                       blurRadius: 18,
                       offset: Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Khung trang nhật ký',
+                      AppStrings.journalFrameTitle(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -60,9 +61,7 @@ class JournalScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 10),
-                    Text(
-                      'Trang này được tạo sẵn để bạn tiếp tục gắn nội dung ghi chép sau.',
-                    ),
+                    Text(AppStrings.journalFrameSubtitle(context)),
                   ],
                 ),
               ),
@@ -72,11 +71,11 @@ class JournalScreen extends StatelessWidget {
                   itemBuilder: (_, i) => Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(14),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x12000000),
+                          color: colorScheme.shadow.withValues(alpha: 0.12),
                           blurRadius: 10,
                           offset: Offset(0, 6),
                         ),
@@ -84,18 +83,15 @@ class JournalScreen extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        const CircleAvatar(
-                          backgroundColor: Color(0xFFE4EFEA),
-                          child: Icon(
-                            Icons.notes,
-                            color: AppPalette.primaryDark,
-                          ),
+                        CircleAvatar(
+                          backgroundColor: colorScheme.surfaceContainerHighest,
+                          child: Icon(Icons.notes, color: colorScheme.primary),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             entries[i].title,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style: TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
                         const Icon(Icons.chevron_right),

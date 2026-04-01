@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_palette.dart';
 import '../../models/metric_item.dart';
 
 class HealthGrid extends StatelessWidget {
@@ -42,20 +41,24 @@ class MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFFFFF), Color(0xFFF4F7F4)],
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.surface,
+              colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Color(0x1A0F3A2E),
+              color: colorScheme.shadow.withValues(alpha: 0.16),
               blurRadius: 14,
               offset: Offset(0, 6),
             ),
@@ -79,11 +82,11 @@ class MetricCard extends StatelessWidget {
                 children: [
                   Text(
                     item.value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 34,
                       height: 0.9,
                       fontWeight: FontWeight.w900,
-                      color: AppPalette.textMain,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -91,9 +94,9 @@ class MetricCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
                       item.unit,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppPalette.textMain,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -105,17 +108,20 @@ class MetricCard extends StatelessWidget {
               item.subtitle,
               maxLines: item.showProgress ? 2 : 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppPalette.textMuted, height: 1.2),
+              style: TextStyle(
+                color: colorScheme.onSurface.withValues(alpha: 0.72),
+                height: 1.2,
+              ),
             ),
             if (item.showProgress) ...[
               const Spacer(),
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: const LinearProgressIndicator(
+                child: LinearProgressIndicator(
                   value: 0.6,
                   minHeight: 8,
-                  color: AppPalette.primary,
-                  backgroundColor: AppPalette.divider,
+                  color: colorScheme.primary,
+                  backgroundColor: colorScheme.outlineVariant,
                 ),
               ),
             ],

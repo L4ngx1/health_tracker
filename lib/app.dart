@@ -1,6 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/localization/app_strings.dart';
+import 'core/localization/locale_service.dart';
+import 'l10n/app_localizations.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_scroll_behavior.dart';
 import 'core/theme/app_theme.dart';
@@ -27,17 +31,30 @@ class _HealthTrackerAppState extends State<HealthTrackerApp> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeService.instance.mode,
       builder: (context, themeMode, _) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'Sống Khỏe',
-          scrollBehavior: const AppScrollBehavior(),
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: themeMode,
-          home: const _AuthGate(),
-          onGenerateRoute: AppRoutes.onGenerateRoute,
-          // Fallback routes for safety
-          routes: AppRoutes.routes,
+        return ValueListenableBuilder<Locale>(
+          valueListenable: LocaleService.instance.locale,
+          builder: (context, locale, _) {
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              onGenerateTitle: (context) => AppStrings.appTitle(context),
+              scrollBehavior: const AppScrollBehavior(),
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: themeMode,
+              locale: locale,
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: const [
+                AppLocalizations.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+              ],
+              home: const _AuthGate(),
+              onGenerateRoute: AppRoutes.onGenerateRoute,
+              // Fallback routes for safety
+              routes: AppRoutes.routes,
+            );
+          },
         );
       },
     );

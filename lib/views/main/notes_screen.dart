@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
 
@@ -10,11 +10,12 @@ class NotesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SafeArea(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF7F3EC), Color(0xFFF1F7F3)],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -25,47 +26,49 @@ class NotesScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TopBar(
-                title: 'Ghi chú sức khỏe',
+                title: AppStrings.notesScreenTitle(context),
                 onUserTap: () =>
                     Navigator.of(context).pushNamed(AppRoutes.profile),
               ),
               const SizedBox(height: 20),
-              const Center(
+              Center(
                 child: CircleAvatar(
                   radius: 52,
-                  backgroundColor: AppPalette.primary,
+                  backgroundColor: colorScheme.primary,
                   child: Icon(
                     Icons.mic_none_rounded,
                     size: 46,
-                    color: Colors.white,
+                    color: colorScheme.onPrimary,
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Center(
+              Center(
                 child: Text(
-                  'Nhấn để ghi âm',
+                  AppStrings.tapToRecord(context),
                   style: TextStyle(
                     fontSize: 40,
                     fontWeight: FontWeight.w900,
-                    color: AppPalette.primaryDark,
+                    color: colorScheme.primary,
                   ),
                 ),
               ),
               const SizedBox(height: 8),
-              const Center(
+              Center(
                 child: Text(
-                  'Nói về tình trạng sức khỏe, chế độ ăn\nhoặc cảm xúc hôm nay của bạn.',
+                  AppStrings.notesPrompt(context),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppPalette.textMuted),
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'NỘI DUNG GHI CHÚ',
+              Text(
+                AppStrings.notesContentTitle(context),
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
-                  color: AppPalette.primaryDark,
+                  color: colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -74,55 +77,60 @@ class NotesScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: AppPalette.surface,
-                  boxShadow: const [
+                  color: colorScheme.surface,
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x1A1B7D5B),
+                      color: colorScheme.shadow.withValues(alpha: 0.16),
                       blurRadius: 16,
                       offset: Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Tự động nhận diện',
-                          style: TextStyle(color: AppPalette.textMuted),
+                          AppStrings.autoDetect(context),
+                          style: TextStyle(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.72,
+                            ),
+                          ),
                         ),
-                        Icon(Icons.auto_awesome, color: AppPalette.primaryDark),
+                        Icon(Icons.auto_awesome, color: colorScheme.primary),
                       ],
                     ),
                     SizedBox(height: 10),
-                    Text(
-                      'Bắt đầu nói để thấy nội dung ghi chú\nxuất hiện tại đây...',
-                    ),
+                    Text(AppStrings.notePlaceholder(context)),
                     SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
-                      children: [ChipLabel('#HEALTH'), ChipLabel('#DAILY')],
+                      children: [
+                        ChipLabel(AppStrings.tagHealth(context)),
+                        ChipLabel(AppStrings.tagDaily(context)),
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 18),
-              const Row(
+              Row(
                 children: [
                   Expanded(
                     child: QuickActionCard(
-                      title: 'Bữa ăn',
-                      subtitle: 'Ghi lại dinh dưỡng',
+                      title: AppStrings.quickMealTitle(context),
+                      subtitle: AppStrings.quickMealSubtitle(context),
                       icon: Icons.restaurant_menu,
                     ),
                   ),
                   SizedBox(width: 10),
                   Expanded(
                     child: QuickActionCard(
-                      title: 'Cảm xúc',
-                      subtitle: 'Theo dõi tâm trạng',
+                      title: AppStrings.quickMoodTitle(context),
+                      subtitle: AppStrings.quickMoodSubtitle(context),
                       icon: Icons.sentiment_satisfied_alt,
                     ),
                   ),

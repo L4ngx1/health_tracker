@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/common_widgets.dart';
 
@@ -25,9 +25,7 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
     setState(() => _loading = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          error ?? 'Đã gửi lại email xác minh. Vui lòng kiểm tra hộp thư.',
-        ),
+        content: Text(error ?? AppStrings.resendVerification(context)),
       ),
     );
   }
@@ -42,14 +40,12 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
     if (verified) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Email đã được xác minh.')));
+      ).showSnackBar(SnackBar(content: Text(AppStrings.emailVerifiedSuccess(context))));
       Navigator.of(context).pushReplacementNamed(AppRoutes.main);
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Vẫn chưa xác minh. Vui lòng kiểm tra email.'),
-      ),
+      SnackBar(content: Text(AppStrings.emailNotVerifiedYet(context))),
     );
   }
 
@@ -64,6 +60,7 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
   @override
   Widget build(BuildContext context) {
     final email = FirebaseAuth.instance.currentUser?.email ?? '';
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: AuthLayout(
         child: SingleChildScrollView(
@@ -77,40 +74,44 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
               children: [
                 const BrandIconOnly(),
                 const SizedBox(height: 12),
-                const Text(
-                  'Sống Khỏe',
+                Text(
+                  AppStrings.appTitle(context),
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: AppPalette.textMain,
+                    color: colorScheme.onSurface,
                     height: 1.0,
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Email chưa xác minh',
+                Text(
+                  AppStrings.unverifiedTitle(context),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF202936),
+                    color: colorScheme.onSurface,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Vui lòng kiểm tra email và làm theo hướng dẫn để xác minh.',
-                  style: const TextStyle(color: AppPalette.textMuted),
+                  AppStrings.unverifiedInstruction(context),
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Đã gửi đến: $email',
-                  style: const TextStyle(color: AppPalette.textMuted),
+                  AppStrings.sentToEmail(context, email),
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 18),
                 PrimaryButton(
-                  text: 'Gửi lại email xác minh',
+                  text: AppStrings.resendVerification(context),
                   isLoading: _loading,
                   onPressed: _resend,
                 ),
@@ -123,13 +124,13 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      side: const BorderSide(color: AppPalette.primary),
+                      side: BorderSide(color: colorScheme.primary),
                     ),
-                    child: const Text('Tôi đã xác minh - Kiểm tra lại'),
+                    child: Text(AppStrings.verifiedCheckAgain(context)),
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextButton(onPressed: _signOut, child: const Text('Đăng xuất')),
+                TextButton(onPressed: _signOut, child: Text(AppStrings.logout(context))),
               ],
             ),
           ),

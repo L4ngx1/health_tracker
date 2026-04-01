@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_palette.dart';
+import '../../core/localization/app_strings.dart';
+import '../../core/localization/locale_service.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/theme_service.dart';
@@ -17,8 +18,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _authController = const AuthController();
   bool _loading = false;
   bool _notifications = true;
-  String _language = 'vi';
-  bool _darkMode = false;
 
   @override
   void initState() {
@@ -31,8 +30,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _notifications = prefs.getBool('notifications_enabled') ?? true;
-      _language = prefs.getString('language') ?? 'vi';
-      _darkMode = ThemeService.instance.mode.value == ThemeMode.dark;
     });
   }
 
@@ -43,33 +40,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _setLanguage(String lang) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', lang);
-    setState(() => _language = lang);
+    await LocaleService.instance.setLanguage(lang);
   }
 
   Future<void> _setDarkMode(bool enabled) async {
     await ThemeService.instance.setDarkMode(enabled);
-    setState(() => _darkMode = enabled);
   }
 
   Future<void> _deleteAccount() async {
+    final colorScheme = Theme.of(context).colorScheme;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Xóa tài khoản'),
-        content: const Text(
-          'Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác.',
-        ),
+        title: Text(AppStrings.settingsDeleteTitle(context)),
+        content: Text(AppStrings.settingsDeleteConfirm(context)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(c).pop(false),
-            child: const Text('Hủy'),
+            child: Text(AppStrings.cancel(context)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colorScheme.error,
+              foregroundColor: colorScheme.onError,
+            ),
             onPressed: () => Navigator.of(c).pop(true),
-            child: const Text('Xóa'),
+            child: Text(AppStrings.deleteAction(context)),
           ),
         ],
       ),
@@ -93,12 +89,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFF7F3EC), Color(0xFFF2F8F4)],
+              colors: [
+                colorScheme.surface,
+                colorScheme.surfaceContainerHighest,
+              ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -113,14 +113,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.arrow_back_ios_new_rounded),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Cài đặt',
+                        AppStrings.settingsTitle(context),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
-                          color: AppPalette.textMain,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -138,31 +138,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x1A1B7D5B),
+                              color: colorScheme.shadow.withValues(alpha: 0.18),
                               blurRadius: 18,
                               offset: Offset(0, 8),
                             ),
                           ],
                         ),
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Tùy chọn ứng dụng',
+                              AppStrings.optionsTitle(context),
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
-                                color: AppPalette.textMain,
+                                color: colorScheme.onSurface,
                               ),
                             ),
-                            SizedBox(height: 6),
+                            const SizedBox(height: 6),
                             Text(
-                              'Tinh chỉnh trải nghiệm theo nhu cầu của bạn.',
-                              style: TextStyle(color: AppPalette.textMuted),
+                              AppStrings.optionsSubtitle(context),
+                              style: TextStyle(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.72,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -170,34 +174,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 14),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE2ECE7)),
+                          border: Border.all(color: colorScheme.outlineVariant),
                         ),
                         child: Column(
                           children: [
-                            SwitchListTile(
-                              value: _darkMode,
-                              activeThumbColor: AppPalette.primary,
-                              title: const Text(
-                                'Chế độ tối',
-                                style: TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              subtitle: const Text(
-                                'Dễ nhìn hơn vào ban đêm và tiết kiệm pin.',
-                              ),
-                              onChanged: (v) => _setDarkMode(v),
+                            ValueListenableBuilder<ThemeMode>(
+                              valueListenable: ThemeService.instance.mode,
+                              builder: (context, mode, _) {
+                                return SwitchListTile(
+                                  value: mode == ThemeMode.dark,
+                                  activeThumbColor: colorScheme.primary,
+                                  title: Text(
+                                    AppStrings.darkModeTitle(context),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    AppStrings.darkModeSubtitle(context),
+                                  ),
+                                  onChanged: (v) => _setDarkMode(v),
+                                );
+                              },
                             ),
                             const Divider(height: 1),
                             SwitchListTile(
                               value: _notifications,
-                              activeThumbColor: AppPalette.primary,
-                              title: const Text(
-                                'Nhận thông báo',
+                              activeThumbColor: colorScheme.primary,
+                              title: Text(
+                                AppStrings.notificationsTitle(context),
                                 style: TextStyle(fontWeight: FontWeight.w700),
                               ),
-                              subtitle: const Text(
-                                'Nhắc nhở theo dõi hoạt động và mục tiêu.',
+                              subtitle: Text(
+                                AppStrings.notificationsSubtitle(context),
                               ),
                               onChanged: (v) => _setNotifications(v),
                             ),
@@ -209,50 +220,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE2ECE7)),
+                          border: Border.all(color: colorScheme.outlineVariant),
                         ),
                         child: Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Ngôn ngữ',
+                                    AppStrings.languageTitle(context),
                                     style: TextStyle(
                                       fontWeight: FontWeight.w800,
-                                      color: AppPalette.textMain,
+                                      color: colorScheme.onSurface,
                                     ),
                                   ),
-                                  SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    'Chọn ngôn ngữ hiển thị trong ứng dụng.',
+                                    AppStrings.languageSubtitle(context),
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: AppPalette.textMuted,
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.72,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 8),
-                            DropdownButton<String>(
-                              value: _language,
-                              underline: const SizedBox.shrink(),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'vi',
-                                  child: Text('Tiếng Việt'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'en',
-                                  child: Text('English'),
-                                ),
-                              ],
-                              onChanged: (v) {
-                                if (v != null) _setLanguage(v);
+                            ValueListenableBuilder<Locale>(
+                              valueListenable: LocaleService.instance.locale,
+                              builder: (context, locale, _) {
+                                return DropdownButton<String>(
+                                  value: locale.languageCode,
+                                  underline: const SizedBox.shrink(),
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: 'vi',
+                                      child: Text(
+                                        AppStrings.languageVietnamese(context),
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'en',
+                                      child: Text(
+                                        AppStrings.languageEnglish(context),
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (v) {
+                                    if (v != null) _setLanguage(v);
+                                  },
+                                );
                               },
                             ),
                           ],
@@ -265,27 +287,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _loading ? null : _deleteAccount,
                           icon: _loading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
+                                      colorScheme.onError,
                                     ),
                                   ),
                                 )
                               : const Icon(Icons.delete_forever_outlined),
                           label: Text(
-                            _loading ? 'Đang xử lý...' : 'Xóa tài khoản',
+                            _loading
+                                ? AppStrings.processing(context)
+                                : AppStrings.deleteAccount(context),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDB4A4A),
-                            foregroundColor: Colors.white,
+                            backgroundColor: colorScheme.error,
+                            foregroundColor: colorScheme.onError,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            textStyle: const TextStyle(
+                            textStyle: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                             ),
