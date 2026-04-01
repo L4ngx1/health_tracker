@@ -72,7 +72,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     _setError(null);
-    navigator.pushNamedAndRemoveUntil(AppRoutes.main, (route) => false);
+    navigator.pushNamedAndRemoveUntil(AppRoutes.unverified, (route) => false);
   }
 
   @override
