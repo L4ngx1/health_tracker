@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 
 import '../../controllers/auth_controller.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,13 +17,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _controller = const AuthController();
   bool _loading = false;
 
-  Widget _buildAvatar(User? user) {
+  Widget _buildAvatar(User? user, ColorScheme colorScheme) {
     final photo = user?.photoURL;
     if (photo == null || photo.isEmpty) {
-      return const CircleAvatar(
+      return CircleAvatar(
         radius: 46,
-        backgroundColor: Color(0xFFD5E6DE),
-        child: Icon(Icons.person, size: 42, color: AppPalette.primaryDark),
+        backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
+        child: Icon(Icons.person, size: 42, color: colorScheme.primary),
       );
     }
     if (photo.startsWith('data:image')) {
@@ -35,24 +35,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return CircleAvatar(radius: 46, backgroundImage: NetworkImage(photo));
   }
 
-  Widget _statusChip(User? user) {
+  Widget _statusChip(User? user, ColorScheme colorScheme) {
     final isAnonymous = user?.isAnonymous == true;
     final verified = user?.emailVerified == true;
     final label = isAnonymous
-        ? 'Tài khoản ẩn danh'
-        : (verified ? 'Email đã xác minh' : 'Email chưa xác minh');
+      ? AppStrings.anonymousAccount(context)
+      : (verified
+          ? AppStrings.emailVerified(context)
+          : AppStrings.emailUnverified(context));
     final bg = isAnonymous
-        ? const Color(0xFFFFF3E6)
-        : (verified ? const Color(0xFFE8F8F0) : const Color(0xFFFFF3E6));
+        ? colorScheme.tertiaryContainer
+        : (verified
+              ? colorScheme.primaryContainer
+              : colorScheme.errorContainer);
     final fg = isAnonymous
-        ? const Color(0xFF8A5A2B)
-        : (verified ? AppPalette.primaryDark : const Color(0xFF8A5A2B));
+        ? colorScheme.onTertiaryContainer
+        : (verified
+              ? colorScheme.onPrimaryContainer
+              : colorScheme.onErrorContainer);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFDDE7E1)),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Text(
         label,
@@ -70,19 +76,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Chỉnh sửa hồ sơ'),
+        title: Text(AppStrings.editProfileDialogTitle(context)),
         content: TextField(
           controller: nameCtrl,
-          decoration: const InputDecoration(labelText: 'Tên'),
+          decoration: InputDecoration(labelText: AppStrings.nameLabel(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+            child: Text(AppStrings.cancel(context)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Lưu'),
+            child: Text(AppStrings.save(context)),
           ),
         ],
       ),
@@ -104,7 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ).showSnackBar(SnackBar(content: Text(error)));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cập nhật hồ sơ thành công.')),
+        SnackBar(content: Text(AppStrings.profileUpdateSuccess(context))),
       );
       setState(() {});
     }
@@ -113,12 +119,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFF7F3EC), Color(0xFFF2F8F4)],
+              colors: [
+                colorScheme.surface,
+                colorScheme.surfaceContainerHighest,
+              ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -133,14 +143,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.arrow_back_ios_new_rounded),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Hồ sơ người dùng',
+                        AppStrings.profileScreenTitle(context),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
-                          color: AppPalette.textMain,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -161,11 +171,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(22),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x1A1B7D5B),
+                              color: colorScheme.shadow.withValues(alpha: 0.16),
                               blurRadius: 18,
                               offset: Offset(0, 8),
                             ),
@@ -178,37 +188,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: const Color(0xFFCFE3DA),
+                                  color: colorScheme.outlineVariant,
                                   width: 2,
                                 ),
                               ),
                               child: InkWell(
                                 onTap: _editProfile,
                                 borderRadius: BorderRadius.circular(50),
-                                child: _buildAvatar(user),
+                                child: _buildAvatar(user, colorScheme),
                               ),
                             ),
                             const SizedBox(height: 12),
                             Text(
                               user?.displayName?.trim().isNotEmpty == true
                                   ? user!.displayName!.trim()
-                                  : 'Người dùng',
-                              style: const TextStyle(
+                                  : AppStrings.userFallback(context),
+                              style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w900,
-                                color: AppPalette.textMain,
+                                color: colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              user?.email ?? 'Không có email',
-                              style: const TextStyle(
+                              user?.email ?? AppStrings.noEmail(context),
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: AppPalette.textMuted,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.72,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 10),
-                            _statusChip(user),
+                            _statusChip(user, colorScheme),
                             const SizedBox(height: 14),
                             SizedBox(
                               width: double.infinity,
@@ -216,16 +228,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: _editProfile,
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: AppPalette.primary,
-                                  ),
+                                  side: BorderSide(color: colorScheme.primary),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
                                 icon: const Icon(Icons.edit_outlined),
-                                label: const Text(
-                                  'Chỉnh sửa hồ sơ',
+                                label: Text(
+                                  AppStrings.editProfile(context),
                                   style: TextStyle(fontWeight: FontWeight.w700),
                                 ),
                               ),
@@ -238,36 +248,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE2ECE7)),
+                          border: Border.all(color: colorScheme.outlineVariant),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Thông tin tài khoản',
+                            Text(
+                              AppStrings.accountInfo(context),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w900,
-                                color: AppPalette.textMain,
+                                color: colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 12),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.fingerprint,
                                   size: 18,
-                                  color: AppPalette.textMuted,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.72,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'UID: ${user?.uid ?? '-'}',
-                                    style: const TextStyle(
-                                      color: AppPalette.textMuted,
+                                    AppStrings.uidPrefix(context, user?.uid ?? '-'),
+                                    style: TextStyle(
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.72,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -276,17 +290,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.email_outlined,
                                   size: 18,
-                                  color: AppPalette.textMuted,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.72,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     user?.email ?? '-',
-                                    style: const TextStyle(
-                                      color: AppPalette.textMuted,
+                                    style: TextStyle(
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.72,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -318,18 +336,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (c) => AlertDialog(
-                        title: const Text('Đăng xuất'),
-                        content: const Text(
-                          'Bạn có chắc muốn đăng xuất không?',
-                        ),
+                        title: Text(AppStrings.logoutConfirmTitle(context)),
+                        content: Text(AppStrings.logoutConfirmContent(context)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(c).pop(false),
-                            child: const Text('Hủy'),
+                            child: Text(AppStrings.cancel(context)),
                           ),
                           ElevatedButton(
                             onPressed: () => Navigator.of(c).pop(true),
-                            child: const Text('Đăng xuất'),
+                            child: Text(AppStrings.logout(context)),
                           ),
                         ],
                       ),
@@ -343,14 +359,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ).pushNamedAndRemoveUntil(AppRoutes.login, (r) => false);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDB4A4A),
+                    backgroundColor: colorScheme.error,
+                    foregroundColor: colorScheme.onError,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Đăng xuất',
+                  child: Text(
+                    AppStrings.logout(context),
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                 ),

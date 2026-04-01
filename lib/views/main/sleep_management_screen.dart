@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/tracking_controller.dart';
-import '../../core/theme/app_palette.dart';
+import '../../core/localization/app_strings.dart';
 
 class SleepManagementScreen extends StatelessWidget {
   const SleepManagementScreen({super.key, required this.trackingController});
@@ -16,8 +16,9 @@ class SleepManagementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản lý giấc ngủ')),
+      appBar: AppBar(title: Text(AppStrings.sleepManagementTitle(context))),
       body: ValueListenableBuilder<TrackingSnapshot>(
         valueListenable: trackingController.snapshot,
         builder: (context, snapshot, _) {
@@ -27,9 +28,12 @@ class SleepManagementScreen extends StatelessWidget {
 
           return Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFFF7F3EC), Color(0xFFF2F8F4)],
+                colors: [
+                  colorScheme.surface,
+                  colorScheme.surfaceContainerHighest,
+                ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -43,11 +47,11 @@ class SleepManagementScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(18),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x1A0F3A2E),
+                          color: colorScheme.shadow.withValues(alpha: 0.16),
                           blurRadius: 14,
                           offset: Offset(0, 6),
                         ),
@@ -56,32 +60,34 @@ class SleepManagementScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Phiên ngủ gần nhất',
+                        Text(
+                          AppStrings.lastSleepSession(context),
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
-                            color: AppPalette.textMain,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           sleepText,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 42,
                             height: 1.0,
                             fontWeight: FontWeight.w900,
-                            color: AppPalette.primaryDark,
+                            color: colorScheme.primary,
                           ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           snapshot.isSleeping
-                              ? 'Trạng thái hiện tại: Đang ngủ'
-                              : 'Trạng thái hiện tại: Đang thức',
-                          style: const TextStyle(
+                              ? AppStrings.currentStatusSleeping(context)
+                              : AppStrings.currentStatusAwake(context),
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: AppPalette.textMuted,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.72,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -90,14 +96,18 @@ class SleepManagementScreen extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: progress,
                             minHeight: 10,
-                            backgroundColor: const Color(0xFFDCE9E2),
-                            color: AppPalette.primary,
+                            backgroundColor: colorScheme.outlineVariant,
+                            color: colorScheme.primary,
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Mục tiêu tham chiếu: 8h mỗi ngày',
-                          style: TextStyle(color: AppPalette.textMuted),
+                        Text(
+                          AppStrings.sleepGoalReference(context),
+                          style: TextStyle(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.72,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -107,45 +117,33 @@ class SleepManagementScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBF4),
+                      color: colorScheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFEDE2CD)),
+                      border: Border.all(color: colorScheme.outlineVariant),
                     ),
-                    child: const Column(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Cách hệ thống đo giấc ngủ',
+                          AppStrings.sleepHowItWorksTitle(context),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: AppPalette.textMain,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         SizedBox(height: 8),
-                        Text(
-                          '- Dữ liệu gia tốc được gom theo từng khung 1 phút (epoch).',
-                        ),
+                        Text(AppStrings.sleepHowBullet1(context)),
                         SizedBox(height: 4),
-                        Text(
-                          '- Mỗi phút tạo Activity Score từ số lần chuyển động vượt ngưỡng.',
-                        ),
+                        Text(AppStrings.sleepHowBullet2(context)),
                         SizedBox(height: 4),
-                        Text(
-                          '- Hệ thống dùng cửa sổ trượt có trọng số để phân loại ngủ/thức từng phút.',
-                        ),
+                        Text(AppStrings.sleepHowBullet3(context)),
                         SizedBox(height: 4),
-                        Text(
-                          '- Nếu bước chân trong phút hiện tại cao, phút đó được ưu tiên xếp vào trạng thái thức.',
-                        ),
+                        Text(AppStrings.sleepHowBullet4(context)),
                         SizedBox(height: 4),
-                        Text(
-                          '- Kết quả hiển thị có độ trễ khoảng 1 phút vì cần dữ liệu phút kế tiếp để chấm điểm.',
-                        ),
+                        Text(AppStrings.sleepHowBullet5(context)),
                         SizedBox(height: 4),
-                        Text(
-                          '- Dữ liệu mang tính tham khảo, có thể lệch khi điện thoại không đặt gần cơ thể lúc ngủ.',
-                        ),
+                        Text(AppStrings.sleepHowBullet6(context)),
                       ],
                     ),
                   ),

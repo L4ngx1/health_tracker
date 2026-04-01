@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+
+import '../core/localization/locale_service.dart';
+import '../l10n/app_localizations.dart';
 import '../models/food_recognition_result.dart';
 
 class AIService {
@@ -10,6 +13,9 @@ class AIService {
 
   final GenerativeModel _visionModel;
   final GenerativeModel _textModel;
+
+  AppLocalizations get _l10n =>
+      lookupAppLocalizations(LocaleService.instance.locale.value);
 
   AIService()
     : _visionModel = GenerativeModel(
@@ -25,8 +31,7 @@ class AIService {
       final content = [
         Content.multi([
           TextPart(
-            'Identify the food in this image. Provide the name and estimated calories per 100g. '
-            'Return only a JSON object like: {"name": "...", "calories": 0.0, "description": "..."}',
+            _l10n.aiPromptRecognizeFood,
           ),
           DataPart('image/jpeg', bytes),
         ]),
@@ -46,7 +51,7 @@ class AIService {
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error recognizing food: $e');
+        debugPrint(_l10n.aiLogRecognizeFoodError('$e'));
       }
     }
     return null;
@@ -58,15 +63,13 @@ class AIService {
     String currentStatus,
   ) async {
     try {
-      final prompt =
-          'Based on the user goal: $userGoal and current status: $currentStatus, '
-          'suggest a daily workout routine. Keep it concise and practical.';
+      final prompt = _l10n.aiPromptWorkoutSuggestions(userGoal, currentStatus);
 
       final content = [Content.text(prompt)];
       final response = await _textModel.generateContent(content);
-      return response.text ?? 'Could not generate suggestions.';
+      return response.text ?? _l10n.aiCouldNotGenerateSuggestions;
     } catch (e) {
-      return 'Error: $e';
+      return _l10n.aiErrorGeneric('$e');
     }
   }
 
@@ -76,15 +79,16 @@ class AIService {
     String preferences,
   ) async {
     try {
-      final prompt =
-          'User health condition: $healthCondition. Preferences: $preferences. '
-          'Provide a recommended diet plan and foods to avoid.';
+      final prompt = _l10n.aiPromptDietRecommendations(
+        healthCondition,
+        preferences,
+      );
 
       final content = [Content.text(prompt)];
       final response = await _textModel.generateContent(content);
-      return response.text ?? 'Could not generate recommendations.';
+      return response.text ?? _l10n.aiCouldNotGenerateRecommendations;
     } catch (e) {
-      return 'Error: $e';
+      return _l10n.aiErrorGeneric('$e');
     }
   }
 }

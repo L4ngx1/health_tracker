@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../controllers/main_navigation_controller.dart';
-import '../../core/theme/app_palette.dart';
+import '../../core/localization/app_strings.dart';
 import '../../models/bottom_nav_item.dart';
 import 'home_screen.dart';
 import 'journal_screen.dart';
@@ -29,34 +29,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     JournalScreen(),
   ];
 
-  final items = const [
-    BottomNavItem(
-      label: 'Trang chủ',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
-    ),
-    BottomNavItem(
-      label: 'Tập luyện',
-      icon: Icons.sports_gymnastics_outlined,
-      activeIcon: Icons.sports_gymnastics,
-    ),
-    BottomNavItem(
-      label: 'Ăn uống',
-      icon: Icons.restaurant_menu_outlined,
-      activeIcon: Icons.restaurant_menu,
-    ),
-    BottomNavItem(
-      label: 'Ghi chú',
-      icon: Icons.article_outlined,
-      activeIcon: Icons.article,
-    ),
-    BottomNavItem(
-      label: 'Nhật ký',
-      icon: Icons.menu_book_outlined,
-      activeIcon: Icons.menu_book,
-    ),
-  ];
-
   @override
   void dispose() {
     controller.dispose();
@@ -65,6 +37,38 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final unselectedColor =
+        Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.72) ??
+        colorScheme.onSurface.withValues(alpha: 0.72);
+    final items = [
+      BottomNavItem(
+        label: AppStrings.navHome(context),
+        icon: Icons.home_outlined,
+        activeIcon: Icons.home_rounded,
+      ),
+      BottomNavItem(
+        label: AppStrings.navWorkout(context),
+        icon: Icons.sports_gymnastics_outlined,
+        activeIcon: Icons.sports_gymnastics,
+      ),
+      BottomNavItem(
+        label: AppStrings.navNutrition(context),
+        icon: Icons.restaurant_menu_outlined,
+        activeIcon: Icons.restaurant_menu,
+      ),
+      BottomNavItem(
+        label: AppStrings.navNotes(context),
+        icon: Icons.article_outlined,
+        activeIcon: Icons.article,
+      ),
+      BottomNavItem(
+        label: AppStrings.navJournal(context),
+        icon: Icons.menu_book_outlined,
+        activeIcon: Icons.menu_book,
+      ),
+    ];
+
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -93,7 +97,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           floatingActionButton: controller.index == 1
               ? FloatingActionButton(
                   onPressed: () {},
-                  backgroundColor: AppPalette.primaryDark,
+                  backgroundColor: colorScheme.primary,
                   child: const Icon(Icons.add),
                 )
               : null,
@@ -103,13 +107,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: AppPalette.surface,
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x1A1B7D5B),
+                    color: colorScheme.primary.withValues(alpha: 0.14),
                     blurRadius: 20,
-                    offset: Offset(0, 10),
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
@@ -128,10 +132,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(18),
-                            splashColor: AppPalette.primary.withValues(
+                            splashColor: colorScheme.primary.withValues(
                               alpha: 0.16,
                             ),
-                            highlightColor: AppPalette.primary.withValues(
+                            highlightColor: colorScheme.primary.withValues(
                               alpha: 0.08,
                             ),
                             onHighlightChanged: (isPressed) {
@@ -155,7 +159,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                 curve: Curves.easeOut,
                                 decoration: BoxDecoration(
                                   color: selected
-                                      ? AppPalette.primary.withValues(
+                                      ? colorScheme.primary.withValues(
                                           alpha: 0.12,
                                         )
                                       : Colors.transparent,
@@ -170,8 +174,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                         selected ? item.activeIcon : item.icon,
                                         size: 22,
                                         color: selected
-                                            ? AppPalette.primary
-                                            : const Color(0xFF95A39B),
+                                            ? colorScheme.primary
+                                            : unselectedColor,
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
@@ -182,8 +186,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                               ? FontWeight.w700
                                               : FontWeight.w500,
                                           color: selected
-                                              ? AppPalette.primary
-                                              : const Color(0xFF95A39B),
+                                              ? colorScheme.primary
+                                              : unselectedColor,
                                         ),
                                       ),
                                     ],

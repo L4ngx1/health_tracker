@@ -3,10 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../core/localization/locale_service.dart';
 import '../core/routes/app_routes.dart';
+import '../l10n/app_localizations.dart';
 
 class AuthController {
   const AuthController();
+
+  AppLocalizations get _l10n =>
+      lookupAppLocalizations(LocaleService.instance.locale.value);
 
   static bool _googleInitialized = false;
 
@@ -32,23 +37,23 @@ class AuthController {
   String _friendlyError(FirebaseAuthException e) {
     switch (e.code) {
       case 'invalid-email':
-        return 'Email không đúng định dạng.';
+        return _l10n.authErrorInvalidEmailFormat;
       case 'user-disabled':
-        return 'Tài khoản đã bị khóa.';
+        return _l10n.authErrorUserDisabled;
       case 'user-not-found':
-        return 'Không tìm thấy tài khoản.';
+        return _l10n.authErrorUserNotFound;
       case 'wrong-password':
-        return 'Mật khẩu không đúng.';
+        return _l10n.authErrorWrongPassword;
       case 'email-already-in-use':
-        return 'Email đã được sử dụng.';
+        return _l10n.authErrorEmailInUse;
       case 'operation-not-allowed':
-        return 'Đăng nhập chưa được bật.';
+        return _l10n.authErrorOperationNotAllowed;
       case 'weak-password':
-        return 'Mật khẩu quá yếu (ít nhất 6 ký tự).';
+        return _l10n.authErrorWeakPassword;
       case 'too-many-requests':
-        return 'Quá nhiều yêu cầu. Vui lòng thử lại sau.';
+        return _l10n.authErrorTooManyRequests;
       default:
-        return e.message ?? 'Có lỗi xảy ra. Vui lòng thử lại.';
+        return e.message ?? _l10n.authErrorGeneric;
     }
   }
 
@@ -65,7 +70,7 @@ class AuthController {
     required String password,
   }) async {
     if (!isValidEmail(email) || password.isEmpty) {
-      return 'Vui lòng nhập email hợp lệ và mật khẩu.';
+      return _l10n.authErrorValidEmailPassword;
     }
 
     try {
@@ -83,7 +88,7 @@ class AuthController {
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
     } catch (_) {
-      return 'Có lỗi xảy ra. Vui lòng thử lại.';
+      return _l10n.authErrorGeneric;
     }
   }
 
@@ -93,11 +98,11 @@ class AuthController {
     required String password,
   }) async {
     if (fullName.trim().isEmpty || !isValidEmail(email) || password.isEmpty) {
-      return 'Vui lòng nhập đầy đủ thông tin và email hợp lệ.';
+      return _l10n.authErrorCompleteInfo;
     }
 
     if (password.length < 6) {
-      return 'Mật khẩu phải ít nhất 6 ký tự.';
+      return _l10n.passwordTooShort;
     }
 
     try {
@@ -111,13 +116,13 @@ class AuthController {
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
     } catch (_) {
-      return 'Có lỗi xảy ra. Vui lòng thử lại.';
+      return _l10n.authErrorGeneric;
     }
   }
 
   Future<String?> forgotPassword(String email) async {
     if (!isValidEmail(email)) {
-      return 'Vui lòng nhập email hợp lệ.';
+      return _l10n.authErrorValidEmail;
     }
 
     try {
@@ -126,7 +131,7 @@ class AuthController {
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
     } catch (_) {
-      return 'Có lỗi xảy ra. Vui lòng thử lại.';
+      return _l10n.authErrorGeneric;
     }
   }
 
@@ -138,7 +143,7 @@ class AuthController {
       } else {
         if (defaultTargetPlatform != TargetPlatform.android &&
             defaultTargetPlatform != TargetPlatform.iOS) {
-          return 'Google Sign-In hiện chỉ hỗ trợ Android/iOS/Web.';
+          return _l10n.authErrorGoogleSupportedOnly;
         }
         await _ensureGoogleSignInInitialized();
 
@@ -148,7 +153,7 @@ class AuthController {
 
         final googleAuth = googleUser.authentication;
         if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
-          return 'Không lấy được Google ID token. Vui lòng thử lại.';
+          return _l10n.authErrorGoogleNoIdToken;
         }
         final credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
@@ -159,34 +164,40 @@ class AuthController {
       return null;
     } on GoogleSignInException catch (e) {
       debugPrint(
-        'GoogleSignInException: ${e.code} - ${e.description} - ${e.details}',
+        _l10n.authLogGoogleSignInException(
+          e.code.name,
+          e.description ?? '',
+          '${e.details ?? ''}',
+        ),
       );
       switch (e.code) {
         case GoogleSignInExceptionCode.clientConfigurationError:
-          return 'Google Sign-In bị lỗi cấu hình (thường do thiếu SHA1/SHA256 hoặc OAuth Client trên Firebase).';
+          return _l10n.authErrorGoogleConfig;
         case GoogleSignInExceptionCode.canceled:
-          return 'Bạn đã hủy đăng nhập Google.';
+          return _l10n.authErrorGoogleCanceled;
         case GoogleSignInExceptionCode.uiUnavailable:
-          return 'Không mở được giao diện đăng nhập Google. Vui lòng thử lại.';
+          return _l10n.authErrorGoogleUiUnavailable;
         default:
-          return 'Có lỗi khi đăng nhập Google: ${e.description ?? e.code.name}';
+          return _l10n.authErrorGoogleGeneral(e.description ?? e.code.name);
       }
     } on FirebaseAuthException catch (e) {
-      debugPrint('Google FirebaseAuthException: ${e.code} - ${e.message}');
+      debugPrint(
+        _l10n.authLogGoogleFirebaseException(e.code, e.message ?? ''),
+      );
       return _friendlyError(e);
     } on UnimplementedError {
-      return 'Google Sign-In chưa hỗ trợ trên nền tảng hiện tại.';
+      return _l10n.authErrorGoogleUnsupportedPlatform;
     } catch (e) {
       final raw = e.toString();
-      debugPrint('Google sign-in error: $raw');
+      debugPrint(_l10n.authLogGoogleSignInError(raw));
       if (raw.contains('INVALID_CERT_HASH') ||
           raw.contains('DEVELOPER_ERROR')) {
-        return 'Google Sign-In bị từ chối do SHA1/SHA256 chưa khớp Firebase.';
+        return _l10n.authErrorGoogleShaMismatch;
       }
       if (raw.contains('canceled') || raw.contains('cancelled')) {
-        return 'Bạn đã hủy đăng nhập Google.';
+        return _l10n.authErrorGoogleCanceled;
       }
-      return 'Có lỗi khi đăng nhập Google: $raw';
+      return _l10n.authErrorGoogleGeneral(raw);
     }
   }
 
@@ -197,20 +208,20 @@ class AuthController {
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
     } catch (_) {
-      return 'Có lỗi khi đăng nhập ẩn danh.';
+      return _l10n.authErrorAnonymous;
     }
   }
 
   Future<String?> resendEmailVerification() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return 'Không tìm thấy người dùng.';
+    if (user == null) return _l10n.authErrorUserMissing;
     try {
       await user.sendEmailVerification();
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Gửi lại email xác minh thất bại.';
+      return e.message ?? _l10n.authErrorResendVerificationFailed;
     } catch (_) {
-      return 'Có lỗi khi gửi lại email xác minh.';
+      return _l10n.authErrorResendVerificationGeneric;
     }
   }
 
@@ -220,7 +231,7 @@ class AuthController {
 
   Future<String?> updateProfile({String? displayName, String? photoUrl}) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return 'Không tìm thấy người dùng.';
+    if (user == null) return _l10n.authErrorUserMissing;
     try {
       if (displayName != null) {
         await user.updateDisplayName(displayName);
@@ -231,25 +242,25 @@ class AuthController {
       await user.reload();
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Cập nhật hồ sơ thất bại.';
+      return e.message ?? _l10n.authErrorUpdateProfileFailed;
     } catch (_) {
-      return 'Có lỗi khi cập nhật hồ sơ.';
+      return _l10n.authErrorUpdateProfileGeneric;
     }
   }
 
   Future<String?> deleteAccount() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return 'Không tìm thấy người dùng.';
+    if (user == null) return _l10n.authErrorUserMissing;
     try {
       await user.delete();
       return null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
-        return 'Vui lòng đăng nhập lại trước khi xóa tài khoản.';
+        return _l10n.authErrorDeleteRequiresRelogin;
       }
-      return e.message ?? 'Xóa tài khoản thất bại.';
+      return e.message ?? _l10n.authErrorDeleteFailed;
     } catch (_) {
-      return 'Có lỗi khi xóa tài khoản.';
+      return _l10n.authErrorDeleteGeneric;
     }
   }
 }

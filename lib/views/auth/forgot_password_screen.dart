@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/auth_controller.dart';
-import '../../core/theme/app_palette.dart';
+import '../../core/localization/app_strings.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/common_widgets.dart';
 
@@ -49,7 +49,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _submit() async {
     final email = _emailController.text.trim();
     if (!_controller.isValidEmail(email)) {
-      _setError('Vui lòng nhập email hợp lệ.');
+      _setError(AppStrings.validEmailRequired(context));
       return;
     }
 
@@ -66,10 +66,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     _setError(null);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Đường link đặt lại mật khẩu đã được gửi đến hộp thư của bạn nếu email tồn tại trong hệ thống(Vui lòng kiểm tra cả mục thư rác).',
-        ),
+      SnackBar(
+        content: Text(AppStrings.resetLinkSent(context)),
         duration: Duration(seconds: 4),
       ),
     );
@@ -78,6 +76,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: AuthLayout(
         showBack: true,
@@ -98,34 +97,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     children: [
                       const BrandIconOnly(),
                       const SizedBox(height: 14),
-                      const Text(
-                        'Sống Khỏe',
+                      Text(
+                        AppStrings.appTitle(context),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w900,
-                          color: AppPalette.textMain,
+                          color: colorScheme.onSurface,
                           height: 1.0,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Đặt lại mật khẩu',
+                      Text(
+                        AppStrings.forgotPasswordTitle(context),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF202936),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const SizedBox(
+                      SizedBox(
                         width: 360,
                         child: Text(
-                          'Nhập email để nhận mail đặt lại mật khẩu.',
+                          AppStrings.forgotPasswordSubtitle(context),
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: AppPalette.textMuted,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.72,
+                            ),
                             fontSize: 14,
                             height: 1.35,
                           ),
@@ -141,25 +142,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF0F0),
-                      border: Border.all(color: const Color(0xFFEB5757)),
+                      color: colorScheme.errorContainer,
+                      border: Border.all(color: colorScheme.error),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        color: Color(0xFFB41F1F),
+                      style: TextStyle(
+                        color: colorScheme.onErrorContainer,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ],
                 const SizedBox(height: 24),
-                const InputLabel('Email'),
+                InputLabel(AppStrings.emailLabel(context)),
                 const SizedBox(height: 8),
                 RoundedInput(
                   controller: _emailController,
-                  hint: 'Nhập email của bạn',
+                  hint: AppStrings.emailHintGeneral(context),
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   focusNode: _emailFocus,
@@ -168,7 +169,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 20),
                 PrimaryButton(
-                  text: 'Gửi',
+                  text: AppStrings.send(context),
                   isLoading: _isLoading,
                   onPressed: _submit,
                 ),
@@ -177,13 +178,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppPalette.textMuted,
-                      textStyle: const TextStyle(
+                      foregroundColor: colorScheme.onSurface.withValues(
+                        alpha: 0.72,
+                      ),
+                      textStyle: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    child: const Text('Hủy'),
+                    child: Text(AppStrings.cancel(context)),
                   ),
                 ),
               ],

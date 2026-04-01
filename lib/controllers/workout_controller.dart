@@ -1,48 +1,49 @@
 import 'package:flutter/material.dart';
 
+import '../core/localization/app_strings.dart';
 import '../models/workout_history_item.dart';
 import '../models/workout_item.dart';
 
 class WorkoutController {
   const WorkoutController();
 
-  List<WorkoutItem> getPrograms() {
-    return const [
+  List<WorkoutItem> getPrograms(BuildContext context) {
+    return [
       WorkoutItem(
-        title: 'Chạy bộ',
-        subtitle: 'Cardio chuyên\nsâu',
+        title: AppStrings.workoutProgramRunTitle(context),
+        subtitle: AppStrings.workoutProgramRunSubtitle(context),
         icon: Icons.directions_run,
       ),
       WorkoutItem(
-        title: 'Gym',
-        subtitle: 'Tăng cường cơ bắp',
+        title: AppStrings.workoutProgramGymTitle(context),
+        subtitle: AppStrings.workoutProgramGymSubtitle(context),
         icon: Icons.fitness_center,
       ),
       WorkoutItem(
-        title: 'Yoga',
-        subtitle: 'Thư giãn tâm trí',
+        title: AppStrings.workoutProgramYogaTitle(context),
+        subtitle: AppStrings.workoutProgramYogaSubtitle(context),
         icon: Icons.self_improvement,
       ),
       WorkoutItem(
-        title: 'Đạp xe',
-        subtitle: 'Đốt mỡ hiệu\nquả',
+        title: AppStrings.workoutProgramCyclingTitle(context),
+        subtitle: AppStrings.workoutProgramCyclingSubtitle(context),
         icon: Icons.pedal_bike,
       ),
     ];
   }
 
-  List<WorkoutHistoryItem> getHistory() {
-    return const [
+  List<WorkoutHistoryItem> getHistory(BuildContext context) {
+    return [
       WorkoutHistoryItem(
-        name: 'Chay bo',
-        date: '14 Th05, 2024',
-        duration: '45 phut',
+        name: AppStrings.workoutHistoryRunName(context),
+        date: AppStrings.workoutHistoryDate1(context),
+        duration: AppStrings.workoutHistoryDuration1(context),
         kcal: '320',
       ),
       WorkoutHistoryItem(
-        name: 'Gym',
-        date: '12 Th05, 2024',
-        duration: '60 phut',
+        name: AppStrings.workoutHistoryGymName(context),
+        date: AppStrings.workoutHistoryDate2(context),
+        duration: AppStrings.workoutHistoryDuration2(context),
         kcal: '450',
       ),
     ];

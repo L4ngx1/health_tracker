@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../controllers/workout_controller.dart';
 import '../../controllers/ai_controller.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
 
@@ -35,14 +35,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     const controller = WorkoutController();
-    final programs = controller.getPrograms();
-    final history = controller.getHistory();
+    final programs = controller.getPrograms(context);
+    final history = controller.getHistory(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF7F3EC), Color(0xFFF2F8F4)],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -53,7 +54,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TopBar(
-                title: 'Tập luyện',
+                title: AppStrings.workoutScreenTitle(context),
                 onUserTap: () =>
                     Navigator.of(context).pushNamed(AppRoutes.profile),
               ),
@@ -63,38 +64,43 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF23B56F), Color(0xFF0EA15F)],
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.primary.withValues(alpha: 0.84),
+                    ],
                   ),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x1A0F3A2E),
+                      color: colorScheme.shadow.withValues(alpha: 0.18),
                       blurRadius: 18,
                       offset: Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Mục tiêu tuần này',
-                      style: TextStyle(color: Colors.white70),
+                      AppStrings.weekGoalTitle(context),
+                      style: TextStyle(
+                        color: colorScheme.onPrimary.withValues(alpha: 0.85),
+                      ),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '4/5 Buổi tập',
+                      AppStrings.weekGoalProgress(context),
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colorScheme.onPrimary,
                         fontSize: 42,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     SizedBox(height: 6),
                     Text(
-                      '1,240 kcal đã đốt',
+                      AppStrings.weekGoalCalories(context),
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colorScheme.onPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                       ),
@@ -109,21 +115,19 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppPalette.primary.withValues(alpha: 0.3),
-                  ),
+                  border: Border.all(color: colorScheme.outlineVariant),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.auto_awesome, color: Colors.orangeAccent),
-                        SizedBox(width: 8),
+                        Icon(Icons.auto_awesome, color: colorScheme.secondary),
+                        const SizedBox(width: 8),
                         Text(
-                          'Gợi ý luyện tập AI',
+                          AppStrings.aiWorkoutSuggestionTitle(context),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -137,20 +141,20 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     else if (_aiWorkoutPlan != null)
                       Text(_aiWorkoutPlan!)
                     else
-                      const Text('Nhấn để nhận lịch tập cá nhân hóa từ AI'),
+                      Text(AppStrings.aiWorkoutSuggestionHint(context)),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _getAIWorkout,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppPalette.primary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Tạo lịch tập với AI'),
+                        child: Text(AppStrings.aiGeneratePlanButton(context)),
                       ),
                     ),
                   ],
@@ -158,11 +162,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               ),
 
               const SizedBox(height: 18),
-              const Row(
+              Row(
                 children: [
                   Expanded(
                     child: Text(
-                      'Chế độ tập luyện',
+                      AppStrings.programModesTitle(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -173,10 +177,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   ),
                   SizedBox(width: 8),
                   Text(
-                    'TẤT CẢ',
+                    AppStrings.allCaps(context),
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: AppPalette.primaryDark,
+                      color: colorScheme.primary,
                     ),
                   ),
                 ],
@@ -195,8 +199,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 itemBuilder: (_, index) => WorkoutCard(item: programs[index]),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Lịch sử tập luyện',
+              Text(
+                AppStrings.workoutHistoryTitle(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),

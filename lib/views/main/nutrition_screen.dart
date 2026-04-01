@@ -4,8 +4,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 
 class NutritionScreen extends StatefulWidget {
@@ -47,7 +47,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
       if (cameras.isEmpty) {
         if (!mounted) return;
         setState(() {
-          _cameraError = 'Khong tim thay camera tren thiet bi.';
+          _cameraError = AppStrings.cameraNotFound(context);
         });
         return;
       }
@@ -83,8 +83,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _cameraError =
-            'Khong the mo camera. Vui long cap quyen camera va thu lai.';
+        _cameraError = AppStrings.cameraOpenFailed(context);
       });
     } finally {
       _isInitializingCamera = false;
@@ -111,7 +110,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Khong the chup anh. Vui long thu lai.')),
+        SnackBar(content: Text(AppStrings.capturePhotoFailed(context))),
       );
     } finally {
       if (mounted) {
@@ -140,11 +139,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Khong the truy cap thu vien anh. Vui long cap quyen va thu lai.',
-          ),
-        ),
+        SnackBar(content: Text(AppStrings.galleryAccessFailed(context))),
       );
     }
   }
@@ -191,14 +186,16 @@ class _NutritionScreenState extends State<NutritionScreen> {
         if (_cameraError != null)
           Positioned.fill(
             child: Container(
-              color: Colors.black.withValues(alpha: 0.35),
+              color: Theme.of(
+                context,
+              ).colorScheme.scrim.withValues(alpha: 0.35),
               padding: const EdgeInsets.all(14),
               child: Align(
                 alignment: Alignment.bottomLeft,
                 child: Text(
                   _cameraError!,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -211,11 +208,12 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SafeArea(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF7F3EC), Color(0xFFF2F8F4)],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -226,16 +224,18 @@ class _NutritionScreenState extends State<NutritionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TopBar(
-                title: 'Dự đoán dinh dưỡng',
+                title: AppStrings.nutritionScreenTitle(context),
                 onUserTap: () =>
                     Navigator.of(context).pushNamed(AppRoutes.profile),
               ),
               const SizedBox(height: 8),
-              const Center(
+              Center(
                 child: Text(
-                  'Chụp hoặc tải ảnh món ăn để AI dự đoán\nlượng Calories',
+                  AppStrings.nutritionAiSubtitle(context),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppPalette.textMuted),
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -253,13 +253,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
+                          color: colorScheme.scrim.withValues(alpha: 0.45),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Text(
-                          '# AI Ready',
+                        child: Text(
+                          AppStrings.aiReadyTag(context),
                           style: TextStyle(
-                            color: Colors.white,
+                            color: colorScheme.onPrimary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -271,15 +271,15 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         right: 12,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
+                            color: colorScheme.scrim.withValues(alpha: 0.45),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
                             onPressed: _retakePhoto,
-                            tooltip: 'Chup lai',
-                            icon: const Icon(
+                            tooltip: AppStrings.retakePhotoTooltip(context),
+                            icon: Icon(
                               Icons.replay_rounded,
-                              color: Colors.white,
+                              color: colorScheme.onPrimary,
                             ),
                           ),
                         ),
@@ -295,19 +295,18 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   onPressed: _isCapturing ? null : _captureFromPreview,
                   style: ElevatedButton.styleFrom(
                     elevation: 3,
-                    backgroundColor: AppPalette.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
                   icon: const Icon(Icons.camera_alt_outlined),
                   label: Text(
-                    _isCapturing ? 'Dang chup...' : 'Chụp ảnh',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                    ),
+                    _isCapturing
+                        ? AppStrings.capturingPhoto(context)
+                        : AppStrings.capturePhoto(context),
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
                   ),
                 ),
               ),
@@ -316,19 +315,19 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 onPressed: _pickFoodImage,
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 56),
-                  side: const BorderSide(color: AppPalette.primary),
+                  side: BorderSide(color: colorScheme.primary),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                icon: const Icon(
+                icon: Icon(
                   Icons.photo_library_outlined,
-                  color: AppPalette.primaryDark,
+                  color: colorScheme.primary,
                 ),
-                label: const Text(
-                  'Chọn ảnh từ thư viện',
+                label: Text(
+                  AppStrings.pickFromLibrary(context),
                   style: TextStyle(
-                    color: AppPalette.primaryDark,
+                    color: colorScheme.primary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -339,22 +338,24 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  color: AppPalette.highlight,
-                  boxShadow: const [
+                  color: colorScheme.secondary.withValues(alpha: 0.22),
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x1A1B7D5B),
+                      color: colorScheme.shadow.withValues(alpha: 0.16),
                       blurRadius: 14,
                       offset: Offset(0, 6),
                     ),
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: Color(0xFFF6C89A),
+                      backgroundColor: colorScheme.secondary.withValues(
+                        alpha: 0.38,
+                      ),
                       child: Icon(
                         Icons.lightbulb_outline,
-                        color: AppPalette.primaryDark,
+                        color: colorScheme.primary,
                       ),
                     ),
                     SizedBox(width: 10),
@@ -363,14 +364,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Mẹo nhỏ',
+                            AppStrings.tipTitle(context),
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                           Text(
-                            'Hãy đảm bảo thức ăn được chiếu sáng\ntốt để AI có thể nhận diện thành phần\nchính xác nhất.',
+                            AppStrings.tipDescription(context),
                           ),
                         ],
                       ),

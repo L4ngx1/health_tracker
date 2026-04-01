@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../core/theme/app_palette.dart';
+import '../../core/localization/app_strings.dart';
 
 class TopBar extends StatelessWidget {
   const TopBar({super.key, required this.title, this.onUserTap});
@@ -11,6 +11,7 @@ class TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final user = FirebaseAuth.instance.currentUser;
     final hasGoogleProvider =
         user?.providerData.any((p) => p.providerId == 'google.com') ?? false;
@@ -25,33 +26,26 @@ class TopBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           child: CircleAvatar(
             radius: 16,
-            backgroundColor: const Color(0xFFD5E6DE),
+            backgroundColor: colorScheme.primary.withValues(alpha: 0.16),
             foregroundImage: showGoogleAvatar ? NetworkImage(photoUrl) : null,
             child: showGoogleAvatar
                 ? null
-                : const Icon(
-                    Icons.person,
-                    color: AppPalette.primaryDark,
-                    size: 18,
-                  ),
+                : Icon(Icons.person, color: colorScheme.primary, size: 18),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
               height: 1.05,
-              color: AppPalette.textMain,
+              color: colorScheme.onSurface,
             ),
           ),
         ),
-        const Icon(
-          Icons.notifications_none_rounded,
-          color: AppPalette.textMain,
-        ),
+        Icon(Icons.notifications_none_rounded, color: colorScheme.onSurface),
       ],
     );
   }
@@ -64,22 +58,28 @@ class BrandHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         const BrandIconOnly(),
         const SizedBox(height: 12),
-        const Text(
-          'Sống Khỏe',
+        Text(
+          AppStrings.appTitle(context),
           style: TextStyle(
             fontSize: 44,
             fontWeight: FontWeight.w900,
-            color: AppPalette.textMain,
+            color: colorScheme.onSurface,
             height: 0.95,
             letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
-        Text(subTitle, style: const TextStyle(color: AppPalette.textMuted)),
+        Text(
+          subTitle,
+          style: TextStyle(
+            color: colorScheme.onSurface.withValues(alpha: 0.72),
+          ),
+        ),
       ],
     );
   }
@@ -90,29 +90,29 @@ class BrandIconOnly extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: 82,
       height: 82,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFCEBD9), Color(0xFFAEE7D0)],
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.secondary.withValues(alpha: 0.28),
+            colorScheme.primary.withValues(alpha: 0.34),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(40),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A1B7D5B),
+            color: colorScheme.primary.withValues(alpha: 0.2),
             blurRadius: 16,
             offset: Offset(0, 6),
           ),
         ],
       ),
-      child: const Icon(
-        Icons.eco_outlined,
-        size: 38,
-        color: AppPalette.primaryDark,
-      ),
+      child: Icon(Icons.eco_outlined, size: 38, color: colorScheme.primary),
     );
   }
 }
@@ -124,15 +124,16 @@ class InputLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Align(
       alignment: Alignment.centerLeft,
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           letterSpacing: 0.8,
           fontWeight: FontWeight.w800,
-          color: AppPalette.textMain,
+          color: colorScheme.onSurface,
         ),
       ),
     );
@@ -169,11 +170,12 @@ class RoundedInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: AppPalette.surfaceMuted,
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppPalette.divider),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       child: TextFormField(
@@ -188,12 +190,12 @@ class RoundedInput extends StatelessWidget {
         enabled: enabled,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFF91A39A),
+          hintStyle: TextStyle(
+            color: colorScheme.onSurface.withValues(alpha: 0.55),
             fontWeight: FontWeight.w500,
           ),
           border: InputBorder.none,
-          suffixIcon: Icon(icon, color: AppPalette.primaryDark),
+          suffixIcon: Icon(icon, color: colorScheme.primary),
         ),
       ),
     );
@@ -216,6 +218,7 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: double.infinity,
       height: 56,
@@ -223,24 +226,26 @@ class PrimaryButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           elevation: 3,
-          backgroundColor: AppPalette.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
         icon: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    colorScheme.onPrimary,
+                  ),
                 ),
               )
             : (icon == null ? const SizedBox.shrink() : Icon(icon)),
         label: Text(
-          isLoading ? 'Đang xử lý...' : text,
+          isLoading ? AppStrings.processing(context) : text,
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),
@@ -256,15 +261,16 @@ class SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF1F1F1F),
-          side: const BorderSide(color: Color(0xFFDADCE0)),
+          backgroundColor: colorScheme.surface,
+          foregroundColor: colorScheme.onSurface,
+          side: BorderSide(color: colorScheme.outlineVariant),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -284,10 +290,10 @@ class SocialButton extends StatelessWidget {
               child: Text(
                 text,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 17,
-                  color: Color(0xFF202124),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ),
@@ -305,20 +311,21 @@ class DividerWithText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        const Expanded(child: Divider(color: AppPalette.divider)),
+        Expanded(child: Divider(color: colorScheme.outlineVariant)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             text,
-            style: const TextStyle(
-              color: AppPalette.textMuted,
+            style: TextStyle(
+              color: colorScheme.onSurface.withValues(alpha: 0.72),
               fontWeight: FontWeight.w700,
             ),
           ),
         ),
-        const Expanded(child: Divider(color: AppPalette.divider)),
+        Expanded(child: Divider(color: colorScheme.outlineVariant)),
       ],
     );
   }
@@ -331,17 +338,18 @@ class ChipLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFC8F0DC),
+        color: colorScheme.primary.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
-          color: AppPalette.primaryDark,
+          color: colorScheme.primary,
           fontWeight: FontWeight.w800,
         ),
       ),

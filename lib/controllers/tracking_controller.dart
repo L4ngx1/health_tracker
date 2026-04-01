@@ -8,6 +8,8 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../core/localization/locale_service.dart';
+import '../l10n/app_localizations.dart';
 import '../services/health_cloud_sync_service.dart';
 import '../services/widget_sync_service.dart';
 
@@ -98,6 +100,9 @@ class TrackingSnapshot {
 class TrackingController {
   final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
   DateTime? _lastCloudSyncAt;
+
+  AppLocalizations get _l10n =>
+      lookupAppLocalizations(LocaleService.instance.locale.value);
 
   String get _userScope {
     final user = FirebaseAuth.instance.currentUser;
@@ -266,7 +271,7 @@ class TrackingController {
       await _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(DateTime.now()));
       unawaited(_syncDistanceWidget());
     } catch (e) {
-      debugPrint('Cloud merge tracking failed: $e');
+      debugPrint(_l10n.trackingLogCloudMergeFailed('$e'));
     }
   }
 
@@ -294,7 +299,7 @@ class TrackingController {
             goalValue: current.goalValue,
           )
           .catchError((Object e) {
-            debugPrint('Cloud save tracking failed: $e');
+            debugPrint(_l10n.trackingLogCloudSaveFailed('$e'));
           }),
     );
   }
@@ -622,7 +627,7 @@ class TrackingController {
     _stepSub = Pedometer.stepCountStream.listen(
       _onStepCount,
       onError: (Object error) {
-        debugPrint('Step counter error: $error');
+        debugPrint(_l10n.trackingLogStepCounterError('$error'));
       },
     );
 
@@ -635,13 +640,13 @@ class TrackingController {
     }
 
     if (permission == LocationPermission.deniedForever) {
-      debugPrint('Location permission deniedForever; cannot request again.');
+      debugPrint(_l10n.trackingLogLocationPermissionDeniedForever);
     } else if (permission == LocationPermission.whileInUse ||
         permission == LocationPermission.always) {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (_isDisposed) return;
       if (!serviceEnabled) {
-        debugPrint('Location services disabled; GPS distance tracking paused.');
+        debugPrint(_l10n.trackingLogLocationServicesDisabled);
       } else {
         _positionSub?.cancel();
         _positionSub =
@@ -653,7 +658,7 @@ class TrackingController {
             ).listen(
               _onPosition,
               onError: (Object error) {
-                debugPrint('Location stream error: $error');
+                debugPrint(_l10n.trackingLogLocationStreamError('$error'));
               },
             );
       }
@@ -663,7 +668,7 @@ class TrackingController {
     _accelSub = accelerometerEventStream().listen(
       _onAccelerometer,
       onError: (Object error) {
-        debugPrint('Accelerometer error: $error');
+        debugPrint(_l10n.trackingLogAccelerometerError('$error'));
       },
     );
   }

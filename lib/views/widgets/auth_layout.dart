@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_palette.dart';
+
+import '../../core/localization/app_strings.dart';
 
 class AuthStyles {
-  static const Gradient backgroundGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Color(0xFFF7FBF9), Color(0xFFEAF6F0)],
-  );
-
   static const double maxWidth = 520;
   static const double cardRadius = 26;
   static const EdgeInsets outerPadding = EdgeInsets.symmetric(
@@ -36,6 +31,7 @@ class AuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final mq = MediaQuery.of(context);
     final screenWidth = mq.size.width;
     // make the card responsive: use smaller width on narrow screens
@@ -44,11 +40,15 @@ class AuthLayout extends StatelessWidget {
         : AuthStyles.maxWidth;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFEBFFF6), Color(0xFFDEFAF0), Color(0xFFF7FBF9)],
+          colors: [
+            colorScheme.surface,
+            colorScheme.surfaceContainerHighest,
+            colorScheme.surface,
+          ],
         ),
       ),
       child: SafeArea(
@@ -62,7 +62,8 @@ class AuthLayout extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AuthStyles.cardRadius),
                 ),
-                shadowColor: const Color.fromRGBO(130, 207, 164, 0.16),
+                color: colorScheme.surface,
+                shadowColor: colorScheme.primary.withValues(alpha: 0.16),
                 child: Padding(
                   padding: AuthStyles.innerPadding,
                   child: Stack(
@@ -77,10 +78,11 @@ class AuthLayout extends StatelessWidget {
                           child: Padding(
                             padding: const EdgeInsets.only(top: 4.0, left: 4.0),
                             child: IconButton(
-                              onPressed: onBack ?? () => Navigator.of(context).pop(),
+                              onPressed:
+                                  onBack ?? () => Navigator.of(context).pop(),
                               icon: const Icon(Icons.arrow_back),
-                              color: AppPalette.textMain,
-                              tooltip: 'Quay lại',
+                              color: colorScheme.onSurface,
+                              tooltip: AppStrings.back(context),
                             ),
                           ),
                         ),

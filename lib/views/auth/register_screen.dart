@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/auth_layout.dart';
 
@@ -77,6 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: AuthLayout(
         showBack: true,
@@ -95,34 +96,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Header: centered brand + compact section header (back button provided by AuthLayout)
                   Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       BrandIconOnly(),
                       SizedBox(height: 10),
                       Text(
-                        'Sống Khỏe',
+                        AppStrings.appTitle(context),
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w900,
-                          color: AppPalette.textMain,
+                          color: colorScheme.onSurface,
                           height: 1.0,
                         ),
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Đăng ký tài khoản',
+                        AppStrings.registerTitle(context),
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF202936),
+                          color: colorScheme.onSurface,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Tham gia cộng đồng sống khỏe để bắt đầu theo dõi và cải thiện sức khỏe mỗi ngày.',
+                        AppStrings.registerSubtitle(context),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppPalette.textMuted,
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
                           fontSize: 14,
                           height: 1.35,
                         ),
@@ -135,24 +136,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       padding: const EdgeInsets.all(12),
                       margin: const EdgeInsets.only(top: 12, bottom: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F0),
-                        border: Border.all(color: const Color(0xFFEB5757)),
+                        color: colorScheme.errorContainer,
+                        border: Border.all(color: colorScheme.error),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(
-                          color: Color(0xFFB41F1F),
+                        style: TextStyle(
+                          color: colorScheme.onErrorContainer,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   const SizedBox(height: 18),
-                  const InputLabel('Họ và tên'),
+                  InputLabel(AppStrings.fullNameLabel(context)),
                   const SizedBox(height: 8),
                   RoundedInput(
                     controller: _nameController,
-                    hint: 'Nguyễn Văn A',
+                    hint: AppStrings.fullNameHint(context),
                     icon: Icons.person_outline,
                     focusNode: _nameFocus,
                     textInputAction: TextInputAction.next,
@@ -160,17 +161,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         FocusScope.of(context).requestFocus(_emailFocus),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Vui lòng nhập họ và tên';
+                        return AppStrings.fullNameRequired(context);
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
-                  const InputLabel('Email'),
+                  InputLabel(AppStrings.emailLabel(context)),
                   const SizedBox(height: 8),
                   RoundedInput(
                     controller: _userController,
-                    hint: 'example@gmail.com',
+                    hint: AppStrings.emailHint(context),
                     icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     focusNode: _emailFocus,
@@ -179,22 +180,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         FocusScope.of(context).requestFocus(_passwordFocus),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Vui lòng nhập email';
+                        return AppStrings.emailRequired(context);
                       }
                       if (!RegExp(
                         r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}",
                       ).hasMatch(value.trim())) {
-                        return 'Email không hợp lệ';
+                        return AppStrings.emailInvalid(context);
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
-                  const InputLabel('Mật khẩu'),
+                  InputLabel(AppStrings.passwordLabel(context)),
                   const SizedBox(height: 8),
                   RoundedInput(
                     controller: _passwordController,
-                    hint: 'Nhập mật khẩu',
+                    hint: AppStrings.passwordHint(context),
                     icon: Icons.lock_outline,
                     obscureText: true,
                     focusNode: _passwordFocus,
@@ -203,20 +204,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         FocusScope.of(context).requestFocus(_confirmFocus),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Vui lòng nhập mật khẩu';
+                        return AppStrings.passwordRequired(context);
                       }
                       if (value.length < 6) {
-                        return 'Mật khẩu phải ít nhất 6 ký tự';
+                        return AppStrings.passwordTooShort(context);
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
-                  const InputLabel('Xác nhận mật khẩu'),
+                  InputLabel(AppStrings.confirmPasswordLabel(context)),
                   const SizedBox(height: 8),
                   RoundedInput(
                     controller: _confirmPasswordController,
-                    hint: 'Nhập lại mật khẩu',
+                    hint: AppStrings.confirmPasswordHint(context),
                     icon: Icons.lock_outline,
                     obscureText: true,
                     focusNode: _confirmFocus,
@@ -224,25 +225,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onFieldSubmitted: (_) => _submit(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Vui lòng xác nhận mật khẩu';
+                        return AppStrings.confirmPasswordRequired(context);
                       }
                       if (value != _passwordController.text) {
-                        return 'Mật khẩu không khớp';
+                        return AppStrings.passwordMismatch(context);
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
                   PrimaryButton(
-                    text: 'Đăng ký',
+                    text: AppStrings.register(context),
                     isLoading: _isLoading,
                     onPressed: _submit,
                   ),
                   const SizedBox(height: 16),
-                  const DividerWithText(text: 'HOẶC'),
+                  DividerWithText(text: AppStrings.orLabel(context)),
                   const SizedBox(height: 14),
                   SocialButton(
-                    text: 'Tiếp tục với Google',
+                    text: AppStrings.continueWithGoogle(context),
                     onPressed: _isLoading
                         ? () {}
                         : () async {
@@ -274,16 +275,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Bạn đã có tài khoản? ',
-                            style: TextStyle(color: AppPalette.textMuted),
-                          ),
+                          Text(AppStrings.haveAccount(context)),
                           GestureDetector(
                             onTap: () => _controller.toLogin(context),
-                            child: const Text(
-                              'Đăng nhập',
+                            child: Text(
+                              AppStrings.loginNow(context),
                               style: TextStyle(
-                                color: AppPalette.primary,
+                                color: colorScheme.primary,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
