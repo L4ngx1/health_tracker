@@ -627,6 +627,23 @@ class AppLocalizationsEn extends AppLocalizations {
       'Too many requests. Please try again later.';
 
   @override
+  String get authErrorInvalidCredential =>
+      'The login credential is incorrect or has expired.';
+
+  @override
+  String get authErrorEmailNotVerified =>
+      'Your email is not verified yet. Please verify your email before signing in.';
+
+  @override
+  String get authErrorEmailNotVerifiedResent =>
+      'Your email is not verified. We have sent another verification email to your inbox.';
+
+  @override
+  String authErrorEmailNotVerifiedCooldown(int seconds) {
+    return 'Your email is not verified. Please wait $seconds seconds before requesting another verification email.';
+  }
+
+  @override
   String get authErrorGeneric => 'Something went wrong. Please try again.';
 
   @override

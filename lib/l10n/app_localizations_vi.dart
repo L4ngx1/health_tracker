@@ -628,6 +628,23 @@ class AppLocalizationsVi extends AppLocalizations {
       'Quá nhiều yêu cầu. Vui lòng thử lại sau.';
 
   @override
+  String get authErrorInvalidCredential =>
+      'Thông tin đăng nhập không đúng hoặc đã hết hạn.';
+
+  @override
+  String get authErrorEmailNotVerified =>
+      'Email chưa được xác minh. Vui lòng kiểm tra hộp thư và xác minh trước khi đăng nhập.';
+
+  @override
+  String get authErrorEmailNotVerifiedResent =>
+      'Email chưa xác minh. Chúng tôi đã gửi lại email xác minh, vui lòng kiểm tra hộp thư.';
+
+  @override
+  String authErrorEmailNotVerifiedCooldown(int seconds) {
+    return 'Email chưa xác minh. Vui lòng thử lại sau $seconds giây để gửi lại email xác minh.';
+  }
+
+  @override
   String get authErrorGeneric => 'Có lỗi xảy ra. Vui lòng thử lại.';
 
   @override

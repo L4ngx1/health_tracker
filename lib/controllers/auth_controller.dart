@@ -10,6 +10,10 @@ import '../l10n/app_localizations.dart';
 class AuthController {
   const AuthController();
 
+  static const Duration _verificationEmailCooldown = Duration(seconds: 60);
+  static final Map<String, DateTime> _verificationEmailLastSentAt =
+      <String, DateTime>{};
+
   AppLocalizations get _l10n =>
       lookupAppLocalizations(LocaleService.instance.locale.value);
 
@@ -36,6 +40,9 @@ class AuthController {
 
   String _friendlyError(FirebaseAuthException e) {
     switch (e.code) {
+      case 'invalid-credential':
+      case 'invalid-login-credentials':
+        return _l10n.authErrorInvalidCredential;
       case 'invalid-email':
         return _l10n.authErrorInvalidEmailFormat;
       case 'user-disabled':
@@ -54,6 +61,33 @@ class AuthController {
         return _l10n.authErrorTooManyRequests;
       default:
         return e.message ?? _l10n.authErrorGeneric;
+    }
+  }
+
+  Future<String> _handleUnverifiedEmail(User? user) async {
+    final rawEmail = user?.email?.trim();
+    if (user == null || rawEmail == null || rawEmail.isEmpty) {
+      return _l10n.authErrorEmailNotVerified;
+    }
+
+    final email = rawEmail.toLowerCase();
+    final now = DateTime.now();
+    final lastSentAt = _verificationEmailLastSentAt[email];
+
+    if (lastSentAt != null) {
+      final remaining = _verificationEmailCooldown - now.difference(lastSentAt);
+      if (remaining > Duration.zero) {
+        final seconds = remaining.inSeconds <= 0 ? 1 : remaining.inSeconds;
+        return _l10n.authErrorEmailNotVerifiedCooldown(seconds);
+      }
+    }
+
+    try {
+      await user.sendEmailVerification();
+      _verificationEmailLastSentAt[email] = now;
+      return _l10n.authErrorEmailNotVerifiedResent;
+    } catch (_) {
+      return _l10n.authErrorEmailNotVerified;
     }
   }
 
@@ -80,8 +114,9 @@ class AuthController {
       );
 
       if (!(result.user?.emailVerified ?? false)) {
-        // Keep the user authenticated and let MainNavigationScreen show UnverifiedScreen.
-        return null;
+        final message = await _handleUnverifiedEmail(result.user);
+        await FirebaseAuth.instance.signOut();
+        return message;
       }
 
       return null;

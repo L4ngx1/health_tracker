@@ -421,6 +421,20 @@
   "@authErrorWeakPassword": {},
   "authErrorTooManyRequests": "Too many requests. Please try again later.",
   "@authErrorTooManyRequests": {},
+  "authErrorInvalidCredential": "The login credential is incorrect or has expired.",
+  "@authErrorInvalidCredential": {},
+  "authErrorEmailNotVerified": "Your email is not verified yet. Please verify your email before signing in.",
+  "@authErrorEmailNotVerified": {},
+  "authErrorEmailNotVerifiedResent": "Your email is not verified. We have sent another verification email to your inbox.",
+  "@authErrorEmailNotVerifiedResent": {},
+  "authErrorEmailNotVerifiedCooldown": "Your email is not verified. Please wait {seconds} seconds before requesting another verification email.",
+  "@authErrorEmailNotVerifiedCooldown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "authErrorGeneric": "Something went wrong. Please try again.",
   "@authErrorGeneric": {},
   "authErrorValidEmailPassword": "Please enter a valid email and password.",
