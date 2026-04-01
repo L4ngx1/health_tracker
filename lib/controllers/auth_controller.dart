@@ -10,9 +10,16 @@ class AuthController {
 
   static bool _googleInitialized = false;
 
+  // Web client ID from Firebase (see android/app/google-services.json -> oauth_client with client_type 3).
+  // Needed on some Android setups to ensure an ID token is returned.
+  static const String _googleServerClientId =
+      '607294559860-4c9d2skv4vdd1rdffq42fovvtjketikd.apps.googleusercontent.com';
+
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_googleInitialized) return;
-    await GoogleSignIn.instance.initialize();
+    await GoogleSignIn.instance.initialize(
+      serverClientId: _googleServerClientId,
+    );
     _googleInitialized = true;
   }
 
@@ -150,6 +157,20 @@ class AuthController {
       }
 
       return null;
+    } on GoogleSignInException catch (e) {
+      debugPrint(
+        'GoogleSignInException: ${e.code} - ${e.description} - ${e.details}',
+      );
+      switch (e.code) {
+        case GoogleSignInExceptionCode.clientConfigurationError:
+          return 'Google Sign-In bị lỗi cấu hình (thường do thiếu SHA1/SHA256 hoặc OAuth Client trên Firebase).';
+        case GoogleSignInExceptionCode.canceled:
+          return 'Bạn đã hủy đăng nhập Google.';
+        case GoogleSignInExceptionCode.uiUnavailable:
+          return 'Không mở được giao diện đăng nhập Google. Vui lòng thử lại.';
+        default:
+          return 'Có lỗi khi đăng nhập Google: ${e.description ?? e.code.name}';
+      }
     } on FirebaseAuthException catch (e) {
       debugPrint('Google FirebaseAuthException: ${e.code} - ${e.message}');
       return _friendlyError(e);

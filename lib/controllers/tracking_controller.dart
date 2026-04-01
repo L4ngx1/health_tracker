@@ -496,18 +496,34 @@ class TrackingController {
 
     _finalizedSleepMinutes.add(minuteIndex);
     final bool sleeping = _isSleepingMinute(minuteIndex);
-    final int added = sleeping ? 1 : 0;
-    final int total = snapshot.value.sleepMinutes + added;
 
-    _safeUpdateSnapshot(
-      (current) => current.copyWith(
-        sleepMinutes: total,
-        isSleeping: sleeping,
-        lastUpdate: now,
-      ),
-    );
-    _prefs?.setInt(_scopedKey(_prefSleepMinutes), total);
-    _syncTodayToCloud();
+    // Session-based sleep:
+    // - When sleep starts (awake -> sleeping), reset counter to 1.
+    // - While sleeping, increment by 1 per finalized sleeping minute.
+    // - When waking (sleeping -> awake), keep the session total so it still
+    //   shows the full duration after waking up.
+    final bool wasSleeping = snapshot.value.isSleeping;
+
+    if (sleeping) {
+      final int nextTotal = wasSleeping ? (snapshot.value.sleepMinutes + 1) : 1;
+      _safeUpdateSnapshot(
+        (current) => current.copyWith(
+          sleepMinutes: nextTotal,
+          isSleeping: true,
+          lastUpdate: now,
+        ),
+      );
+      _prefs?.setInt(_scopedKey(_prefSleepMinutes), nextTotal);
+      _syncTodayToCloud();
+      return;
+    }
+
+    if (wasSleeping) {
+      _safeUpdateSnapshot(
+        (current) => current.copyWith(isSleeping: false, lastUpdate: now),
+      );
+      _syncTodayToCloud();
+    }
   }
 
   void _pruneSleepWindows(int currentMinuteIndex) {
@@ -517,20 +533,44 @@ class TrackingController {
     _finalizedSleepMinutes.removeWhere((key) => key < keepFrom);
   }
 
-  void _resetDailySleep(DateTime now) {
+  void _resetForNewDay(DateTime now) {
+    final today = _truncateToDay(now);
+    _currentDay = today;
+
+    _lastLat = null;
+    _lastLon = null;
+    _stepBase = null;
+    _distanceStepAnchor = 0;
+    _lastStepIncreaseAt = null;
+
     _safeUpdateSnapshot(
       (current) =>
-          current.copyWith(sleepMinutes: 0, isSleeping: false, lastUpdate: now),
+          current.copyWith(steps: 0, distanceMeters: 0.0, lastUpdate: now),
     );
-    _prefs?.setInt(_scopedKey(_prefSleepMinutes), 0);
-    _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(now));
 
-    _currentEpochMinute = _minuteStart(now);
-    _movementCountCurrentMinute = 0;
-    _stepsCurrentMinute = 0;
-    _activityByMinute.clear();
-    _stepsByMinute.clear();
-    _finalizedSleepMinutes.clear();
+    _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(today));
+    _prefs?.setInt(_scopedKey(_prefSteps), 0);
+    _prefs?.setDouble(_scopedKey(_prefDistance), 0.0);
+    _prefs?.remove(_scopedKey(_prefStepBase));
+    _prefs?.remove(_scopedKey(_prefLastLat));
+    _prefs?.remove(_scopedKey(_prefLastLon));
+
+    _syncTodayToCloud(force: true);
+    unawaited(_syncDistanceWidget());
+  }
+
+  void _ensureToday(DateTime now) {
+    final today = _truncateToDay(now);
+    if (today != _currentDay) {
+      _resetForNewDay(now);
+      return;
+    }
+
+    final String todayKey = _dayKey(now);
+    final String? storedDay = _prefs?.getString(_scopedKey(_prefDayKey));
+    if (storedDay != null && storedDay.isNotEmpty && storedDay != todayKey) {
+      _resetForNewDay(now);
+    }
   }
 
   void _rollEpochWindow(DateTime now) {
@@ -586,15 +626,23 @@ class TrackingController {
       },
     );
 
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    var permission = await Geolocator.checkPermission();
     if (_isDisposed) return;
-    if (serviceEnabled) {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.whileInUse ||
-          permission == LocationPermission.always) {
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (_isDisposed) return;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      debugPrint('Location permission deniedForever; cannot request again.');
+    } else if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (_isDisposed) return;
+      if (!serviceEnabled) {
+        debugPrint('Location services disabled; GPS distance tracking paused.');
+      } else {
         _positionSub?.cancel();
         _positionSub =
             Geolocator.getPositionStream(
@@ -623,22 +671,15 @@ class TrackingController {
   void _onStepCount(StepCount event) {
     if (_isDisposed) return;
     final now = DateTime.now();
+    _ensureToday(now);
     _rollEpochWindow(now);
 
     final String todayKey = _dayKey(now);
     final String? storedDay = _prefs?.getString(_scopedKey(_prefDayKey));
     if (storedDay != todayKey) {
-      _prefs?.setString(_scopedKey(_prefDayKey), todayKey);
-      _prefs?.setInt(_scopedKey(_prefSteps), 0);
+      _resetForNewDay(now);
       _prefs?.setInt(_scopedKey(_prefStepBase), event.steps);
       _stepBase = event.steps;
-      _distanceStepAnchor = 0;
-      _lastStepIncreaseAt = null;
-      _safeUpdateSnapshot(
-        (current) => current.copyWith(steps: 0, lastUpdate: now),
-      );
-      _syncTodayToCloud(force: true);
-      unawaited(_syncDistanceWidget());
       return;
     }
 
@@ -673,21 +714,7 @@ class TrackingController {
     final now = DateTime.now();
     final today = _truncateToDay(now);
     if (today != _currentDay) {
-      _currentDay = today;
-      _lastLat = null;
-      _lastLon = null;
-      _stepBase = null;
-      snapshot.value = snapshot.value.copyWith(
-        steps: 0,
-        distanceMeters: 0.0,
-        lastUpdate: now,
-      );
-      _prefs?.setInt(_scopedKey(_prefSteps), 0);
-      _prefs?.setDouble(_scopedKey(_prefDistance), 0.0);
-      _prefs?.remove(_scopedKey(_prefStepBase));
-      _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(today));
-      _distanceStepAnchor = 0;
-      _lastStepIncreaseAt = null;
+      _resetForNewDay(now);
     }
 
     final accuracy = position.accuracy;
@@ -770,11 +797,7 @@ class TrackingController {
   void _onAccelerometer(AccelerometerEvent event) {
     if (_isDisposed) return;
     final now = DateTime.now();
-    final today = _truncateToDay(now);
-    if (today != _currentDay) {
-      _currentDay = today;
-      _resetDailySleep(now);
-    }
+    _ensureToday(now);
 
     _rollEpochWindow(now);
 

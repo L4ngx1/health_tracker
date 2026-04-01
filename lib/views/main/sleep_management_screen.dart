@@ -57,7 +57,7 @@ class SleepManagementScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Giấc ngủ hôm nay',
+                          'Phiên ngủ gần nhất',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,

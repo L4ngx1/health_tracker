@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/home_controller.dart';
@@ -38,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _lastCloudConfigSyncAt;
   double _dailyGoalKm = 6.0;
   final Map<String, double> _distanceHistoryKm = <String, double>{};
+  bool _promptedLocationPermission = false;
 
   String get _userScope {
     final user = FirebaseAuth.instance.currentUser;
@@ -87,6 +89,51 @@ class _HomeScreenState extends State<HomeScreen> {
     _trackingController.registerBackgroundTracking();
     _trackingController.snapshot.addListener(_syncTodayDistanceHistory);
     unawaited(_initializeMovementData());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_maybeRequestLocationPermission());
+    });
+  }
+
+  Future<void> _maybeRequestLocationPermission() async {
+    if (!mounted || _promptedLocationPermission) return;
+    _promptedLocationPermission = true;
+
+    var permission = await Geolocator.checkPermission();
+    if (!mounted) return;
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (!mounted) return;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Cần quyền vị trí'),
+            content: const Text(
+              'Bạn đã tắt quyền vị trí vĩnh viễn (Don\'t ask again).\n'
+              'Vui lòng vào Cài đặt để bật lại quyền Vị trí để tính quãng đường.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Để sau'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await Geolocator.openAppSettings();
+                },
+                child: const Text('Mở cài đặt'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   Future<void> _initializeMovementData() async {
@@ -734,7 +781,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
 
                   final sleepMetric = MetricItem(
-                    title: 'GIẤC NGỦ HÔM NAY',
+                    title: 'PHIÊN NGỦ GẦN NHẤT',
                     value: sleepText,
                     unit: '',
                     subtitle: snapshot.isSleeping
