@@ -9,12 +9,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:health_tracker/app.dart';
+import 'package:health_tracker/views/auth/login_screen.dart';
 
 void main() {
   testWidgets('Login screen renders', (WidgetTester tester) async {
     await tester.pumpWidget(const HealthTrackerApp());
+    await tester.pumpAndSettle();
 
+    expect(find.byType(LoginScreen), findsOneWidget);
     expect(find.text('Đăng nhập'), findsWidgets);
+    expect(find.text('Sống Khỏe'), findsOneWidget);
     expect(find.byIcon(Icons.eco_outlined), findsOneWidget);
   });
 }

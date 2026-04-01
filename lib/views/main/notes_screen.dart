@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
@@ -23,7 +24,11 @@ class NotesScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Ghi chú sức khỏe - Sống Khỏe'),
+              TopBar(
+                title: 'Ghi chú sức khỏe',
+                onUserTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.profile),
+              ),
               const SizedBox(height: 20),
               const Center(
                 child: CircleAvatar(

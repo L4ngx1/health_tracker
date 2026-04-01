@@ -70,5 +70,11 @@
 	<string>Ung dung su dung vi tri cua ban de tinh quang duong di chuyen.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Ung dung su dung vi tri nen de cap nhat quang duong di chuyen.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ung dung can truy cap camera de chup anh mon an.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ung dung can truy cap thu vien anh de chon anh mon an.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ung dung co the luu anh sau khi xu ly dinh duong.</string>
 </dict>
 </plist>
