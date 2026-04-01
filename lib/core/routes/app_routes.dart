@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../views/auth/forgot_password_screen.dart';
 import '../../views/auth/login_screen.dart';
 import '../../views/auth/register_screen.dart';
+import '../../views/auth/unverified_screen.dart';
 import '../../views/main/main_navigation_screen.dart';
 import '../../views/main/profile_screen.dart';
 import '../../views/main/settings_screen.dart';
@@ -12,6 +13,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
+  static const String unverified = '/unverified';
   static const String main = '/main';
   static const String profile = '/profile';
   static const String settings = '/settings';
@@ -21,6 +23,7 @@ class AppRoutes {
       login: (_) => const LoginScreen(),
       register: (_) => const RegisterScreen(),
       forgotPassword: (_) => const ForgotPasswordScreen(),
+      unverified: (_) => const UnverifiedScreen(),
       main: (_) => const MainNavigationScreen(),
       profile: (_) => const ProfileScreen(),
       settings: (_) => const SettingsScreen(),
@@ -36,6 +39,8 @@ class AppRoutes {
         return slidePageRoute(const RegisterScreen());
       case forgotPassword:
         return slidePageRoute(const ForgotPasswordScreen());
+      case unverified:
+        return slidePageRoute(const UnverifiedScreen());
       case main:
         return slidePageRoute(const MainNavigationScreen());
       case profile:
