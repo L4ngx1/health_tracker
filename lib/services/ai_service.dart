@@ -8,7 +8,7 @@ import 'food_data_service.dart';
 
 class AIService {
   // Gemini API Key của bạn
-  static const String _apiKey = 'AIzaSyDOHWbg-OMormnpkXR4qTlw0lvq9Hg-h6s';
+  static const String _apiKey = 'AIzaSyDv-e4Ue8yIUKpi1r0Ae16ay8zq6aMpcew';
   final FoodDataService _foodDataService = FoodDataService();
 
   // Sử dụng Gemini 1.5 Flash - Bản mạnh nhất cho Vision & Text
