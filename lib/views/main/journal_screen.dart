@@ -98,7 +98,7 @@ class JournalScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
                   itemCount: entries.length,
                 ),
               ),

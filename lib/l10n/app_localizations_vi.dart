@@ -705,10 +705,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String authLogGoogleSignInException(
-    Object code,
-    Object description,
-    Object details,
-  ) {
+      Object code, Object description, Object details) {
     return 'GoogleSignInException code=$code, description=$description, details=$details';
   }
 
@@ -778,9 +775,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String aiPromptDietRecommendations(
-    Object healthCondition,
-    Object preferences,
-  ) {
+      Object healthCondition, Object preferences) {
     return 'Ban la chuyen gia dinh duong. Hay de xuat che do an cho tinh trang suc khoe \"$healthCondition\" va so thich \"$preferences\".';
   }
 

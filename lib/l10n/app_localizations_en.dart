@@ -706,10 +706,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String authLogGoogleSignInException(
-    Object code,
-    Object description,
-    Object details,
-  ) {
+      Object code, Object description, Object details) {
     return 'GoogleSignInException code=$code, description=$description, details=$details';
   }
 
@@ -780,9 +777,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String aiPromptDietRecommendations(
-    Object healthCondition,
-    Object preferences,
-  ) {
+      Object healthCondition, Object preferences) {
     return 'You are a nutritionist. Suggest a diet plan for health condition \"$healthCondition\" and preferences \"$preferences\".';
   }
 

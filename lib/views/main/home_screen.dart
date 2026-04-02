@@ -405,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ListView.separated(
                         shrinkWrap: true,
                         itemCount: history.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        separatorBuilder: (context, index) => const SizedBox(height: 8),
                         itemBuilder: (_, index) {
                           final day = history[index].key;
                           final km = history[index].value;
