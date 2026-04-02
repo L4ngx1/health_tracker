@@ -39,20 +39,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isAnonymous = user?.isAnonymous == true;
     final verified = user?.emailVerified == true;
     final label = isAnonymous
-      ? AppStrings.anonymousAccount(context)
-      : (verified
-          ? AppStrings.emailVerified(context)
-          : AppStrings.emailUnverified(context));
+        ? AppStrings.anonymousAccount(context)
+        : (verified
+            ? AppStrings.emailVerified(context)
+            : AppStrings.emailUnverified(context));
     final bg = isAnonymous
         ? colorScheme.tertiaryContainer
         : (verified
-              ? colorScheme.primaryContainer
-              : colorScheme.errorContainer);
+            ? colorScheme.primaryContainer
+            : colorScheme.errorContainer);
     final fg = isAnonymous
         ? colorScheme.onTertiaryContainer
         : (verified
-              ? colorScheme.onPrimaryContainer
-              : colorScheme.onErrorContainer);
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onErrorContainer);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
@@ -277,7 +277,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    AppStrings.uidPrefix(context, user?.uid ?? '-'),
+                                    AppStrings.uidPrefix(
+                                        context, user?.uid ?? '-'),
                                     style: TextStyle(
                                       color: colorScheme.onSurface.withValues(
                                         alpha: 0.72,
