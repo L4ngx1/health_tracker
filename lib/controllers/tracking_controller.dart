@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../core/localization/locale_service.dart';
 import '../l10n/app_localizations.dart';
+import '../models/sleep_session.dart';
 import '../services/health_cloud_sync_service.dart';
 import '../services/widget_sync_service.dart';
 
@@ -20,6 +22,10 @@ const _prefDistance = 'tracking.distanceMeters';
 const _prefLastLat = 'tracking.lastLat';
 const _prefLastLon = 'tracking.lastLon';
 const _prefSleepMinutes = 'tracking.sleepMinutes';
+const _prefSleepSessionStart = 'tracking.sleepSessionStart';
+const _prefSleepHistory = 'tracking.sleepHistory';
+const _prefCaloriesKcal = 'tracking.caloriesKcal';
+const _prefWeightKg = 'profile.weightKg';
 const _prefDayKey = 'tracking.dayKey';
 const _prefGoalType = 'tracking.goalType';
 const _prefGoalValue = 'tracking.goalValue';
@@ -52,6 +58,9 @@ class TrackingSnapshot {
   const TrackingSnapshot({
     required this.steps,
     required this.distanceMeters,
+    required this.caloriesKcal,
+    required this.speedMps,
+    required this.grade,
     required this.sleepMinutes,
     required this.isSleeping,
     required this.goalType,
@@ -60,16 +69,22 @@ class TrackingSnapshot {
   });
 
   const TrackingSnapshot.initial()
-    : steps = 0,
-      distanceMeters = 0.0,
-      sleepMinutes = 0,
-      isSleeping = false,
-      goalType = DailyGoalType.steps,
-      goalValue = _defaultStepGoal,
-      lastUpdate = null;
+      : steps = 0,
+        distanceMeters = 0.0,
+        caloriesKcal = 0.0,
+        speedMps = 0.0,
+        grade = 0.0,
+        sleepMinutes = 0,
+        isSleeping = false,
+        goalType = DailyGoalType.steps,
+        goalValue = _defaultStepGoal,
+        lastUpdate = null;
 
   final int steps;
   final double distanceMeters;
+  final double caloriesKcal;
+  final double speedMps;
+  final double grade;
   final int sleepMinutes;
   final bool isSleeping;
   final DailyGoalType goalType;
@@ -79,6 +94,9 @@ class TrackingSnapshot {
   TrackingSnapshot copyWith({
     int? steps,
     double? distanceMeters,
+    double? caloriesKcal,
+    double? speedMps,
+    double? grade,
     int? sleepMinutes,
     bool? isSleeping,
     DailyGoalType? goalType,
@@ -88,6 +106,9 @@ class TrackingSnapshot {
     return TrackingSnapshot(
       steps: steps ?? this.steps,
       distanceMeters: distanceMeters ?? this.distanceMeters,
+      caloriesKcal: caloriesKcal ?? this.caloriesKcal,
+      speedMps: speedMps ?? this.speedMps,
+      grade: grade ?? this.grade,
       sleepMinutes: sleepMinutes ?? this.sleepMinutes,
       isSleeping: isSleeping ?? this.isSleeping,
       goalType: goalType ?? this.goalType,
@@ -125,6 +146,8 @@ class TrackingController {
 
   final ValueNotifier<TrackingSnapshot> snapshot =
       ValueNotifier<TrackingSnapshot>(const TrackingSnapshot.initial());
+  final ValueNotifier<List<SleepSession>> sleepHistory =
+      ValueNotifier<List<SleepSession>>(<SleepSession>[]);
 
   StreamSubscription<StepCount>? _stepSub;
   StreamSubscription<AccelerometerEvent>? _accelSub;
@@ -135,6 +158,11 @@ class TrackingController {
   DateTime? _lastStepIncreaseAt;
   double? _lastLat;
   double? _lastLon;
+  double? _lastAltitude;
+  DateTime? _lastPositionAt;
+  double? _smoothedSpeedMps;
+  double? _smoothedGrade;
+  double? _weightKg;
   DateTime _currentDay = _truncateToDay(DateTime.now());
   DateTime? _currentEpochMinute;
   DateTime? _lastMovementSpikeAt;
@@ -144,25 +172,29 @@ class TrackingController {
   final Map<int, int> _stepsByMinute = <int, int>{};
   final Set<int> _finalizedSleepMinutes = <int>{};
   SharedPreferences? _prefs;
+  DateTime? _sleepSessionStart;
 
   static const double _movementThreshold = 0.45;
   static const int _spikeCooldownMs = 800;
   static const double _sleepScoreThreshold = 3.2;
   static const int _windowKeepMinutes = 180;
   static const int _stepWakeThresholdPerMinute = 8;
-  static const double _maxAcceptedAccuracyMeters = 30.0;
-  static const double _minMovementDistanceMeters = 2.5;
-  static const double _maxSingleJumpMeters = 120.0;
-  static const double _maxStationaryDriftMeters = 15.0;
+  static const double _maxAcceptedAccuracyMeters = 25.0;
+  static const double _minMovementDistanceMeters = 3.0;
+  static const double _maxSingleJumpMeters = 90.0;
+  static const double _maxStationaryDriftMeters = 10.0;
   static const int _stepMovementFreshSeconds = 75;
-  static const double _minSpeedMetersPerSecond = 1.2;
+  static const double _minSpeedMetersPerSecond = 0.9;
+  static const double _speedSmoothingFactor = 0.25;
+  static const double _gradeSmoothingFactor = 0.2;
+  static const double _maxGradeAbs = 0.15;
 
   bool get isDisposed => _isDisposed;
 
   Future<void> _syncDistanceWidget() {
     final double distanceKm = snapshot.value.distanceMeters / 1000.0;
     final int steps = snapshot.value.steps;
-    final int calories = (distanceKm * 55).round();
+    final int calories = snapshot.value.caloriesKcal.round();
     final double goalKm = snapshot.value.goalType == DailyGoalType.distanceKm
         ? snapshot.value.goalValue
         : _defaultDistanceGoalKm;
@@ -291,16 +323,16 @@ class TrackingController {
     unawaited(
       _cloudSync
           .saveTodayTracking(
-            uid: uid,
-            steps: current.steps,
-            distanceMeters: current.distanceMeters,
-            sleepMinutes: current.sleepMinutes,
-            goalType: current.goalType.name,
-            goalValue: current.goalValue,
-          )
+        uid: uid,
+        steps: current.steps,
+        distanceMeters: current.distanceMeters,
+        sleepMinutes: current.sleepMinutes,
+        goalType: current.goalType.name,
+        goalValue: current.goalValue,
+      )
           .catchError((Object e) {
-            debugPrint(_l10n.trackingLogCloudSaveFailed('$e'));
-          }),
+        debugPrint(_l10n.trackingLogCloudSaveFailed('$e'));
+      }),
     );
   }
 
@@ -346,8 +378,7 @@ class TrackingController {
     const double R = 6371000;
     final dLat = _backgroundDeg2rad(lat2 - lat1);
     final dLon = _backgroundDeg2rad(lon2 - lon1);
-    final a =
-        sin(dLat / 2) * sin(dLat / 2) +
+    final a = sin(dLat / 2) * sin(dLat / 2) +
         cos(_backgroundDeg2rad(lat1)) *
             cos(_backgroundDeg2rad(lat2)) *
             sin(dLon / 2) *
@@ -385,6 +416,8 @@ class TrackingController {
 
     _lastLat = null;
     _lastLon = null;
+    _lastAltitude = null;
+    _lastPositionAt = null;
     await _prefs?.remove(_scopedKey(_prefLastLat));
     await _prefs?.remove(_scopedKey(_prefLastLon));
 
@@ -394,12 +427,19 @@ class TrackingController {
     _lastStepIncreaseAt = null;
 
     _safeUpdateSnapshot(
-      (current) =>
-          current.copyWith(steps: 0, distanceMeters: 0.0, lastUpdate: now),
+      (current) => current.copyWith(
+        steps: 0,
+        distanceMeters: 0.0,
+        caloriesKcal: 0.0,
+        speedMps: 0.0,
+        grade: 0.0,
+        lastUpdate: now,
+      ),
     );
 
     await _prefs?.setInt(_scopedKey(_prefSteps), 0);
     await _prefs?.setDouble(_scopedKey(_prefDistance), 0.0);
+    await _prefs?.setDouble(_scopedKey(_prefCaloriesKcal), 0.0);
     await _prefs?.setString(_scopedKey(_prefDayKey), todayKey);
 
     _syncTodayToCloud(force: true);
@@ -410,6 +450,8 @@ class TrackingController {
     if (_isDisposed) return;
     final now = DateTime.now();
     final todayKey = _dayKey(now);
+    _loadSleepHistoryFromPrefs();
+    await _loadWeightFromPrefs();
     final storedDay = _prefs?.getString(_scopedKey(_prefDayKey));
     final goalType = _goalTypeFromString(
       _prefs?.getString(_scopedKey(_prefGoalType)),
@@ -430,6 +472,9 @@ class TrackingController {
         ),
       );
       if (_isDisposed) return;
+      _sleepSessionStart = null;
+      await _prefs?.remove(_scopedKey(_prefSleepSessionStart));
+      await _prefs?.setDouble(_scopedKey(_prefCaloriesKcal), 0.0);
       await _prefs?.remove(_scopedKey(_prefLastLat));
       await _prefs?.remove(_scopedKey(_prefLastLon));
       await _prefs?.remove(_scopedKey(_prefStepBase));
@@ -440,10 +485,16 @@ class TrackingController {
     } else {
       final steps = _prefs?.getInt(_scopedKey(_prefSteps)) ?? 0;
       final distance = _prefs?.getDouble(_scopedKey(_prefDistance)) ?? 0.0;
+      final calories = _prefs?.getDouble(_scopedKey(_prefCaloriesKcal)) ?? 0.0;
       final sleepMinutes = _prefs?.getInt(_scopedKey(_prefSleepMinutes)) ?? 0;
       final stepBase = _prefs?.getInt(_scopedKey(_prefStepBase));
       final lastLat = _prefs?.getDouble(_scopedKey(_prefLastLat));
       final lastLon = _prefs?.getDouble(_scopedKey(_prefLastLon));
+      final sleepStartRaw = _prefs?.getString(
+        _scopedKey(_prefSleepSessionStart),
+      );
+      _sleepSessionStart =
+          sleepStartRaw == null ? null : DateTime.tryParse(sleepStartRaw);
       _stepBase = stepBase;
       _distanceStepAnchor = steps;
       _lastLat = lastLat;
@@ -453,6 +504,7 @@ class TrackingController {
         (current) => current.copyWith(
           steps: steps,
           distanceMeters: distance,
+          caloriesKcal: calories,
           sleepMinutes: sleepMinutes,
           isSleeping: false,
           goalType: goalType,
@@ -482,8 +534,7 @@ class TrackingController {
       return false;
     }
 
-    final double score =
-        (0.15 * pMinus2) +
+    final double score = (0.15 * pMinus2) +
         (0.25 * pMinus1) +
         (0.4 * p0) +
         (0.2 * pPlus1) +
@@ -510,6 +561,9 @@ class TrackingController {
     final bool wasSleeping = snapshot.value.isSleeping;
 
     if (sleeping) {
+      if (!wasSleeping) {
+        _recordSleepStart(now);
+      }
       final int nextTotal = wasSleeping ? (snapshot.value.sleepMinutes + 1) : 1;
       _safeUpdateSnapshot(
         (current) => current.copyWith(
@@ -524,12 +578,79 @@ class TrackingController {
     }
 
     if (wasSleeping) {
+      _recordSleepEnd(now);
       _safeUpdateSnapshot(
         (current) => current.copyWith(isSleeping: false, lastUpdate: now),
       );
       _syncTodayToCloud();
     }
   }
+
+  void _recordSleepStart(DateTime now) {
+    _sleepSessionStart ??= _minuteStart(now);
+    _prefs?.setString(
+      _scopedKey(_prefSleepSessionStart),
+      _sleepSessionStart!.toIso8601String(),
+    );
+  }
+
+  void _recordSleepEnd(DateTime now) {
+    final DateTime end = _minuteStart(now);
+    DateTime? start = _sleepSessionStart;
+    if (start == null) {
+      final int minutes = snapshot.value.sleepMinutes;
+      start = end.subtract(Duration(minutes: minutes));
+    }
+
+    if (!end.isAfter(start)) {
+      _sleepSessionStart = null;
+      _prefs?.remove(_scopedKey(_prefSleepSessionStart));
+      return;
+    }
+
+    final sessions = List<SleepSession>.from(sleepHistory.value);
+    sessions.add(SleepSession(start: start, end: end));
+    sessions.sort((a, b) => b.end.compareTo(a.end));
+    if (sessions.length > 30) {
+      sessions.removeRange(30, sessions.length);
+    }
+    sleepHistory.value = sessions;
+    _persistSleepHistory(sessions);
+    _sleepSessionStart = null;
+    _prefs?.remove(_scopedKey(_prefSleepSessionStart));
+  }
+
+  void _loadSleepHistoryFromPrefs() {
+    final raw = _prefs?.getString(_scopedKey(_prefSleepHistory));
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+      final sessions = <SleepSession>[];
+      for (final item in decoded) {
+        if (item is Map<String, dynamic>) {
+          final session = SleepSession.fromJson(item);
+          if (session != null) sessions.add(session);
+        } else if (item is Map) {
+          final session = SleepSession.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          );
+          if (session != null) sessions.add(session);
+        }
+      }
+      sessions.sort((a, b) => b.end.compareTo(a.end));
+      sleepHistory.value = sessions;
+    } catch (_) {}
+  }
+
+  void _persistSleepHistory(List<SleepSession> sessions) {
+    final encoded = jsonEncode(sessions.map((e) => e.toJson()).toList());
+    _prefs?.setString(_scopedKey(_prefSleepHistory), encoded);
+  }
+
+  DateTime? get currentSleepStart => _sleepSessionStart;
 
   void _pruneSleepWindows(int currentMinuteIndex) {
     final int keepFrom = currentMinuteIndex - _windowKeepMinutes;
@@ -544,18 +665,27 @@ class TrackingController {
 
     _lastLat = null;
     _lastLon = null;
+    _lastAltitude = null;
+    _lastPositionAt = null;
     _stepBase = null;
     _distanceStepAnchor = 0;
     _lastStepIncreaseAt = null;
 
     _safeUpdateSnapshot(
-      (current) =>
-          current.copyWith(steps: 0, distanceMeters: 0.0, lastUpdate: now),
+      (current) => current.copyWith(
+        steps: 0,
+        distanceMeters: 0.0,
+        caloriesKcal: 0.0,
+        speedMps: 0.0,
+        grade: 0.0,
+        lastUpdate: now,
+      ),
     );
 
     _prefs?.setString(_scopedKey(_prefDayKey), _dayKey(today));
     _prefs?.setInt(_scopedKey(_prefSteps), 0);
     _prefs?.setDouble(_scopedKey(_prefDistance), 0.0);
+    _prefs?.setDouble(_scopedKey(_prefCaloriesKcal), 0.0);
     _prefs?.remove(_scopedKey(_prefStepBase));
     _prefs?.remove(_scopedKey(_prefLastLat));
     _prefs?.remove(_scopedKey(_prefLastLon));
@@ -649,18 +779,17 @@ class TrackingController {
         debugPrint(_l10n.trackingLogLocationServicesDisabled);
       } else {
         _positionSub?.cancel();
-        _positionSub =
-            Geolocator.getPositionStream(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.best,
-                distanceFilter: 5,
-              ),
-            ).listen(
-              _onPosition,
-              onError: (Object error) {
-                debugPrint(_l10n.trackingLogLocationStreamError('$error'));
-              },
-            );
+        _positionSub = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+            distanceFilter: 5,
+          ),
+        ).listen(
+          _onPosition,
+          onError: (Object error) {
+            debugPrint(_l10n.trackingLogLocationStreamError('$error'));
+          },
+        );
       }
     }
 
@@ -717,6 +846,7 @@ class TrackingController {
   void _onPosition(Position position) {
     if (_isDisposed) return;
     final now = DateTime.now();
+    final timestamp = position.timestamp ?? now;
     final today = _truncateToDay(now);
     if (today != _currentDay) {
       _resetForNewDay(now);
@@ -727,6 +857,8 @@ class TrackingController {
       if (_lastLat == null || _lastLon == null) {
         _lastLat = position.latitude;
         _lastLon = position.longitude;
+        _lastAltitude = position.altitude;
+        _lastPositionAt = timestamp;
         _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
         _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
       }
@@ -736,6 +868,8 @@ class TrackingController {
     if (_lastLat == null || _lastLon == null) {
       _lastLat = position.latitude;
       _lastLon = position.longitude;
+      _lastAltitude = position.altitude;
+      _lastPositionAt = timestamp;
       _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
       _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
       return;
@@ -748,17 +882,42 @@ class TrackingController {
         position.latitude,
         position.longitude,
       );
+      final Duration? deltaTime = _lastPositionAt == null
+          ? null
+          : timestamp.difference(_lastPositionAt!);
+      final double rawSpeedMps = _selectSpeedMps(
+        position,
+        distance,
+        deltaTime,
+      );
+      _smoothedSpeedMps = _smoothValue(
+        previous: _smoothedSpeedMps,
+        next: rawSpeedMps,
+        factor: _speedSmoothingFactor,
+      );
+
+      final double? rawGrade = _calculateGrade(
+        lastAltitude: _lastAltitude,
+        currentAltitude: position.altitude,
+        distanceMeters: distance,
+      );
+      if (rawGrade != null) {
+        _smoothedGrade = _smoothValue(
+          previous: _smoothedGrade,
+          next: rawGrade,
+          factor: _gradeSmoothingFactor,
+        );
+      }
 
       final int stepDeltaSinceAnchor = max(
         0,
         snapshot.value.steps - _distanceStepAnchor,
       );
-      final bool hasRecentStep =
-          _lastStepIncreaseAt != null &&
+      final bool hasRecentStep = _lastStepIncreaseAt != null &&
           now.difference(_lastStepIncreaseAt!).inSeconds <=
               _stepMovementFreshSeconds;
       final bool speedSuggestsMovement =
-          position.speed >= _minSpeedMetersPerSecond;
+          (_smoothedSpeedMps ?? 0) >= _minSpeedMetersPerSecond;
       final bool movementLikely =
           hasRecentStep || stepDeltaSinceAnchor > 0 || speedSuggestsMovement;
 
@@ -766,6 +925,8 @@ class TrackingController {
         if (distance <= _maxStationaryDriftMeters) {
           _lastLat = position.latitude;
           _lastLon = position.longitude;
+          _lastAltitude = position.altitude;
+          _lastPositionAt = timestamp;
           _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
           _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
         }
@@ -777,17 +938,35 @@ class TrackingController {
         final currentDistance =
             _prefs?.getDouble(_scopedKey(_prefDistance)) ?? 0.0;
         final newDistance = currentDistance + distance;
+        final currentCalories =
+            _prefs?.getDouble(_scopedKey(_prefCaloriesKcal)) ??
+                snapshot.value.caloriesKcal;
+        final double deltaCalories = _estimateCaloriesDelta(
+          distanceMeters: distance,
+          duration: deltaTime,
+          speedMps: _smoothedSpeedMps ?? 0.0,
+          grade: _smoothedGrade ?? 0.0,
+        );
+        final double newCalories = currentCalories + deltaCalories;
         _prefs?.setDouble(_scopedKey(_prefDistance), newDistance);
+        _prefs?.setDouble(_scopedKey(_prefCaloriesKcal), newCalories);
         _distanceStepAnchor = snapshot.value.steps;
         _safeUpdateSnapshot(
-          (current) =>
-              current.copyWith(distanceMeters: newDistance, lastUpdate: now),
+          (current) => current.copyWith(
+            distanceMeters: newDistance,
+            caloriesKcal: newCalories,
+            speedMps: _smoothedSpeedMps ?? current.speedMps,
+            grade: _smoothedGrade ?? current.grade,
+            lastUpdate: now,
+          ),
         );
         _syncTodayToCloud();
         unawaited(_syncDistanceWidget());
       } else if (distance > _maxSingleJumpMeters) {
         _lastLat = position.latitude;
         _lastLon = position.longitude;
+        _lastAltitude = position.altitude;
+        _lastPositionAt = timestamp;
         _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
         _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
         return;
@@ -795,8 +974,93 @@ class TrackingController {
     }
     _lastLat = position.latitude;
     _lastLon = position.longitude;
+    _lastAltitude = position.altitude;
+    _lastPositionAt = timestamp;
     _prefs?.setDouble(_scopedKey(_prefLastLat), _lastLat!);
     _prefs?.setDouble(_scopedKey(_prefLastLon), _lastLon!);
+  }
+
+  double _selectSpeedMps(
+    Position position,
+    double distanceMeters,
+    Duration? deltaTime,
+  ) {
+    double speed = position.speed;
+    if (speed.isNaN || speed.isInfinite || speed < 0) {
+      speed = 0.0;
+    }
+
+    if (speed <= 0 && deltaTime != null && deltaTime.inMilliseconds > 0) {
+      final seconds = deltaTime.inMilliseconds / 1000.0;
+      if (seconds > 0) {
+        speed = distanceMeters / seconds;
+      }
+    }
+
+    if (speed.isNaN || speed.isInfinite || speed < 0) {
+      speed = 0.0;
+    }
+    if (speed > 12.0) {
+      speed = 12.0;
+    }
+    return speed;
+  }
+
+  double? _calculateGrade({
+    required double? lastAltitude,
+    required double currentAltitude,
+    required double distanceMeters,
+  }) {
+    if (lastAltitude == null) return null;
+    if (distanceMeters < 5.0) return null;
+    final raw = (currentAltitude - lastAltitude) / distanceMeters;
+    if (raw.isNaN || raw.isInfinite) return null;
+    return raw.clamp(-_maxGradeAbs, _maxGradeAbs);
+  }
+
+  double _smoothValue({
+    required double? previous,
+    required double next,
+    required double factor,
+  }) {
+    if (previous == null) return next;
+    return (previous * (1 - factor)) + (next * factor);
+  }
+
+  double _estimateCaloriesDelta({
+    required double distanceMeters,
+    required Duration? duration,
+    required double speedMps,
+    required double grade,
+  }) {
+    if (_weightKg == null || _weightKg! <= 0) {
+      return (distanceMeters / 1000.0) * 55.0;
+    }
+    if (duration == null || duration.inSeconds <= 0) {
+      return (distanceMeters / 1000.0) * 55.0;
+    }
+
+    final speedMpm = max(0.0, speedMps) * 60.0;
+    if (speedMpm < 30) {
+      return (distanceMeters / 1000.0) * 55.0;
+    }
+
+    final g = grade.clamp(-_maxGradeAbs, _maxGradeAbs);
+    final bool isRunning = speedMpm >= 134.0;
+    final double vo2 = isRunning
+        ? (3.5 + (0.2 * speedMpm) + (0.9 * speedMpm * g))
+        : (3.5 + (0.1 * speedMpm) + (1.8 * speedMpm * g));
+    final double kcalPerMin = (vo2 * _weightKg! / 1000.0) * 5.0;
+    final double minutes = duration.inSeconds / 60.0;
+    return max(0.0, kcalPerMin * minutes);
+  }
+
+  Future<void> _loadWeightFromPrefs() async {
+    _weightKg = _prefs?.getDouble(_scopedKey(_prefWeightKg));
+  }
+
+  void setWeightKg(double? weightKg) {
+    _weightKg = weightKg;
   }
 
   void _onAccelerometer(AccelerometerEvent event) {
@@ -812,8 +1076,7 @@ class TrackingController {
     final delta = (magnitude - 9.81).abs();
 
     if (delta > _movementThreshold) {
-      final bool canCountSpike =
-          _lastMovementSpikeAt == null ||
+      final bool canCountSpike = _lastMovementSpikeAt == null ||
           now.difference(_lastMovementSpikeAt!).inMilliseconds >=
               _spikeCooldownMs;
       if (canCountSpike) {
@@ -843,5 +1106,6 @@ class TrackingController {
     _accelSub?.cancel();
     _accelSub = null;
     snapshot.dispose();
+    sleepHistory.dispose();
   }
 }
