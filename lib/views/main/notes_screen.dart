@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_palette.dart';
 import '../widgets/common_widgets.dart';
-import '../widgets/workout_widgets.dart';
 
 class NotesScreen extends StatelessWidget {
   const NotesScreen({super.key});
@@ -50,7 +49,7 @@ class NotesScreen extends StatelessWidget {
               const SizedBox(height: 8),
               const Center(
                 child: Text(
-                  'Nói về tình trạng sức khỏe, chế độ ăn\nhoặc cảm xúc hôm nay của bạn.',
+                  'Nói về tình trạng sức khỏe hôm nay của bạn.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppPalette.textMuted),
                 ),
@@ -102,26 +101,6 @@ class NotesScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 18),
-              const Row(
-                children: [
-                  Expanded(
-                    child: QuickActionCard(
-                      title: 'Bữa ăn',
-                      subtitle: 'Ghi lại dinh dưỡng',
-                      icon: Icons.restaurant_menu,
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: QuickActionCard(
-                      title: 'Cảm xúc',
-                      subtitle: 'Theo dõi tâm trạng',
-                      icon: Icons.sentiment_satisfied_alt,
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 18),
             ],

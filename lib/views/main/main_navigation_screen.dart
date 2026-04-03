@@ -64,6 +64,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -76,104 +77,110 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   child: const Icon(Icons.add),
                 )
               : null,
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: AppPalette.surface,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1A1B7D5B),
-                    blurRadius: 20,
-                    offset: Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                height: 62,
-                child: Row(
-                  children: List.generate(items.length, (i) {
-                    final selected = controller.index == i;
-                    final item = items[i];
-                    return Expanded(
-                      child: AnimatedScale(
-                        scale: _pressedIndex == i ? 0.92 : 1,
-                        duration: const Duration(milliseconds: 120),
-                        curve: Curves.easeOut,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            splashColor: AppPalette.primary.withValues(
-                              alpha: 0.16,
-                            ),
-                            highlightColor: AppPalette.primary.withValues(
-                              alpha: 0.08,
-                            ),
-                            onHighlightChanged: (isPressed) {
-                              setState(() {
-                                _pressedIndex = isPressed ? i : null;
-                              });
-                            },
-                            onTap: () => controller.setIndex(i),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 4,
-                              ),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                curve: Curves.easeOut,
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? AppPalette.primary.withValues(
-                                          alpha: 0.12,
-                                        )
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        selected ? item.activeIcon : item.icon,
-                                        size: 22,
+          bottomNavigationBar: keyboardVisible
+              ? null
+              : SafeArea(
+                  top: false,
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppPalette.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x1A1B7D5B),
+                          blurRadius: 20,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: SizedBox(
+                      height: 62,
+                      child: Row(
+                        children: List.generate(items.length, (i) {
+                          final selected = controller.index == i;
+                          final item = items[i];
+                          return Expanded(
+                            child: AnimatedScale(
+                              scale: _pressedIndex == i ? 0.92 : 1,
+                              duration: const Duration(milliseconds: 120),
+                              curve: Curves.easeOut,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  splashColor: AppPalette.primary.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  highlightColor: AppPalette.primary.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                  onHighlightChanged: (isPressed) {
+                                    setState(() {
+                                      _pressedIndex = isPressed ? i : null;
+                                    });
+                                  },
+                                  onTap: () => controller.setIndex(i),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 4,
+                                    ),
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 180),
+                                      curve: Curves.easeOut,
+                                      decoration: BoxDecoration(
                                         color: selected
-                                            ? AppPalette.primary
-                                            : const Color(0xFF95A39B),
+                                            ? AppPalette.primary.withValues(
+                                                alpha: 0.12,
+                                              )
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        item.label,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: selected
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
-                                          color: selected
-                                              ? AppPalette.primary
-                                              : const Color(0xFF95A39B),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              selected
+                                                  ? item.activeIcon
+                                                  : item.icon,
+                                              size: 22,
+                                              color: selected
+                                                  ? AppPalette.primary
+                                                  : const Color(0xFF95A39B),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              item.label,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: selected
+                                                    ? FontWeight.w700
+                                                    : FontWeight.w500,
+                                                color: selected
+                                                    ? AppPalette.primary
+                                                    : const Color(0xFF95A39B),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        }),
                       ),
-                    );
-                  }),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
         );
       },
     );
