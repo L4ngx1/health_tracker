@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,37 +8,85 @@ import '../models/food_recognition_result.dart';
 import 'food_data_service.dart';
 
 class AIService {
-  // Gemini API Key của bạn
-  static const String _apiKey = 'AIzaSyDv-e4Ue8yIUKpi1r0Ae16ay8zq6aMpcew';
+  // Priority: .env -> --dart-define
+  static const String _apiKeyFromDefine = String.fromEnvironment(
+    'GEMINI_API_KEY',
+  );
   final FoodDataService _foodDataService = FoodDataService();
 
-  // Sử dụng Gemini 1.5 Flash - Bản mạnh nhất cho Vision & Text
-  final GenerativeModel _model;
+  // Sử dụng Gemini cho Vision + Text
+  late final GenerativeModel? _model = _buildModel();
 
-  AIService()
-    : _model = GenerativeModel(
-        model: 'gemini-2.5-flash',
-        apiKey: _apiKey,
+  AIService();
+
+  String get _apiKey {
+    final fromEnv = dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
+    if (fromEnv.isNotEmpty) return fromEnv;
+    return _apiKeyFromDefine.trim();
+  }
+
+  bool get isAiConfigured => _apiKey.isNotEmpty;
+
+  GenerativeModel? _buildModel() {
+    if (_apiKey.trim().isEmpty) {
+      return null;
+    }
+    return GenerativeModel(
+      model: 'gemini-2.5-flash',
+      apiKey: _apiKey,
+    );
+  }
+
+  GenerativeModel _requireModel() {
+    final model = _model;
+    if (model == null) {
+      throw StateError(
+        'GEMINI_API_KEY is missing. Set --dart-define=GEMINI_API_KEY=...'
       );
+    }
+    return model;
+  }
+
+  String _toFriendlyAiError(Object error) {
+    final raw = error.toString().toLowerCase();
+
+    if (raw.contains('reported as leaked') ||
+        raw.contains('api key') && raw.contains('leaked')) {
+      return 'API key AI da bi thu hoi do lo thong tin. Vui long cap nhat key moi.';
+    }
+    if (raw.contains('invalid') && raw.contains('api key')) {
+      return 'API key AI khong hop le. Vui long kiem tra lai cau hinh key.';
+    }
+    if (raw.contains('missing') && raw.contains('gemini_api_key')) {
+      return 'Chua cau hinh GEMINI_API_KEY trong assets/env/.env (hoac --dart-define).';
+    }
+
+    return 'Khong the ket noi dich vu AI luc nay. Vui long thu lai sau.';
+  }
 
   /// 1. Nhận diện đồ ăn hoàn toàn bằng API
-  Future<FoodRecognitionResult?> recognizeFood(File imageFile) async {
+  Future<FoodRecognitionResult?> recognizeFood(
+    Uint8List imageBytes, {
+    String mimeType = 'image/jpeg',
+  }) async {
     try {
       debugPrint('--- BẮT ĐẦU NHẬN DIỆN MÓN ĂN QUA API ---');
-      
-      final bytes = await imageFile.readAsBytes();
+      final model = _requireModel();
+
       final content = [
         Content.multi([
           TextPart(
-            'Analyze this food image. Return ONLY a JSON object with this format: '
-            '{"name_en": "Common English Name", "name_vi": "Tên tiếng Việt chính xác", "calories_est": 0.0, "description": "Short description"}. '
-            'Be accurate and only return JSON.'
+            'Phan tich hinh anh mon an nay va chi tra ve 1 JSON hop le, khong them markdown hoac giai thich. '
+            'Dinh dang bat buoc: '
+            '{"name_en": "Common English Name", "name_vi": "Ten tieng Viet chinh xac", "calories_est": 0.0, "description": "Mo ta ngan bang tieng Viet"}. '
+            'Yeu cau: name_en la ten pho bien bang tieng Anh; name_vi va description phai la tieng Viet tu nhien; '
+            'description toi da 1-2 cau; calories_est la so duong.'
           ),
-          DataPart('image/jpeg', bytes),
+          DataPart(mimeType, imageBytes),
         ]),
       ];
 
-      final response = await _model.generateContent(content);
+      final response = await model.generateContent(content);
       final text = response.text;
 
       if (text != null) {
@@ -83,7 +131,7 @@ class AIService {
         );
       }
     } catch (e) {
-      debugPrint('Lỗi AI Service: $e');
+      debugPrint('Loi AI Service: ${_toFriendlyAiError(e)} | raw: $e');
     }
     return null;
   }
@@ -448,12 +496,13 @@ class AIService {
   /// 3. Gợi ý thực đơn
   Future<String> getDietRecommendations(String condition, String prefs) async {
     try {
+      final model = _requireModel();
       final prompt = 'Sức khỏe: $condition. Sở thích: $prefs. Gợi ý thực đơn bằng tiếng Việt.';
       final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
+      final response = await model.generateContent(content);
       return response.text ?? 'Không có gợi ý.';
     } catch (e) {
-      return 'Lỗi: $e';
+      return _toFriendlyAiError(e);
     }
   }
 }

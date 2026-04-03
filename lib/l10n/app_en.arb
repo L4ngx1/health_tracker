@@ -413,6 +413,8 @@
   "@authErrorUserNotFound": {},
   "authErrorWrongPassword": "Incorrect password.",
   "@authErrorWrongPassword": {},
+  "authErrorInvalidCredentials": "Email or password is incorrect.",
+  "@authErrorInvalidCredentials": {},
   "authErrorEmailInUse": "This email is already in use.",
   "@authErrorEmailInUse": {},
   "authErrorOperationNotAllowed": "Sign-in is not enabled.",

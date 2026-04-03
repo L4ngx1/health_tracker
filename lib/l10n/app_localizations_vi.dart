@@ -615,6 +615,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get authErrorWrongPassword => 'Mật khẩu không đúng.';
 
   @override
+  String get authErrorInvalidCredentials => 'Email hoặc mật khẩu không đúng.';
+
+  @override
   String get authErrorEmailInUse => 'Email đã được sử dụng.';
 
   @override

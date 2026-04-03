@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../core/localization/app_strings.dart';
 import '../models/metric_item.dart';
+import '../models/backend/weight_record.dart';
+import '../services/backend_api_service.dart';
 
 class HomeController {
-  const HomeController();
+  HomeController({BackendApiService? backendApiService})
+    : _backendApiService = backendApiService ?? BackendApiService();
+
+  final BackendApiService _backendApiService;
 
   List<MetricItem> getMetrics(BuildContext context) {
     return [
@@ -35,5 +40,24 @@ class HomeController {
         showProgress: true,
       ),
     ];
+  }
+
+  Future<double?> getLatestWeightKg() async {
+    try {
+      final records = await _backendApiService.getMyWeightRecords(limit: 1);
+      if (records.isEmpty) return null;
+      return records.first.weightKg;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveWeightKg(double value) async {
+    final record = WeightRecord(
+      id: '',
+      weightKg: value,
+      recordedAt: DateTime.now(),
+    );
+    await _backendApiService.addMyWeightRecord(record);
   }
 }

@@ -11,7 +11,8 @@ import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/workout_item.dart';
 import '../../models/workout_history_item.dart';
-import '../../services/journal_note_service.dart';
+import '../../models/backend/workout_record.dart';
+import '../../services/backend_api_service.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
 
@@ -21,6 +22,47 @@ class _DayWorkoutPlan {
   final String day;
   final List<String> items;
 }
+
+class _PendingWorkoutDelete {
+  const _PendingWorkoutDelete({
+    required this.identityKey,
+    required this.queuedAtMs,
+    this.cloudId,
+  });
+
+  final String identityKey;
+  final int queuedAtMs;
+  final String? cloudId;
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'identityKey': identityKey,
+      'queuedAtMs': queuedAtMs,
+      'cloudId': cloudId,
+    };
+  }
+
+  static _PendingWorkoutDelete? fromMap(Map<dynamic, dynamic> map) {
+    final identityKey = (map['identityKey'] ?? '').toString().trim();
+    if (identityKey.isEmpty) return null;
+
+    final queuedAtMs = map['queuedAtMs'] is int
+        ? map['queuedAtMs'] as int
+        : int.tryParse('${map['queuedAtMs']}') ??
+            DateTime.now().millisecondsSinceEpoch;
+
+    final cloudIdRaw = (map['cloudId'] ?? '').toString().trim();
+    return _PendingWorkoutDelete(
+      identityKey: identityKey,
+      queuedAtMs: queuedAtMs,
+      cloudId: cloudIdRaw.isEmpty ? null : cloudIdRaw,
+    );
+  }
+
+  String get queueKey => '${cloudId ?? ''}|$identityKey';
+}
+
+enum _WorkoutHistoryRange { day, week, month, all }
 
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
@@ -32,20 +74,27 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   static const _prefWeightKg = 'profile.weightKg';
   static const _prefWorkoutHistory = 'workout.history.v1';
+  static const _prefPendingDelete = 'workout.pendingDelete.v1';
+  static const _prefPlanCompletion = 'workout.planCompletion.v1';
   final AIController _aiController = AIController();
-  final JournalNoteService _journalNoteService = const JournalNoteService();
+  final BackendApiService _backendApiService = BackendApiService();
   final MainNavigationController _navController = MainNavigationController();
   Timer? _weightSyncTimer;
+  Timer? _pendingDeleteSyncTimer;
+  bool _isSyncingPendingDeletes = false;
+  final WorkoutController _workoutController = WorkoutController();
   String? _aiWorkoutPlan;
   List<_DayWorkoutPlan> _weeklyPlan = const [];
   List<WorkoutHistoryItem> _history = const [];
+  Map<String, bool> _planCompletion = <String, bool>{};
+  String? _planCompletionRawPlan;
   bool _isLoading = false;
   bool _isSavingPlan = false;
   double? _weightKg;
   int _selectedGoalIndex = 0;
   int _selectedLevelIndex = 0;
   int _sessionsPerWeek = 4;
-  int _historyFilterDays = 0; // 0=all, 7, 30
+  _WorkoutHistoryRange _historyRange = _WorkoutHistoryRange.all;
   int _selectedProgramFilter = -1; // -1 = tất cả
 
   static const List<(String label, String prompt)> _goalOptions = [
@@ -76,12 +125,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _navController.addListener(_onNavChanged);
     _loadWeight();
     _loadWorkoutHistory();
+    _loadPlanCompletion();
     _startWeightSync();
+    _startPendingDeleteSync();
   }
 
   @override
   void dispose() {
     _weightSyncTimer?.cancel();
+    _pendingDeleteSyncTimer?.cancel();
     _navController.removeListener(_onNavChanged);
     super.dispose();
   }
@@ -89,6 +141,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void _onNavChanged() {
     if (_navController.index == 1) {
       _loadWeight();
+      unawaited(_syncPendingCloudDeletes());
     }
   }
 
@@ -97,6 +150,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _weightSyncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (!mounted) return;
       _loadWeight(onlyIfChanged: true);
+    });
+  }
+
+  void _startPendingDeleteSync() {
+    _pendingDeleteSyncTimer?.cancel();
+    _pendingDeleteSyncTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!mounted) return;
+      unawaited(_syncPendingCloudDeletes());
     });
   }
 
@@ -122,23 +183,262 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Future<void> _loadWorkoutHistory() async {
     final prefs = await SharedPreferences.getInstance();
+    final localHistory = _readLocalHistory(prefs);
+    List<WorkoutHistoryItem> cloudHistory = const [];
+    var cloudLoaded = false;
+
+    try {
+      final records = await _backendApiService.getMyWorkouts(limit: 100);
+      cloudHistory = records.map(_mapWorkoutRecordToHistory).toList(growable: false);
+      cloudLoaded = true;
+
+      await _syncLocalHistoryToCloud(localHistory, cloudHistory);
+
+      // Re-read cloud after pushing local items to ensure UI shows synced data.
+      final refreshed = await _backendApiService.getMyWorkouts(limit: 100);
+      cloudHistory = refreshed
+          .map(_mapWorkoutRecordToHistory)
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('load workout cloud history failed: $e');
+    }
+
+    final merged = _mergeHistory(
+      cloudLoaded ? cloudHistory : const [],
+      localHistory,
+    );
+
+    if (!mounted) return;
+    setState(() => _history = merged);
+    await _persistWorkoutHistoryList(merged);
+    await _syncPendingCloudDeletes();
+  }
+
+  String _planKey(String day, String item) => '$day|$item';
+
+  Future<void> _loadPlanCompletion() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_accountKey(_prefPlanCompletion));
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final storedPlanRaw = (decoded['planRaw'] ?? '').toString();
+      final completedRaw = decoded['completed'];
+      final completed = <String, bool>{};
+      if (completedRaw is Map) {
+        for (final entry in completedRaw.entries) {
+          completed['${entry.key}'] = entry.value == true;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _planCompletionRawPlan = storedPlanRaw.isEmpty ? null : storedPlanRaw;
+        _planCompletion = completed;
+        if (_aiWorkoutPlan == null && storedPlanRaw.isNotEmpty) {
+          _aiWorkoutPlan = storedPlanRaw;
+          _weeklyPlan = _buildWeeklyPlan(storedPlanRaw);
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _savePlanCompletion() async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = <String, dynamic>{
+      'planRaw': _planCompletionRawPlan ?? _aiWorkoutPlan ?? '',
+      'completed': _planCompletion,
+    };
+    await prefs.setString(_accountKey(_prefPlanCompletion), jsonEncode(payload));
+  }
+
+  bool _isPlanItemCompleted(String day, String item) {
+    return _planCompletion[_planKey(day, item)] ?? false;
+  }
+
+  Future<void> _togglePlanItemComplete(String day, String item) async {
+    final key = _planKey(day, item);
+    setState(() {
+      _planCompletion[key] = !(_planCompletion[key] ?? false);
+    });
+    await _savePlanCompletion();
+  }
+
+  bool _isCheckablePlanItem(String item) {
+    return !item.startsWith('Trọng tâm:') && !item.startsWith('Nghỉ chủ động:');
+  }
+
+  int _planProgressTotal() {
+    return _weeklyPlan.fold<int>(0, (sum, day) {
+      return sum + day.items.where(_isCheckablePlanItem).length;
+    });
+  }
+
+  int _planProgressDone() {
+    var done = 0;
+    for (final day in _weeklyPlan) {
+      for (final item in day.items) {
+        if (!_isCheckablePlanItem(item)) continue;
+        if (_isPlanItemCompleted(day.day, item)) done++;
+      }
+    }
+    return done;
+  }
+
+  bool _isPlanFullyCompleted() {
+    final total = _planProgressTotal();
+    if (total == 0) return false;
+    return _planProgressDone() >= total;
+  }
+
+  Future<void> _setAllPlanItemsComplete(bool completed) async {
+    if (_weeklyPlan.isEmpty) return;
+    final next = <String, bool>{..._planCompletion};
+    for (final day in _weeklyPlan) {
+      for (final item in day.items) {
+        if (!_isCheckablePlanItem(item)) continue;
+        next[_planKey(day.day, item)] = completed;
+      }
+    }
+    setState(() {
+      _planCompletion = next;
+    });
+    await _savePlanCompletion();
+  }
+
+  Future<void> _persistWorkoutHistory() async {
+    await _persistWorkoutHistoryList(_history);
+  }
+
+  Future<void> _persistWorkoutHistoryList(List<WorkoutHistoryItem> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = list
+        .map(
+          (e) => {
+            'name': e.name,
+            'date': e.date,
+            'duration': e.duration,
+            'kcal': e.kcal,
+            'timestampMs': e.timestampMs,
+            'cloudId': e.cloudId,
+          },
+        )
+        .toList(growable: false);
+    await prefs.setString(_accountKey(_prefWorkoutHistory), jsonEncode(payload));
+  }
+
+  List<_PendingWorkoutDelete> _readPendingCloudDeletes(SharedPreferences prefs) {
+    final raw = prefs.getString(_accountKey(_prefPendingDelete));
+    if (raw == null || raw.isEmpty) {
+      return const [];
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      final items = <_PendingWorkoutDelete>[];
+      for (final element in decoded) {
+        if (element is! Map) continue;
+        final parsed = _PendingWorkoutDelete.fromMap(element);
+        if (parsed == null) continue;
+        items.add(parsed);
+      }
+      return items;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _persistPendingCloudDeletes(
+    List<_PendingWorkoutDelete> pending,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = pending
+        .map((e) => e.toMap())
+        .toList(growable: false);
+    await prefs.setString(_accountKey(_prefPendingDelete), jsonEncode(payload));
+  }
+
+  Future<void> _queuePendingCloudDelete(WorkoutHistoryItem item) async {
+    final prefs = await SharedPreferences.getInstance();
+    final pending = _readPendingCloudDeletes(prefs).toList(growable: true);
+    final queued = _PendingWorkoutDelete(
+      identityKey: _historyIdentityKey(item),
+      cloudId: item.cloudId?.trim().isEmpty == true ? null : item.cloudId,
+      queuedAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    final exists = pending.any((e) => e.queueKey == queued.queueKey);
+    if (exists) return;
+    pending.add(queued);
+    await _persistPendingCloudDeletes(pending);
+  }
+
+  Future<void> _syncPendingCloudDeletes() async {
+    if (_isSyncingPendingDeletes) return;
+    _isSyncingPendingDeletes = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pending = _readPendingCloudDeletes(prefs);
+      if (pending.isEmpty) return;
+
+      List<WorkoutRecord>? recordsCache;
+      final remaining = <_PendingWorkoutDelete>[];
+
+      for (final task in pending) {
+        try {
+          final directId = task.cloudId?.trim();
+          if (directId != null && directId.isNotEmpty) {
+            await _backendApiService.deleteMyWorkout(directId);
+            continue;
+          }
+
+          recordsCache ??= await _backendApiService.getMyWorkouts(limit: 250);
+          final matched = recordsCache
+              .where(
+                (record) =>
+                    _historyIdentityKey(_mapWorkoutRecordToHistory(record)) ==
+                    task.identityKey,
+              )
+              .toList(growable: false);
+
+          if (matched.isEmpty) {
+            continue;
+          }
+
+          for (final record in matched) {
+            await _backendApiService.deleteMyWorkout(record.id);
+          }
+
+          final deletedIds = matched.map((e) => e.id).toSet();
+          recordsCache = recordsCache
+              .where((record) => !deletedIds.contains(record.id))
+              .toList(growable: false);
+        } catch (_) {
+          remaining.add(task);
+        }
+      }
+
+      await _persistPendingCloudDeletes(remaining);
+    } finally {
+      _isSyncingPendingDeletes = false;
+    }
+  }
+
+  List<WorkoutHistoryItem> _readLocalHistory(SharedPreferences prefs) {
     final raw = prefs.getString(_accountKey(_prefWorkoutHistory));
     if (raw == null || raw.isEmpty) {
-      if (!mounted) return;
-      setState(() => _history = const []);
-      return;
+      return const [];
     }
 
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! List) return;
+      if (decoded is! List) return const [];
       final list = <WorkoutHistoryItem>[];
       for (final item in decoded) {
         if (item is! Map) continue;
         final timestampMs = item['timestampMs'] is int
             ? item['timestampMs'] as int
             : int.tryParse('${item['timestampMs']}');
-        // Ignore legacy/sample entries that don't have a real timestamp.
         if (timestampMs == null) continue;
         list.add(
           WorkoutHistoryItem(
@@ -147,41 +447,119 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             duration: (item['duration'] ?? '').toString(),
             kcal: (item['kcal'] ?? '').toString(),
             timestampMs: timestampMs,
+            cloudId: (item['cloudId'] ?? '').toString().trim().isEmpty
+                ? null
+                : (item['cloudId'] ?? '').toString(),
           ),
         );
       }
-      if (!mounted) return;
-      setState(() => _history = list);
+      return list;
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _history = const []);
+      return const [];
     }
   }
 
-  Future<void> _persistWorkoutHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final payload = _history
-        .map(
-          (e) => {
-            'name': e.name,
-            'date': e.date,
-            'duration': e.duration,
-            'kcal': e.kcal,
-            'timestampMs': e.timestampMs,
-          },
-        )
-        .toList(growable: false);
-    await prefs.setString(_accountKey(_prefWorkoutHistory), jsonEncode(payload));
+  WorkoutHistoryItem _mapWorkoutRecordToHistory(WorkoutRecord record) {
+    final dt = record.performedAt;
+    final day = dt.day.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final year = dt.year.toString();
+    return WorkoutHistoryItem(
+      name: record.name,
+      date: '$day/$month/$year',
+      duration: '${record.durationMinutes} phút',
+      kcal: record.caloriesBurned.round().toString(),
+      timestampMs: dt.millisecondsSinceEpoch,
+      cloudId: record.id,
+    );
+  }
+
+  List<WorkoutHistoryItem> _mergeHistory(
+    List<WorkoutHistoryItem> cloud,
+    List<WorkoutHistoryItem> local,
+  ) {
+    final merged = <String, WorkoutHistoryItem>{};
+    for (final item in cloud) {
+      merged[_historyIdentityKey(item)] = item;
+    }
+    for (final item in local) {
+      merged.putIfAbsent(_historyIdentityKey(item), () => item);
+    }
+
+    final list = merged.values.toList(growable: false);
+    list.sort((a, b) => (b.timestampMs ?? 0).compareTo(a.timestampMs ?? 0));
+    return list.take(50).toList(growable: false);
+  }
+
+  String _historyIdentityKey(WorkoutHistoryItem item) {
+    return '${item.timestampMs ?? 0}|${item.name.trim().toLowerCase()}|${item.duration.trim()}|${item.kcal.trim()}';
+  }
+
+  Future<void> _syncLocalHistoryToCloud(
+    List<WorkoutHistoryItem> local,
+    List<WorkoutHistoryItem> cloud,
+  ) async {
+    if (local.isEmpty) return;
+    final cloudKeys = cloud.map(_historyIdentityKey).toSet();
+    for (final item in local) {
+      final ts = item.timestampMs;
+      if (ts == null) continue;
+      if (cloudKeys.contains(_historyIdentityKey(item))) continue;
+
+      final performedAt = DateTime.fromMillisecondsSinceEpoch(ts);
+      final durationMinutes = _parseDurationMinutes(item.duration);
+      final calories = _parseCalories(item.kcal);
+
+      try {
+        await _backendApiService.addMyWorkout(
+          WorkoutRecord(
+            id: '',
+            name: item.name,
+            durationMinutes: durationMinutes,
+            caloriesBurned: calories,
+            performedAt: performedAt,
+            note: 'local-sync',
+          ),
+        );
+      } catch (e) {
+        debugPrint('sync local workout history failed: $e');
+      }
+    }
+  }
+
+  int _parseDurationMinutes(String raw) {
+    final match = RegExp(r'(\d+)').firstMatch(raw);
+    return int.tryParse(match?.group(1) ?? '') ?? 30;
+  }
+
+  double _parseCalories(String raw) {
+    final normalized = raw.replaceAll(',', '.').trim();
+    return double.tryParse(normalized) ?? 0;
   }
 
   List<WorkoutHistoryItem> _applyHistoryFilter(List<WorkoutHistoryItem> source) {
-    if (_historyFilterDays == 0) return source;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final maxAgeMs = Duration(days: _historyFilterDays).inMilliseconds;
+    if (_historyRange == _WorkoutHistoryRange.all) return source;
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final tomorrowStart = todayStart.add(const Duration(days: 1));
+    final weekStart = todayStart.subtract(Duration(days: now.weekday - DateTime.monday));
+    final monthStart = DateTime(now.year, now.month, 1);
+
     return source.where((entry) {
       final ts = entry.timestampMs;
       if (ts == null) return false;
-      return nowMs - ts <= maxAgeMs;
+      final performedAt = DateTime.fromMillisecondsSinceEpoch(ts);
+      switch (_historyRange) {
+        case _WorkoutHistoryRange.day:
+          return !performedAt.isBefore(todayStart) && performedAt.isBefore(tomorrowStart);
+        case _WorkoutHistoryRange.week:
+          return !performedAt.isBefore(weekStart);
+        case _WorkoutHistoryRange.month:
+          return !performedAt.isBefore(monthStart);
+        case _WorkoutHistoryRange.all:
+          return true;
+      }
     }).toList(growable: false);
   }
 
@@ -212,39 +590,21 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _history = List<WorkoutHistoryItem>.from(_history)..removeAt(idx);
     });
     await _persistWorkoutHistory();
-  }
 
-  Future<void> _confirmDeleteHistoryAt(
-    int indexInFiltered,
-    List<WorkoutHistoryItem> filtered,
-  ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa mục lịch sử'),
-        content: const Text('Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Xóa'),
-          ),
-        ],
+    final deletedInCloud = await _deleteHistoryFromCloud(target);
+    if (!mounted || deletedInCloud) return;
+    final messenger = ScaffoldMessenger.of(context);
+    await _queuePendingCloudDelete(target);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Đã xóa cục bộ, sẽ tự đồng bộ xóa cloud khi có mạng.'),
       ),
-    );
-    if (ok != true) return;
-    await _deleteHistoryAt(indexInFiltered, filtered);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã xóa mục lịch sử.')),
     );
   }
 
   Future<void> _confirmClearAllHistory() async {
     if (_history.isEmpty) return;
+    final removedItems = List<WorkoutHistoryItem>.from(_history, growable: false);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -267,10 +627,59 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _history = const [];
     });
     await _persistWorkoutHistory();
+
+    try {
+      final records = await _backendApiService.getMyWorkouts(limit: 200);
+      for (final record in records) {
+        await _backendApiService.deleteMyWorkout(record.id);
+      }
+    } catch (e) {
+      debugPrint('clear workout history on cloud failed: $e');
+      for (final item in removedItems) {
+        await _queuePendingCloudDelete(item);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã xóa cục bộ, sẽ tự đồng bộ xóa cloud khi có mạng.'),
+        ),
+      );
+      return;
+    }
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đã xóa toàn bộ lịch sử tập luyện.')),
     );
+  }
+
+  Future<bool> _deleteHistoryFromCloud(WorkoutHistoryItem target) async {
+    try {
+      final directId = target.cloudId?.trim();
+      if (directId != null && directId.isNotEmpty) {
+        await _backendApiService.deleteMyWorkout(directId);
+        return true;
+      }
+
+      // Fallback for old local entries that were saved before cloudId existed.
+      final records = await _backendApiService.getMyWorkouts(limit: 150);
+      final matched = records.where((record) {
+        final mapped = _mapWorkoutRecordToHistory(record);
+        return _historyIdentityKey(mapped) == _historyIdentityKey(target);
+      }).toList(growable: false);
+
+      if (matched.isEmpty) {
+        return true;
+      }
+
+      for (final record in matched) {
+        await _backendApiService.deleteMyWorkout(record.id);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('delete workout history on cloud failed: $e');
+      return false;
+    }
   }
 
   int _estimateCalories(String workoutName, int durationMin) {
@@ -335,23 +744,70 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () async {
+                          final performedAt = DateTime.now();
                           final entry = WorkoutHistoryItem(
                             name: item.title,
                             date: _todayLabel(),
                             duration: '$draftDuration phút',
                             kcal: '$estimated',
-                            timestampMs: DateTime.now().millisecondsSinceEpoch,
+                            timestampMs: performedAt.millisecondsSinceEpoch,
                           );
                           if (!mounted) return;
                           setState(() {
                             _history = [entry, ..._history].take(50).toList();
                           });
                           await _persistWorkoutHistory();
+
+                          var syncedToCloud = false;
+                          try {
+                            final cloudId = await _backendApiService.addMyWorkout(
+                              WorkoutRecord(
+                                id: '',
+                                name: item.title,
+                                durationMinutes: draftDuration,
+                                caloriesBurned: estimated.toDouble(),
+                                performedAt: performedAt,
+                                note: 'manual-log',
+                              ),
+                            );
+                            final saved = WorkoutHistoryItem(
+                              name: entry.name,
+                              date: entry.date,
+                              duration: entry.duration,
+                              kcal: entry.kcal,
+                              timestampMs: entry.timestampMs,
+                              cloudId: cloudId,
+                            );
+                            if (mounted) {
+                              setState(() {
+                                _history = _history
+                                    .map((e) => _historyIdentityKey(e) == _historyIdentityKey(entry) ? saved : e)
+                                    .toList(growable: false);
+                              });
+                            }
+                            await _persistWorkoutHistory();
+                            await _backendApiService.addMyNotification(
+                              title: 'Buổi tập đã được lưu',
+                              message:
+                                  'Bạn vừa lưu ${item.title} ($draftDuration phút, $estimated kcal).',
+                              isImportant: false,
+                            );
+                            syncedToCloud = true;
+                          } catch (e) {
+                            debugPrint('save workout to cloud failed: $e');
+                          }
+
                           if (!context.mounted) return;
                           Navigator.of(context).pop();
                           if (!mounted) return;
                           ScaffoldMessenger.of(this.context).showSnackBar(
-                            const SnackBar(content: Text('Đã lưu buổi tập vào lịch sử.')),
+                            SnackBar(
+                              content: Text(
+                                syncedToCloud
+                                    ? 'Đã lưu và đồng bộ buổi tập'
+                                    : 'Đồng bộ dữ liệu không thành công (Vui lòng kiểm tra kết nối mạng).',
+                              ),
+                            ),
                           );
                         },
                         child: const Text('Lưu buổi tập'),
@@ -381,8 +837,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     setState(() {
       _aiWorkoutPlan = plan;
       _weeklyPlan = _buildWeeklyPlan(plan);
+      _planCompletionRawPlan = plan;
+      _planCompletion = <String, bool>{};
       _isLoading = false;
     });
+    await _savePlanCompletion();
+
+    try {
+      await _backendApiService.addMyNotification(
+        title: 'AI đã tạo kế hoạch mới',
+        message:
+            'Kế hoạch tập luyện đã được cập nhật theo mục tiêu và cân nặng hiện tại.',
+        isImportant: true,
+      );
+    } catch (e) {
+      debugPrint('save ai workout notification failed: $e');
+    }
   }
 
   List<String> _extractExercises(String raw) {
@@ -681,7 +1151,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     });
   }
 
-  Future<void> _saveWeeklyPlanToJournal() async {
+  Future<void> _saveWeeklyPlanToHistory() async {
     if (_weeklyPlan.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Hãy tạo kế hoạch trước khi lưu.')),
@@ -693,11 +1163,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     try {
       final goal = _goalOptions[_selectedGoalIndex].$1;
       final level = _levelOptions[_selectedLevelIndex].$1;
+      final completed = _planProgressDone();
+      final total = _planProgressTotal();
+      final performedAt = DateTime.now();
+      final planTitle = 'Kế hoạch tuần - $goal';
+      final displayDuration = '$_sessionsPerWeek buổi/tuần • $completed/$total bài';
       final buffer = StringBuffer()
         ..writeln('Kế hoạch tập tuần')
         ..writeln('Mục tiêu: $goal')
         ..writeln('Trình độ: $level')
         ..writeln('Số buổi/tuần: $_sessionsPerWeek')
+        ..writeln('Tiến độ: $completed/$total bài đã hoàn thành')
         ..writeln(_weightKg == null
           ? 'Cân nặng: chưa cập nhật'
           : 'Cân nặng: ${_weightKg!.toStringAsFixed(1)} kg')
@@ -710,20 +1186,69 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         }
       }
 
-      await _journalNoteService.saveEntry(
-        note: buffer.toString(),
-        scheduledAt: DateTime.now(),
+      final localEntry = WorkoutHistoryItem(
+        name: planTitle,
+        date: _todayLabel(),
+        duration: displayDuration,
+        kcal: '0',
+        timestampMs: performedAt.millisecondsSinceEpoch,
       );
 
       if (!mounted) return;
+      setState(() {
+        _history = [localEntry, ..._history].take(50).toList(growable: false);
+      });
+      await _persistWorkoutHistory();
+
+      var syncedToCloud = false;
+      try {
+        final cloudId = await _backendApiService.addMyWorkout(
+          WorkoutRecord(
+            id: '',
+            name: planTitle,
+            durationMinutes: (_sessionsPerWeek * 30).clamp(30, 300),
+            caloriesBurned: 0,
+            performedAt: performedAt,
+            note: buffer.toString(),
+          ),
+        );
+
+        final saved = WorkoutHistoryItem(
+          name: localEntry.name,
+          date: localEntry.date,
+          duration: localEntry.duration,
+          kcal: localEntry.kcal,
+          timestampMs: localEntry.timestampMs,
+          cloudId: cloudId,
+        );
+
+        if (mounted) {
+          setState(() {
+            _history = _history
+                .map((e) => _historyIdentityKey(e) == _historyIdentityKey(localEntry) ? saved : e)
+                .toList(growable: false);
+          });
+        }
+        await _persistWorkoutHistory();
+        syncedToCloud = true;
+      } catch (e) {
+        debugPrint('save weekly plan to cloud workout history failed: $e');
+      }
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã lưu kế hoạch vào Nhật ký.')),
+        SnackBar(
+          content: Text(
+            syncedToCloud
+                ? 'Đã lưu kế hoạch vào lịch sử tập.'
+                : 'Đã lưu kế hoạch cục bộ vào lịch sử tập (đồng bộ cloud chưa thành công).',
+          ),
+        ),
       );
-      MainNavigationController().setIndex(4);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không thể lưu kế hoạch.')),
+        const SnackBar(content: Text('Không thể lưu kế hoạch vào lịch sử tập.')),
       );
     } finally {
       if (mounted) {
@@ -732,10 +1257,56 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     }
   }
 
+  Widget _buildPlanItemTile(String day, String item, ColorScheme colorScheme) {
+    final checkable = _isCheckablePlanItem(item);
+    if (!checkable) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text('- ${_translatePlanItemText(item)}'),
+      );
+    }
+
+    final completed = _isPlanItemCompleted(day, item);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _togglePlanItemComplete(day, item),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: completed,
+              onChanged: (_) => _togglePlanItemComplete(day, item),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  _translatePlanItemText(item),
+                  style: TextStyle(
+                    decoration:
+                        completed ? TextDecoration.lineThrough : TextDecoration.none,
+                    color: completed
+                        ? colorScheme.onSurface.withValues(alpha: 0.55)
+                        : colorScheme.onSurface,
+                    fontWeight: completed ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const controller = WorkoutController();
-    final programs = controller.getPrograms(context);
+    final programs = _workoutController.getPrograms(context);
+    final bool aiEnabled = _aiController.isAiConfigured;
     final history = _history;
     final filteredHistory = _applyHistoryFilter(history);
     final weekHistory = _currentWeekHistory(history);
@@ -949,6 +1520,63 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Đã hoàn thành ${_planProgressDone()}/${_planProgressTotal()} bài tập',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: colorScheme.secondary,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  color: _isPlanFullyCompleted()
+                                      ? colorScheme.primary.withValues(alpha: 0.14)
+                                      : colorScheme.surfaceContainerHighest,
+                                ),
+                                child: Text(
+                                  _isPlanFullyCompleted()
+                                      ? 'Kế hoạch: Đã hoàn thành'
+                                      : 'Kế hoạch: Chưa hoàn thành',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: _isPlanFullyCompleted()
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurface.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _setAllPlanItemsComplete(
+                                !_isPlanFullyCompleted(),
+                              ),
+                              icon: Icon(
+                                _isPlanFullyCompleted()
+                                    ? Icons.restart_alt
+                                    : Icons.done_all,
+                              ),
+                              label: Text(
+                                _isPlanFullyCompleted()
+                                    ? 'Bỏ đánh dấu hoàn thành tất cả'
+                                    : 'Đánh dấu xong hết',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           Text(
                             'Kế hoạch theo ngày',
                             style: TextStyle(
@@ -979,9 +1607,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   ),
                                   const SizedBox(height: 6),
                                   ...dayPlan.items.map(
-                                    (item) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Text('- ${_translatePlanItemText(item)}'),
+                                    (item) => _buildPlanItemTile(
+                                      dayPlan.day,
+                                      item,
+                                      colorScheme,
                                     ),
                                   ),
                                 ],
@@ -1007,7 +1636,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _getAIWorkout,
+                        onPressed: aiEnabled ? _getAIWorkout : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colorScheme.primary,
                           foregroundColor: colorScheme.onPrimary,
@@ -1015,14 +1644,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: Text(AppStrings.aiGeneratePlanButton(context)),
+                        child: Text(
+                          aiEnabled
+                              ? AppStrings.aiGeneratePlanButton(context)
+                              : 'AI tam khoa: thieu GEMINI_API_KEY',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: _isSavingPlan ? null : _saveWeeklyPlanToJournal,
+                        onPressed: _isSavingPlan ? null : _saveWeeklyPlanToHistory,
                         icon: _isSavingPlan
                             ? const SizedBox(
                                 width: 16,
@@ -1030,7 +1663,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.save_outlined),
-                        label: const Text('Lưu kế hoạch vào Nhật ký'),
+                        label: const Text('Lưu kế hoạch vào lịch sử tập'),
                       ),
                     ),
                   ],
@@ -1107,19 +1740,24 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
+                    label: const Text('Hôm nay'),
+                    selected: _historyRange == _WorkoutHistoryRange.day,
+                    onSelected: (_) => setState(() => _historyRange = _WorkoutHistoryRange.day),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Tuần này'),
+                    selected: _historyRange == _WorkoutHistoryRange.week,
+                    onSelected: (_) => setState(() => _historyRange = _WorkoutHistoryRange.week),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Tháng này'),
+                    selected: _historyRange == _WorkoutHistoryRange.month,
+                    onSelected: (_) => setState(() => _historyRange = _WorkoutHistoryRange.month),
+                  ),
+                  ChoiceChip(
                     label: const Text('Tất cả'),
-                    selected: _historyFilterDays == 0,
-                    onSelected: (_) => setState(() => _historyFilterDays = 0),
-                  ),
-                  ChoiceChip(
-                    label: const Text('7 ngày'),
-                    selected: _historyFilterDays == 7,
-                    onSelected: (_) => setState(() => _historyFilterDays = 7),
-                  ),
-                  ChoiceChip(
-                    label: const Text('30 ngày'),
-                    selected: _historyFilterDays == 30,
-                    onSelected: (_) => setState(() => _historyFilterDays = 30),
+                    selected: _historyRange == _WorkoutHistoryRange.all,
+                    onSelected: (_) => setState(() => _historyRange = _WorkoutHistoryRange.all),
                   ),
                 ],
               ),
@@ -1143,11 +1781,58 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               ...filteredHistory.asMap().entries.map(
                 (pair) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: HistoryTile(
-                    item: pair.value,
-                    onDelete: _history.isEmpty
-                        ? null
-                        : () => _confirmDeleteHistoryAt(pair.key, filteredHistory),
+                  child: Dismissible(
+                    key: ValueKey(
+                      '${pair.value.name}|${pair.value.date}|${pair.value.duration}|${pair.value.kcal}|${pair.value.timestampMs ?? pair.key}',
+                    ),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            color: colorScheme.onErrorContainer,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Xóa',
+                            style: TextStyle(
+                              color: colorScheme.onErrorContainer,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    confirmDismiss: (_) async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Xóa mục lịch sử'),
+                          content: const Text('Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(dialogContext).pop(false),
+                              child: const Text('Hủy'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(dialogContext).pop(true),
+                              child: const Text('Xóa'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return ok == true;
+                    },
+                    onDismissed: (_) => _deleteHistoryAt(pair.key, filteredHistory),
+                    child: HistoryTile(item: pair.value),
                   ),
                 ),
               ),

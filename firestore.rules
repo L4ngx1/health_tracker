@@ -1,13 +1,46 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /health_tracking/{dayKey} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /health_tracking_config/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /workouts/{workoutId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /calories/{recordId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /weights/{recordId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Keep forward-compatibility for user-owned docs not yet explicitly listed.
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /r2_uploads/{docId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
   }
 }

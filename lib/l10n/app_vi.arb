@@ -264,6 +264,7 @@
   "authErrorUserDisabled": "Tài khoản đã bị khóa.",
   "authErrorUserNotFound": "Không tìm thấy tài khoản.",
   "authErrorWrongPassword": "Mật khẩu không đúng.",
+  "authErrorInvalidCredentials": "Email hoặc mật khẩu không đúng.",
   "authErrorEmailInUse": "Email đã được sử dụng.",
   "authErrorOperationNotAllowed": "Đăng nhập chưa được bật.",
   "authErrorWeakPassword": "Mật khẩu quá yếu (ít nhất 6 ký tự).",

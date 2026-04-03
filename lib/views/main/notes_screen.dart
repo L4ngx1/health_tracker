@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../controllers/main_navigation_controller.dart';
 import '../../core/localization/app_strings.dart';
@@ -17,12 +20,152 @@ class NotesScreen extends StatefulWidget {
 
 class _NotesScreenState extends State<NotesScreen> {
   final TextEditingController _noteController = TextEditingController();
+  final FocusNode _noteFocusNode = FocusNode();
+  final MainNavigationController _navController = MainNavigationController();
   final GoogleCalendarSyncService _calendarSyncService =
       const GoogleCalendarSyncService();
   final JournalNoteService _journalNoteService = const JournalNoteService();
+  final stt.SpeechToText _speechToText = stt.SpeechToText();
   bool _syncing = false;
   bool _saving = false;
+  bool _speechReady = false;
+  bool _listening = false;
+  String _speechLocaleId = 'vi_VN';
+  String _speechTranscript = '';
   DateTime? _scheduledAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _navController.addListener(_onNavChanged);
+    unawaited(_initializeSpeech());
+  }
+
+  Future<void> _initializeSpeech() async {
+    final available = await _speechToText.initialize(
+      onStatus: (status) {
+        if (!mounted) return;
+        setState(() {
+          _listening = _speechToText.isListening;
+        });
+      },
+      onError: (error) {
+        if (!mounted) return;
+        setState(() {
+          _listening = false;
+          _speechTranscript = '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isEnglish
+                  ? 'Speech recognition error: ${error.errorMsg}'
+                  : 'Lỗi nhận dạng giọng nói: ${error.errorMsg}',
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _speechReady = available;
+      // Always use Vietnamese locale for speech recognition
+      _speechLocaleId = 'vi_VN';
+    });
+  }
+
+  Future<void> _toggleSpeechToText() async {
+    _noteFocusNode.unfocus();
+    if (!_speechReady) {
+      await _initializeSpeech();
+    }
+    if (!_speechReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isEnglish
+                ? 'Speech recognition is not available on this device.'
+                : 'Thiết bị không hỗ trợ nhận dạng giọng nói.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_speechToText.isListening) {
+      await _speechToText.stop();
+      if (!mounted) return;
+      setState(() => _listening = false);
+      return;
+    }
+
+    _noteFocusNode.requestFocus();
+    setState(() {
+      _speechTranscript = '';
+    });
+
+    try {
+      // For Vietnamese, try using both 'vi_VN' and 'vi-VN' format
+      final useLocale = _speechLocaleId.contains('-')
+          ? _speechLocaleId
+          : _speechLocaleId.replaceAll('_', '-');
+
+      await _speechToText.listen(
+        localeId: useLocale,
+        listenOptions: stt.SpeechListenOptions(
+          listenMode: stt.ListenMode.dictation,
+          partialResults: true,
+          cancelOnError: false,
+          onDevice: false,
+        ),
+        onResult: (result) {
+          final words = result.recognizedWords.trim();
+          if (!mounted) return;
+          if (result.finalResult) {
+            if (words.isEmpty) return;
+            final current = _noteController.text.trim();
+            final next = current.isEmpty ? words : '$current $words';
+            _noteController.value = TextEditingValue(
+              text: next,
+              selection: TextSelection.collapsed(offset: next.length),
+            );
+            setState(() {
+              _speechTranscript = '';
+              _listening = false;
+            });
+            return;
+          }
+          setState(() {
+            _speechTranscript = words;
+            _listening = _speechToText.isListening;
+          });
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _listening = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isEnglish
+                ? 'Error: $e'
+                : 'Lỗi: $e',
+          ),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+    setState(() => _listening = true);
+  }
+
+  void _onNavChanged() {
+    if (_navController.index != 3) {
+      _noteFocusNode.unfocus();
+    }
+  }
 
   bool get _isEnglish => AppStrings.isEnglish(context);
 
@@ -35,6 +178,7 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _pickScheduleDateTime() async {
+    _noteFocusNode.unfocus();
     final now = DateTime.now();
     final initial = _scheduledAt ?? now.add(const Duration(minutes: 10));
 
@@ -64,6 +208,7 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _syncToGoogleCalendar() async {
+    _noteFocusNode.unfocus();
     final note = _noteController.text.trim();
     if (note.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,6 +258,7 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _saveToJournal() async {
+    _noteFocusNode.unfocus();
     final note = _noteController.text.trim();
     if (note.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,7 +275,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
     setState(() => _saving = true);
     try {
-      await _journalNoteService.saveEntry(
+      final cloudSynced = await _journalNoteService.saveEntryWithSyncStatus(
         note: note,
         scheduledAt: _scheduledAt,
       );
@@ -140,9 +286,13 @@ class _NotesScreenState extends State<NotesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isEnglish
-                ? 'Note saved. Opening Journal...'
-                : 'Đã lưu ghi chú. Đang mở Nhật ký...',
+            cloudSynced
+                ? (_isEnglish
+                    ? 'Note saved to database. Opening Journal...'
+                    : 'Đã lưu ghi chú lên CSDL. Đang mở Nhật ký...')
+                : (_isEnglish
+                    ? 'Saved locally. Cloud sync pending.'
+                    : 'Đã lưu cục bộ. Đồng bộ CSDL đang chờ.'),
           ),
         ),
       );
@@ -152,9 +302,7 @@ class _NotesScreenState extends State<NotesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isEnglish
-                ? 'Unable to save note.'
-                : 'Không thể lưu ghi chú.',
+            _isEnglish ? 'Unable to save note.' : 'Không thể lưu ghi chú.',
           ),
         ),
       );
@@ -167,6 +315,9 @@ class _NotesScreenState extends State<NotesScreen> {
 
   @override
   void dispose() {
+    _navController.removeListener(_onNavChanged);
+    _speechToText.stop();
+    _noteFocusNode.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -175,222 +326,303 @@ class _NotesScreenState extends State<NotesScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return SafeArea(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _noteFocusNode.unfocus(),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colorScheme.surface,
+                colorScheme.surfaceContainerHighest
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
           ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TopBar(
-                title: AppStrings.notesScreenTitle(context),
-                onUserTap: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.profile),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: CircleAvatar(
-                  radius: 52,
-                  backgroundColor: colorScheme.primary,
-                  child: Icon(
-                    Icons.mic_none_rounded,
-                    size: 46,
-                    color: colorScheme.onPrimary,
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TopBar(
+                  title: AppStrings.notesScreenTitle(context),
+                  onUserTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.profile),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: _toggleSpeechToText,
+                    child: CircleAvatar(
+                      radius: 52,
+                      backgroundColor: _listening
+                          ? colorScheme.error
+                          : colorScheme.primary,
+                      child: Icon(
+                        _listening
+                            ? Icons.stop_rounded
+                            : Icons.mic_none_rounded,
+                        size: 46,
+                        color: colorScheme.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: Text(
-                  AppStrings.tapToRecord(context),
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _toggleSpeechToText,
+                    icon: Icon(
+                      _listening ? Icons.stop_circle : Icons.mic,
+                    ),
+                    label: Text(
+                      _listening
+                          ? (_isEnglish ? 'Stop dictation' : 'Dừng ghi âm')
+                          : (_isEnglish ? 'Start dictation' : 'Bắt đầu ghi âm'),
+                    ),
+                  ),
+                ),
+                if (_speechTranscript.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Text(
+                      _speechTranscript,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.68),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    AppStrings.tapToRecord(context),
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w900,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    AppStrings.notesPrompt(context),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  AppStrings.notesContentTitle(context),
                   style: TextStyle(
-                    fontSize: 40,
                     fontWeight: FontWeight.w900,
                     color: colorScheme.primary,
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  AppStrings.notesPrompt(context),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: colorScheme.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.16),
+                        blurRadius: 16,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                AppStrings.notesContentTitle(context),
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: colorScheme.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.16),
-                      blurRadius: 16,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          AppStrings.autoDetect(context),
-                          style: TextStyle(
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.72,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            AppStrings.autoDetect(context),
+                            style: TextStyle(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
                             ),
                           ),
-                        ),
-                        Icon(Icons.auto_awesome, color: colorScheme.primary),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      controller: _noteController,
-                      minLines: 3,
-                      maxLines: 6,
-                      decoration: InputDecoration(
-                        hintText: AppStrings.notePlaceholder(context),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          Icon(Icons.auto_awesome, color: colorScheme.primary),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      TextField(
+                        controller: _noteController,
+                        focusNode: _noteFocusNode,
+                        autofocus: false,
+                        minLines: 3,
+                        maxLines: 6,
+                        onTapOutside: (_) => _noteFocusNode.unfocus(),
+                        decoration: InputDecoration(
+                          hintText: AppStrings.notePlaceholder(context),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _pickScheduleDateTime,
-                            icon: const Icon(Icons.schedule),
-                            label: Text(
-                              _scheduledAt == null
-                                  ? (_isEnglish
-                                      ? 'Pick date & time'
-                                      : 'Chọn ngày và giờ')
-                                  : _formatScheduledAt(_scheduledAt!),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _pickScheduleDateTime,
+                              icon: const Icon(Icons.schedule),
+                              label: Text(
+                                _scheduledAt == null
+                                    ? (_isEnglish
+                                        ? 'Pick date & time'
+                                        : 'Chọn ngày và giờ')
+                                    : _formatScheduledAt(_scheduledAt!),
+                              ),
                             ),
                           ),
-                        ),
-                        if (_scheduledAt != null) ...[
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: () {
-                              setState(() => _scheduledAt = null);
-                            },
-                            tooltip: _isEnglish ? 'Clear' : 'Xóa',
-                            icon: const Icon(Icons.close),
+                          if (_scheduledAt != null) ...[
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: () {
+                                setState(() => _scheduledAt = null);
+                              },
+                              tooltip: _isEnglish ? 'Clear' : 'Xóa',
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed: _speechReady ? _toggleSpeechToText : null,
+                              icon: Icon(
+                                _listening ? Icons.stop_circle : Icons.mic,
+                              ),
+                              label: Text(
+                                _listening
+                                    ? (_isEnglish
+                                        ? 'Stop listening'
+                                        : 'Dừng nghe')
+                                    : (_isEnglish
+                                        ? 'Speech to text'
+                                        : 'Chuyển giọng nói thành văn bản'),
+                              ),
+                            ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _scheduledAt == null
+                            ? (_isEnglish
+                                ? 'No schedule selected: event will be created for now + 5 minutes.'
+                                : 'Chưa chọn lịch: sự kiện sẽ được tạo ở thời điểm hiện tại + 5 phút.')
+                            : (_isEnglish
+                                ? 'Selected schedule for calendar event.'
+                                : 'Đã chọn thời gian cho sự kiện lịch.'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      if (!_speechReady) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _isEnglish
+                              ? 'Microphone speech-to-text is not ready yet.'
+                              : 'Chức năng chuyển giọng nói thành văn bản chưa sẵn sàng.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.65),
+                          ),
+                        ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _scheduledAt == null
-                          ? (_isEnglish
-                              ? 'No schedule selected: event will be created for now + 5 minutes.'
-                              : 'Chưa chọn lịch: sự kiện sẽ được tạo ở thời điểm hiện tại + 5 phút.')
-                          : (_isEnglish
-                              ? 'Selected schedule for calendar event.'
-                              : 'Đã chọn thời gian cho sự kiện lịch.'),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChipLabel(AppStrings.tagHealth(context)),
+                          ChipLabel(AppStrings.tagDaily(context)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _saving ? null : _saveToJournal,
+                        icon: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(
+                          _isEnglish ? 'Save note' : 'Lưu ghi chú',
+                        ),
                       ),
                     ),
-                    SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        ChipLabel(AppStrings.tagHealth(context)),
-                        ChipLabel(AppStrings.tagDaily(context)),
-                      ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _syncing ? null : _syncToGoogleCalendar,
+                        icon: _syncing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.calendar_month_outlined),
+                        label: Text(
+                          _isEnglish ? 'Sync calendar' : 'Đồng bộ lịch',
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _saving ? null : _saveToJournal,
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(
-                        _isEnglish ? 'Save note' : 'Lưu ghi chú',
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: QuickActionCard(
+                        title: AppStrings.quickMealTitle(context),
+                        subtitle: AppStrings.quickMealSubtitle(context),
+                        icon: Icons.restaurant_menu,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _syncing ? null : _syncToGoogleCalendar,
-                      icon: _syncing
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.calendar_month_outlined),
-                      label: Text(
-                        _isEnglish
-                            ? 'Sync calendar'
-                            : 'Đồng bộ lịch',
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: QuickActionCard(
+                        title: AppStrings.quickMoodTitle(context),
+                        subtitle: AppStrings.quickMoodSubtitle(context),
+                        icon: Icons.sentiment_satisfied_alt,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: QuickActionCard(
-                      title: AppStrings.quickMealTitle(context),
-                      subtitle: AppStrings.quickMealSubtitle(context),
-                      icon: Icons.restaurant_menu,
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: QuickActionCard(
-                      title: AppStrings.quickMoodTitle(context),
-                      subtitle: AppStrings.quickMoodSubtitle(context),
-                      icon: Icons.sentiment_satisfied_alt,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 18),
+              ],
+            ),
           ),
         ),
       ),

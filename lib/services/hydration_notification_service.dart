@@ -10,6 +10,11 @@ class HydrationNotificationService {
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
+  static const String generalChannelId = 'general_notifications';
+  static const String generalChannelName = 'General notifications';
+  static const String generalChannelDescription =
+      'General app notifications from server';
+
   Future<void> init() async {
     if (_initialized) return;
 
@@ -26,6 +31,18 @@ class HydrationNotificationService {
     );
 
     await _plugin.initialize(settings);
+
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        generalChannelId,
+        generalChannelName,
+        description: generalChannelDescription,
+        importance: Importance.max,
+      ),
+    );
+
     _initialized = true;
   }
 
@@ -47,19 +64,29 @@ class HydrationNotificationService {
     required String title,
     required String body,
   }) async {
+    await showLocalNotification(title: title, body: body, channelId: 'hydration_reminders', channelName: 'Hydration reminders', channelDescription: 'Water intake reminders');
+  }
+
+  Future<void> showLocalNotification({
+    required String title,
+    required String body,
+    String channelId = generalChannelId,
+    String channelName = generalChannelName,
+    String channelDescription = generalChannelDescription,
+  }) async {
     if (!_initialized) {
       await init();
     }
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'hydration_reminders',
-        'Hydration reminders',
-        channelDescription: 'Water intake reminders',
+        channelId,
+        channelName,
+        channelDescription: channelDescription,
         importance: Importance.max,
         priority: Priority.high,
       ),
-      iOS: DarwinNotificationDetails(),
+      iOS: const DarwinNotificationDetails(),
     );
 
     await _plugin.show(

@@ -17,6 +17,7 @@ dependencies:
   firebase_core: ^4.6.0
   firebase_auth: ^6.3.0
   cloud_firestore: ^6.2.0
+  firebase_messaging: ^16.0.0
   image_picker: ^1.2.1
   http: ^1.6.0
   mime: ^2.0.0
@@ -31,15 +32,20 @@ dependencies:
   pedometer: ^4.1.1
   google_generative_ai: ^0.4.7
   camera: ^0.11.0
+  speech_to_text: ^7.3.0
+  flutter_dotenv: ^5.2.1
   add_2_calendar: ^3.0.1
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  fake_cloud_firestore: ^4.1.0+1
 
 flutter:
   generate: true
   uses-material-design: true
   assets:
+    - assets/env/.env
     - assets/images/

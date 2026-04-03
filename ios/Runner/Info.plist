@@ -49,6 +49,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -72,6 +76,8 @@
 	<string>Ung dung su dung vi tri nen de cap nhat quang duong di chuyen.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Ung dung can truy cap camera de chup anh mon an.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ung dung can truy cap microphone de chuyen giọng noi thanh van ban.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Ung dung can truy cap thu vien anh de chon anh mon an.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

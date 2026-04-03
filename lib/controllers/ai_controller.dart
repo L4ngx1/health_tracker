@@ -1,12 +1,17 @@
-import 'dart:io';
+import 'dart:typed_data';
 import '../services/ai_service.dart';
 import '../models/food_recognition_result.dart';
 
 class AIController {
   final AIService _aiService = AIService();
 
-  Future<FoodRecognitionResult?> scanFood(File imageFile) async {
-    return await _aiService.recognizeFood(imageFile);
+  bool get isAiConfigured => _aiService.isAiConfigured;
+
+  Future<FoodRecognitionResult?> scanFood(
+    Uint8List imageBytes, {
+    String mimeType = 'image/jpeg',
+  }) async {
+    return await _aiService.recognizeFood(imageBytes, mimeType: mimeType);
   }
 
   Future<String> getPersonalizedWorkout(

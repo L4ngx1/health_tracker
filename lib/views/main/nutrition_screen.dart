@@ -1,6 +1,7 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -22,7 +23,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final AIController _aiController = AIController();
 
-  File? _selectedImage;
+  Uint8List? _selectedImageBytes;
   String? _cameraError;
   bool _isInitializingCamera = false;
   bool _isCapturing = false;
@@ -96,18 +97,27 @@ class _NutritionScreenState extends State<NutritionScreen> {
     }
   }
 
-  Future<void> _analyzeImage(File image) async {
+  Future<void> _analyzeImage(Uint8List imageBytes) async {
     setState(() {
       _isAnalyzing = true;
       _analysisResult = null;
     });
 
     try {
-      final result = await _aiController.scanFood(image);
+      final result = await _aiController.scanFood(imageBytes);
       if (mounted) {
         setState(() {
           _analysisResult = result;
         });
+        if (result == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Khong nhan duoc ket qua AI. Kiem tra GEMINI_API_KEY trong assets/env/.env va khoi dong lai app.',
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -138,13 +148,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
       final XFile shot = await controller.takePicture();
       if (!mounted) return;
 
-      final File imageFile = File(shot.path);
+      final Uint8List imageBytes = await shot.readAsBytes();
       setState(() {
-        _selectedImage = imageFile;
+        _selectedImageBytes = imageBytes;
       });
       
       // Tự động phân tích sau khi chụp
-      _analyzeImage(imageFile);
+      _analyzeImage(imageBytes);
       
     } catch (_) {
       if (!mounted) return;
@@ -172,13 +182,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
         return;
       }
 
-      final File imageFile = File(picked.path);
+      final Uint8List imageBytes = await picked.readAsBytes();
       setState(() {
-        _selectedImage = imageFile;
+        _selectedImageBytes = imageBytes;
       });
       
       // Tự động phân tích sau khi chọn từ thư viện
-      _analyzeImage(imageFile);
+      _analyzeImage(imageBytes);
       
     } catch (_) {
       if (!mounted) return;
@@ -190,7 +200,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   void _retakePhoto() {
     setState(() {
-      _selectedImage = null;
+      _selectedImageBytes = null;
       _analysisResult = null;
     });
 
@@ -201,9 +211,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   Widget _buildPreviewBox() {
     final CameraController? controller = _cameraController;
-    if (_selectedImage != null) {
-      return Image.file(
-        _selectedImage!,
+    if (_selectedImageBytes != null) {
+      return Image.memory(
+        _selectedImageBytes!,
         width: double.infinity,
         height: 330,
         fit: BoxFit.cover,
@@ -254,6 +264,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final bool aiEnabled = _aiController.isAiConfigured;
     return SafeArea(
       child: Container(
         decoration: BoxDecoration(
@@ -310,7 +321,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         ),
                       ),
                     ),
-                    if (_selectedImage != null)
+                    if (_selectedImageBytes != null)
                       Positioned(
                         top: 12,
                         right: 12,
@@ -347,6 +358,24 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     ),
                   ),
                 ),
+
+              if (!aiEnabled)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'AI dang tam khoa do thieu GEMINI_API_KEY trong assets/env/.env',
+                    style: TextStyle(
+                      color: colorScheme.onErrorContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
                 
               if (_analysisResult != null)
                 Container(
@@ -356,7 +385,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
+                    border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,7 +426,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         Text(
                           _analysisResult!.description!,
                           style: TextStyle(
-                            color: colorScheme.onPrimaryContainer.withOpacity(0.8),
+                            color: colorScheme.onPrimaryContainer.withValues(
+                              alpha: 0.8,
+                            ),
                           ),
                         ),
                       ],
@@ -404,12 +437,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 ),
 
               const SizedBox(height: 14),
-              if (_selectedImage == null) ...[
+              if (_selectedImageBytes == null) ...[
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton.icon(
-                    onPressed: _isCapturing ? null : _captureFromPreview,
+                    onPressed: (!aiEnabled || _isCapturing)
+                        ? null
+                        : _captureFromPreview,
                     style: ElevatedButton.styleFrom(
                       elevation: 3,
                       backgroundColor: colorScheme.primary,
@@ -429,7 +464,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed: _pickFoodImage,
+                  onPressed: aiEnabled ? _pickFoodImage : null,
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     side: BorderSide(color: colorScheme.primary),

@@ -12,7 +12,9 @@ import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/metric_item.dart';
 import '../../models/sleep_session.dart';
+import '../../services/backend_api_service.dart';
 import '../../services/health_cloud_sync_service.dart';
+import '../../services/journal_note_service.dart';
 import '../../services/hydration_notification_service.dart';
 import '../../services/widget_sync_service.dart';
 import '../widgets/common_widgets.dart';
@@ -26,7 +28,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const HomeController _homeController = HomeController();
+  final HomeController _homeController = HomeController();
   static const _prefGoalKm = 'home.movementGoalKm';
   static const _prefDistanceHistory = 'home.distanceHistoryKm';
   static const _prefMigrationDone = 'home.migration.v1';
@@ -51,6 +53,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late final TrackingController _trackingController;
   final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
+  final BackendApiService _backendApiService = BackendApiService();
+  final JournalNoteService _journalNoteService = const JournalNoteService();
   SharedPreferences? _prefs;
   DateTime? _lastCloudConfigSyncAt;
   double _dailyGoalKm = 6.0;
@@ -186,6 +190,12 @@ class _HomeScreenState extends State<HomeScreen> {
     await _migrateLegacyWeightIfNeeded();
     final hasCustomWaterGoal =
         _prefs?.containsKey(_accountKey(_prefWaterGoalMl)) ?? false;
+
+    final cloudWeight = await _homeController.getLatestWeightKg();
+    if (cloudWeight != null) {
+      await _prefs?.setDouble(_accountKey(_prefWeightKg), cloudWeight);
+    }
+
     if (!mounted) return;
     setState(() {
       _weightKg = _prefs?.getDouble(_accountKey(_prefWeightKg));
@@ -254,6 +264,11 @@ class _HomeScreenState extends State<HomeScreen> {
       _accountKey(_prefWeightMonthlyPromptSeenMonth),
       _monthKey(DateTime.now()),
     );
+    try {
+      await _homeController.saveWeightKg(value);
+    } catch (_) {
+      // Keep local value even if cloud sync fails.
+    }
     if (!mounted) return;
     setState(() => _weightKg = value);
     _trackingController.setWeightKg(value);
@@ -514,6 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _lastWaterReminderAt!.millisecondsSinceEpoch,
       );
     }
+    unawaited(_syncDailyJournalSummary());
   }
 
   Future<void> _addWaterIntake(int ml) async {
@@ -578,6 +594,17 @@ class _HomeScreenState extends State<HomeScreen> {
       title: _waterReminderTitle(),
       body: _waterPromptBody(),
     );
+
+    try {
+      await _backendApiService.addMyNotification(
+        title: _waterReminderTitle(),
+        message: _waterPromptBody(),
+        isImportant: false,
+      );
+    } catch (e) {
+      debugPrint('save hydration notification failed: $e');
+    }
+
     _lastWaterReminderAt = now;
     await _saveHydrationData();
   }
@@ -778,7 +805,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 16),
                       Text(
                         _isEnglish
-                            ? 'Custom daily goal: ${draftGoal} ml'
+                            ? 'Custom daily goal: $draftGoal ml'
                             : 'Mục tiêu tự nhập: $draftGoal ml',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
@@ -787,7 +814,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         min: 1000,
                         max: 5000,
                         divisions: 40,
-                        label: '${draftGoal} ml',
+                        label: '$draftGoal ml',
                         onChanged: (value) {
                           setModalState(() {
                             draftGoal = value.round();
@@ -815,7 +842,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           FilledButton(
                             onPressed: () async {
                               await _updateWaterGoal(draftGoal);
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
@@ -1524,6 +1551,22 @@ class _HomeScreenState extends State<HomeScreen> {
     _distanceHistoryKm[today] = todayKm;
     _trimHistory();
     _persistMovementConfig();
+    unawaited(_syncDailyJournalSummary());
+  }
+
+  Future<void> _syncDailyJournalSummary() async {
+    final snapshot = _trackingController.snapshot.value;
+    final today = DateTime.now();
+    final waterGoal = _waterGoalMl > 0 ? _waterGoalMl : _recommendedGoalMl();
+    await _journalNoteService.upsertDailySummary(
+      day: today,
+      steps: snapshot.steps,
+      sleepMinutes: snapshot.sleepMinutes,
+      waterMl: _waterIntakeMl,
+      waterGoalMl: waterGoal,
+      distanceKm: snapshot.distanceMeters / 1000.0,
+      caloriesKcal: snapshot.caloriesKcal,
+    );
   }
 
   List<MapEntry<DateTime, double>> _last7DaysHistory(double todayKm) {
