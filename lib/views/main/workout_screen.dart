@@ -354,8 +354,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             SnackBar(
                               content: Text(
                                 syncedToCloud
-                                    ? 'Đã lưu buổi tập vào lịch sử và đồng bộ CSDL.'
-                                    : 'Đã lưu cục bộ. Chưa đồng bộ lên CSDL (kiểm tra đăng nhập/mạng).',
+                                    ? 'Đã lưu và đồng bộ buổi tập'
+                                    : 'Đồng bộ dữ liệu không thành công (Vui lòng kiểm tra kết nối mạng).',
                               ),
                             ),
                           );

@@ -163,6 +163,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                             });
                                           },
                                           onTap: () {
+                                            FocusManager.instance.primaryFocus?.unfocus();
                                             if (controller.index != i) {
                                               HapticFeedback.selectionClick();
                                             }
