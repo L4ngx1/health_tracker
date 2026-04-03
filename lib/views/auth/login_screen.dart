@@ -25,6 +25,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  bool _isCancelLikeMessage(String message) {
+    final text = message.toLowerCase();
+    return text.contains('canceled') ||
+        text.contains('cancelled') ||
+        text.contains('hủy đăng nhập google');
+  }
+
   void _setLoading(bool value) {
     if (!mounted) return;
     setState(() => _isLoading = value);
@@ -228,6 +235,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       final error = await _controller.continueWithGoogle();
                       if (!mounted) return;
                       setState(() => _isLoading = false);
+
+                      if (error == AuthController.googleSignInCanceled) {
+                        return;
+                      }
+
+                      if (error != null && _isCancelLikeMessage(error)) {
+                        return;
+                      }
 
                       if (error != null) {
                         messenger.showSnackBar(SnackBar(content: Text(error)));
