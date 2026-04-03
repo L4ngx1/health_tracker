@@ -27,9 +27,22 @@ class TopBar extends StatelessWidget {
           child: CircleAvatar(
             radius: 16,
             backgroundColor: colorScheme.primary.withValues(alpha: 0.16),
-            foregroundImage: showGoogleAvatar ? NetworkImage(photoUrl) : null,
             child: showGoogleAvatar
-                ? null
+                ? ClipOval(
+                    child: Image.network(
+                      photoUrl,
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) {
+                        return Icon(
+                          Icons.person,
+                          color: colorScheme.primary,
+                          size: 18,
+                        );
+                      },
+                    ),
+                  )
                 : Icon(Icons.person, color: colorScheme.primary, size: 18),
           ),
         ),

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:image/image.dart' as img;
 import 'dart:convert';
+import 'dart:typed_data';
 
 import '../../controllers/auth_controller.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../services/backend_api_service.dart';
+import '../../services/cloudflare_r2_upload_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,8 +20,31 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const String _workerUrlFromDefine = String.fromEnvironment(
+    'CLOUDFLARE_R2_WORKER_URL',
+  );
+  static const String _workerUrlDefault =
+      'https://healthtracker-r2-upload.healthtracker.workers.dev';
+
   final _controller = const AuthController();
+  final ImagePicker _imagePicker = ImagePicker();
+  final BackendApiService _backendApiService = BackendApiService();
   bool _loading = false;
+
+  String get _workerBaseUrl {
+    final fromEnv = (dotenv.env['CLOUDFLARE_R2_WORKER_URL'] ?? '').trim();
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (_workerUrlFromDefine.trim().isNotEmpty) return _workerUrlFromDefine;
+    return _workerUrlDefault;
+  }
+
+  Uint8List _processAvatar(Uint8List sourceBytes) {
+    final decoded = img.decodeImage(sourceBytes);
+    if (decoded == null) return sourceBytes;
+
+    final square = img.copyResizeCropSquare(decoded, size: 512);
+    return Uint8List.fromList(img.encodeJpg(square, quality: 78));
+  }
 
   Widget _buildAvatar(User? user, ColorScheme colorScheme) {
     final photo = user?.photoURL;
@@ -32,7 +61,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundImage: MemoryImage(base64Decode(photo.split(',').last)),
       );
     }
-    return CircleAvatar(radius: 46, backgroundImage: NetworkImage(photo));
+    return CircleAvatar(
+      radius: 46,
+      backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
+      child: ClipOval(
+        child: Image.network(
+          photo,
+          width: 92,
+          height: 92,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) {
+            return Icon(Icons.person, size: 42, color: colorScheme.primary);
+          },
+        ),
+      ),
+    );
   }
 
   Widget _statusChip(User? user, ColorScheme colorScheme) {
@@ -116,6 +159,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _changeProfilePhoto() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final workerBaseUrl = _workerBaseUrl;
+    if (workerBaseUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Thieu CLOUDFLARE_R2_WORKER_URL trong assets/env/.env',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final XFile? picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 95,
+      maxWidth: 2048,
+    );
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    final optimized = _processAvatar(bytes);
+    final key = 'avatars/${user.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    setState(() => _loading = true);
+    String? error;
+    try {
+      final uploader = CloudflareR2UploadService(workerBaseUrl: workerBaseUrl);
+      final uploaded = await uploader.uploadBytes(
+        bytes: optimized,
+        key: key,
+        contentType: 'image/jpeg',
+      );
+
+      error = await _controller.updateProfile(photoUrl: uploaded.url);
+
+      if (error == null) {
+        await _backendApiService.saveMyUploadMetadata(
+          key: uploaded.key,
+          fileUrl: uploaded.url,
+          contentType: 'image/jpeg',
+          tag: 'profile_avatar',
+        );
+      }
+    } catch (e) {
+      error = e.toString();
+    }
+
+    await FirebaseAuth.instance.currentUser?.reload();
+    setState(() => _loading = false);
+    if (!mounted) return;
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppStrings.profileUpdateSuccess(context))),
+    );
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -193,7 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               child: InkWell(
-                                onTap: _editProfile,
+                                onTap: _changeProfilePhoto,
                                 borderRadius: BorderRadius.circular(50),
                                 child: _buildAvatar(user, colorScheme),
                               ),
@@ -236,6 +345,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 icon: const Icon(Icons.edit_outlined),
                                 label: Text(
                                   AppStrings.editProfile(context),
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 46,
+                              child: OutlinedButton.icon(
+                                onPressed: _changeProfilePhoto,
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: colorScheme.primary),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.photo_camera_outlined),
+                                label: Text(
+                                  'Thay ảnh đại diện',
                                   style: TextStyle(fontWeight: FontWeight.w700),
                                 ),
                               ),
