@@ -4,6 +4,7 @@ import '../../controllers/workout_controller.dart';
 import '../../controllers/ai_controller.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../models/workout_history_item.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
 
@@ -16,8 +17,27 @@ class WorkoutScreen extends StatefulWidget {
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
   final AIController _aiController = AIController();
+  final WorkoutController _workoutController = WorkoutController();
   String? _aiWorkoutPlan;
   bool _isLoading = false;
+  bool _isHistoryLoading = false;
+  List<WorkoutHistoryItem> _history = <WorkoutHistoryItem>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() => _isHistoryLoading = true);
+    final history = await _workoutController.getHistory(context);
+    if (!mounted) return;
+    setState(() {
+      _history = history;
+      _isHistoryLoading = false;
+    });
+  }
 
   Future<void> _getAIWorkout() async {
     setState(() => _isLoading = true);
@@ -34,9 +54,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const controller = WorkoutController();
-    final programs = controller.getPrograms(context);
-    final history = controller.getHistory(context);
+    final programs = _workoutController.getPrograms(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
@@ -206,12 +224,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
-              ...history.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: HistoryTile(item: entry),
+              if (_isHistoryLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else
+                ..._history.map(
+                  (entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: HistoryTile(item: entry),
+                  ),
                 ),
-              ),
               const SizedBox(height: 90),
             ],
           ),

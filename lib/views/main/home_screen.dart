@@ -25,7 +25,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const HomeController _homeController = HomeController();
+  final HomeController _homeController = HomeController();
   static const _prefGoalKm = 'home.movementGoalKm';
   static const _prefDistanceHistory = 'home.distanceHistoryKm';
   static const _prefMigrationDone = 'home.migration.v1';
@@ -161,6 +161,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadWeight() async {
     _prefs ??= await SharedPreferences.getInstance();
     await _migrateLegacyWeightIfNeeded();
+
+    final cloudWeight = await _homeController.getLatestWeightKg();
+    if (cloudWeight != null) {
+      await _prefs?.setDouble(_accountKey(_prefWeightKg), cloudWeight);
+    }
+
     if (!mounted) return;
     setState(() {
       _weightKg = _prefs?.getDouble(_accountKey(_prefWeightKg));
@@ -210,6 +216,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs?.setDouble(_accountKey(_prefWeightKg), value);
+    try {
+      await _homeController.saveWeightKg(value);
+    } catch (_) {
+      // Keep local value even if cloud sync fails.
+    }
     if (!mounted) return;
     setState(() => _weightKg = value);
     _trackingController.setWeightKg(value);

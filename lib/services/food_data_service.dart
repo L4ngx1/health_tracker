@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
 import '../models/food_recognition_result.dart';
@@ -42,7 +43,7 @@ class FoodDataService {
         }
       }
     } catch (e) {
-      print('USDA Search Error: $e');
+      debugPrint('USDA Search Error: $e');
     }
     return null;
   }
@@ -71,7 +72,7 @@ class FoodDataService {
         }
       }
     } catch (e) {
-      print('Wikipedia Crawl Error: $e');
+      debugPrint('Wikipedia Crawl Error: $e');
     }
     return null;
   }

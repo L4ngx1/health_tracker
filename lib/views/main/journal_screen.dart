@@ -3,15 +3,39 @@ import 'package:flutter/material.dart';
 import '../../controllers/journal_controller.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../models/journal_entry_item.dart';
 import '../widgets/common_widgets.dart';
 
-class JournalScreen extends StatelessWidget {
+class JournalScreen extends StatefulWidget {
   const JournalScreen({super.key});
 
   @override
+  State<JournalScreen> createState() => _JournalScreenState();
+}
+
+class _JournalScreenState extends State<JournalScreen> {
+  final JournalController _controller = JournalController();
+  List<JournalEntryItem> _entries = <JournalEntryItem>[];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEntries();
+  }
+
+  Future<void> _loadEntries() async {
+    setState(() => _isLoading = true);
+    final entries = await _controller.getEntries(context);
+    if (!mounted) return;
+    setState(() {
+      _entries = entries;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const controller = JournalController();
-    final entries = controller.getEntries(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
@@ -67,40 +91,49 @@ class JournalScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: ListView.separated(
-                  itemBuilder: (_, i) => Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.shadow.withValues(alpha: 0.12),
-                          blurRadius: 10,
-                          offset: Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: colorScheme.surfaceContainerHighest,
-                          child: Icon(Icons.notes, color: colorScheme.primary),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            entries[i].title,
-                            style: TextStyle(fontWeight: FontWeight.w700),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.separated(
+                        itemBuilder: (_, i) => Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.shadow.withValues(
+                                  alpha: 0.12,
+                                ),
+                                blurRadius: 10,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor:
+                                    colorScheme.surfaceContainerHighest,
+                                child: Icon(
+                                  Icons.notes,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _entries[i].title,
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right),
+                            ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                  ),
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
-                  itemCount: entries.length,
-                ),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
+                        itemCount: _entries.length,
+                      ),
               ),
             ],
           ),

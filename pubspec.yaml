@@ -30,14 +30,17 @@ dependencies:
   pedometer: ^4.1.1
   google_generative_ai: ^0.4.7
   camera: ^0.11.0
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  fake_cloud_firestore: ^4.1.0+1
 
 flutter:
   generate: true
   uses-material-design: true
   assets:
+    - assets/env/.env
     - assets/images/

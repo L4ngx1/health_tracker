@@ -846,7 +846,7 @@ class TrackingController {
   void _onPosition(Position position) {
     if (_isDisposed) return;
     final now = DateTime.now();
-    final timestamp = position.timestamp ?? now;
+    final timestamp = position.timestamp;
     final today = _truncateToDay(now);
     if (today != _currentDay) {
       _resetForNewDay(now);

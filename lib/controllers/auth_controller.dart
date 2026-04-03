@@ -6,9 +6,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../core/localization/locale_service.dart';
 import '../core/routes/app_routes.dart';
 import '../l10n/app_localizations.dart';
+import '../services/backend_repository.dart';
 
 class AuthController {
   const AuthController();
+
+  static final BackendRepository _backendRepository = BackendRepository();
 
   AppLocalizations get _l10n =>
       lookupAppLocalizations(LocaleService.instance.locale.value);
@@ -65,6 +68,25 @@ class AuthController {
     Navigator.of(context).pop();
   }
 
+  Future<void> _ensureCloudProfile(User? user) async {
+    if (user == null) return;
+    final email = user.email?.trim() ?? '';
+    final fallbackName = email.isNotEmpty ? email.split('@').first : 'User';
+
+    try {
+      await _backendRepository.ensureUserProfile(
+        uid: user.uid,
+        email: email,
+        fullName: (user.displayName?.trim().isNotEmpty ?? false)
+            ? user.displayName!.trim()
+            : fallbackName,
+        photoUrl: user.photoURL,
+      );
+    } catch (e) {
+      debugPrint('Failed to sync profile to Firestore: $e');
+    }
+  }
+
   Future<String?> login({
     required String email,
     required String password,
@@ -78,6 +100,8 @@ class AuthController {
         email: email.trim(),
         password: password,
       );
+
+      await _ensureCloudProfile(result.user);
 
       if (!(result.user?.emailVerified ?? false)) {
         // Keep the user authenticated and let MainNavigationScreen show UnverifiedScreen.
@@ -111,6 +135,7 @@ class AuthController {
         password: password,
       );
       await result.user?.updateDisplayName(fullName.trim());
+      await _ensureCloudProfile(result.user);
       await result.user?.sendEmailVerification();
       return null;
     } on FirebaseAuthException catch (e) {
@@ -139,7 +164,8 @@ class AuthController {
     try {
       if (kIsWeb) {
         final provider = GoogleAuthProvider();
-        await FirebaseAuth.instance.signInWithPopup(provider);
+        final result = await FirebaseAuth.instance.signInWithPopup(provider);
+        await _ensureCloudProfile(result.user);
       } else {
         if (defaultTargetPlatform != TargetPlatform.android &&
             defaultTargetPlatform != TargetPlatform.iOS) {
@@ -158,7 +184,10 @@ class AuthController {
         final credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
         );
-        await FirebaseAuth.instance.signInWithCredential(credential);
+        final result = await FirebaseAuth.instance.signInWithCredential(
+          credential,
+        );
+        await _ensureCloudProfile(result.user);
       }
 
       return null;
@@ -203,7 +232,8 @@ class AuthController {
 
   Future<String?> signInAnonymously() async {
     try {
-      await FirebaseAuth.instance.signInAnonymously();
+      final result = await FirebaseAuth.instance.signInAnonymously();
+      await _ensureCloudProfile(result.user);
       return null;
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
@@ -240,6 +270,7 @@ class AuthController {
         await user.updatePhotoURL(photoUrl);
       }
       await user.reload();
+      await _ensureCloudProfile(FirebaseAuth.instance.currentUser);
       return null;
     } on FirebaseAuthException catch (e) {
       return e.message ?? _l10n.authErrorUpdateProfileFailed;

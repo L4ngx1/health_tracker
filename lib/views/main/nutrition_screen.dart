@@ -356,7 +356,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
+                    border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,7 +397,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         Text(
                           _analysisResult!.description!,
                           style: TextStyle(
-                            color: colorScheme.onPrimaryContainer.withOpacity(0.8),
+                            color: colorScheme.onPrimaryContainer.withValues(
+                              alpha: 0.8,
+                            ),
                           ),
                         ),
                       ],
