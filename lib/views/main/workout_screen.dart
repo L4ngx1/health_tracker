@@ -13,6 +13,10 @@ import '../../models/workout_item.dart';
 import '../../models/workout_history_item.dart';
 import '../../models/backend/workout_record.dart';
 import '../../services/backend_api_service.dart';
+<<<<<<< HEAD
+=======
+import '../../services/journal_note_service.dart';
+>>>>>>> origin/main
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
 
@@ -62,8 +66,11 @@ class _PendingWorkoutDelete {
   String get queueKey => '${cloudId ?? ''}|$identityKey';
 }
 
+<<<<<<< HEAD
 enum _WorkoutHistoryRange { day, week, month, all }
 
+=======
+>>>>>>> origin/main
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
 
@@ -75,9 +82,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   static const _prefWeightKg = 'profile.weightKg';
   static const _prefWorkoutHistory = 'workout.history.v1';
   static const _prefPendingDelete = 'workout.pendingDelete.v1';
+<<<<<<< HEAD
   static const _prefPlanCompletion = 'workout.planCompletion.v1';
   final AIController _aiController = AIController();
   final BackendApiService _backendApiService = BackendApiService();
+=======
+  final AIController _aiController = AIController();
+  final BackendApiService _backendApiService = BackendApiService();
+  final JournalNoteService _journalNoteService = const JournalNoteService();
+>>>>>>> origin/main
   final MainNavigationController _navController = MainNavigationController();
   Timer? _weightSyncTimer;
   Timer? _pendingDeleteSyncTimer;
@@ -214,6 +227,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     await _syncPendingCloudDeletes();
   }
 
+<<<<<<< HEAD
   String _planKey(String day, String item) => '$day|$item';
 
   Future<void> _loadPlanCompletion() async {
@@ -306,6 +320,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     await _savePlanCompletion();
   }
 
+=======
+>>>>>>> origin/main
   Future<void> _persistWorkoutHistory() async {
     await _persistWorkoutHistoryList(_history);
   }
@@ -841,7 +857,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _planCompletion = <String, bool>{};
       _isLoading = false;
     });
+<<<<<<< HEAD
     await _savePlanCompletion();
+=======
+>>>>>>> origin/main
 
     try {
       await _backendApiService.addMyNotification(

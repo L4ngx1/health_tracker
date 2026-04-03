@@ -38,6 +38,7 @@ class _NotesScreenState extends State<NotesScreen> {
   void initState() {
     super.initState();
     _navController.addListener(_onNavChanged);
+<<<<<<< HEAD
     unawaited(_initializeSpeech());
   }
 
@@ -159,6 +160,8 @@ class _NotesScreenState extends State<NotesScreen> {
 
     if (!mounted) return;
     setState(() => _listening = true);
+=======
+>>>>>>> origin/main
   }
 
   void _onNavChanged() {
@@ -316,7 +319,10 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   void dispose() {
     _navController.removeListener(_onNavChanged);
+<<<<<<< HEAD
     _speechToText.stop();
+=======
+>>>>>>> origin/main
     _noteFocusNode.dispose();
     _noteController.dispose();
     super.dispose();
@@ -353,6 +359,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 ),
                 const SizedBox(height: 20),
                 Center(
+<<<<<<< HEAD
                   child: InkWell(
                     borderRadius: BorderRadius.circular(999),
                     onTap: _toggleSpeechToText,
@@ -399,6 +406,18 @@ class _NotesScreenState extends State<NotesScreen> {
                     ),
                   ),
                 ],
+=======
+                  child: CircleAvatar(
+                    radius: 52,
+                    backgroundColor: colorScheme.primary,
+                    child: Icon(
+                      Icons.mic_none_rounded,
+                      size: 46,
+                      color: colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+>>>>>>> origin/main
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
@@ -440,6 +459,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         color: colorScheme.shadow.withValues(alpha: 0.16),
                         blurRadius: 16,
                         offset: Offset(0, 8),
+<<<<<<< HEAD
                       ),
                     ],
                   ),
@@ -525,6 +545,71 @@ class _NotesScreenState extends State<NotesScreen> {
                           ),
                         ],
                       ),
+=======
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            AppStrings.autoDetect(context),
+                            style: TextStyle(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.auto_awesome, color: colorScheme.primary),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      TextField(
+                        controller: _noteController,
+                        focusNode: _noteFocusNode,
+                        autofocus: false,
+                        minLines: 3,
+                        maxLines: 6,
+                        onTapOutside: (_) => _noteFocusNode.unfocus(),
+                        decoration: InputDecoration(
+                          hintText: AppStrings.notePlaceholder(context),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _pickScheduleDateTime,
+                              icon: const Icon(Icons.schedule),
+                              label: Text(
+                                _scheduledAt == null
+                                    ? (_isEnglish
+                                        ? 'Pick date & time'
+                                        : 'Chọn ngày và giờ')
+                                    : _formatScheduledAt(_scheduledAt!),
+                              ),
+                            ),
+                          ),
+                          if (_scheduledAt != null) ...[
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: () {
+                                setState(() => _scheduledAt = null);
+                              },
+                              tooltip: _isEnglish ? 'Clear' : 'Xóa',
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ],
+                      ),
+>>>>>>> origin/main
                       const SizedBox(height: 8),
                       Text(
                         _scheduledAt == null
@@ -539,6 +624,7 @@ class _NotesScreenState extends State<NotesScreen> {
                           color: colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
+<<<<<<< HEAD
                       if (!_speechReady) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -551,6 +637,8 @@ class _NotesScreenState extends State<NotesScreen> {
                           ),
                         ),
                       ],
+=======
+>>>>>>> origin/main
                       SizedBox(height: 12),
                       Wrap(
                         spacing: 8,

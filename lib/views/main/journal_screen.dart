@@ -52,7 +52,8 @@ class _JournalScreenState extends State<JournalScreen> {
     });
   }
 
-  DateTime _dayStart(DateTime value) => DateTime(value.year, value.month, value.day);
+  DateTime _dayStart(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
   DateTime _weekStart(DateTime value) {
     final start = _dayStart(value);
@@ -105,19 +106,23 @@ class _JournalScreenState extends State<JournalScreen> {
     if (entry.sleepMinutes != null) {
       final hours = entry.sleepMinutes! ~/ 60;
       final minutes = entry.sleepMinutes! % 60;
-      final sleepText = hours > 0 ? '${hours}h ${minutes}m' : '${entry.sleepMinutes} phút';
+      final sleepText =
+          hours > 0 ? '${hours}h ${minutes}m' : '${entry.sleepMinutes} phút';
       chips.add(_metricChip(Icons.bedtime_outlined, sleepText));
     }
     if (entry.waterMl != null) {
       final goalText = entry.waterGoalMl != null && entry.waterGoalMl! > 0
           ? '/${entry.waterGoalMl} ml'
           : 'ml';
-      chips.add(_metricChip(Icons.water_drop_outlined, '${entry.waterMl}$goalText'));
+      chips.add(
+          _metricChip(Icons.water_drop_outlined, '${entry.waterMl}$goalText'));
     }
 
     if (chips.isEmpty) {
       return Text(
-        entry.subtitle?.trim().isNotEmpty == true ? entry.subtitle! : entry.title,
+        entry.subtitle?.trim().isNotEmpty == true
+            ? entry.subtitle!
+            : entry.title,
       );
     }
 
@@ -147,7 +152,8 @@ class _JournalScreenState extends State<JournalScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (entry.subtitle != null && entry.subtitle!.trim().isNotEmpty) ...[
+                if (entry.subtitle != null &&
+                    entry.subtitle!.trim().isNotEmpty) ...[
                   Text(
                     entry.subtitle!,
                     style: TextStyle(
@@ -161,6 +167,22 @@ class _JournalScreenState extends State<JournalScreen> {
             ),
           ),
           actions: [
+            if (entry.canManage)
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _openNoteEditor(entry: entry);
+                },
+                child: const Text('Sửa'),
+              ),
+            if (entry.canManage)
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _deleteEntry(entry);
+                },
+                child: const Text('Xóa'),
+              ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Đóng'),
@@ -184,12 +206,16 @@ class _JournalScreenState extends State<JournalScreen> {
     final filteredEntries = _filteredEntries();
     final grouped = <String, List<JournalEntryItem>>{};
     for (final entry in filteredEntries) {
-      grouped.putIfAbsent(_groupKey(entry), () => <JournalEntryItem>[]).add(entry);
+      grouped
+          .putIfAbsent(_groupKey(entry), () => <JournalEntryItem>[])
+          .add(entry);
     }
     final orderedGroups = grouped.entries.toList(growable: false)
       ..sort((a, b) {
-        final aDate = DateTime.tryParse(a.key) ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = DateTime.tryParse(b.key) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final aDate =
+            DateTime.tryParse(a.key) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate =
+            DateTime.tryParse(b.key) ?? DateTime.fromMillisecondsSinceEpoch(0);
         return bDate.compareTo(aDate);
       });
 
@@ -252,22 +278,26 @@ class _JournalScreenState extends State<JournalScreen> {
                   ChoiceChip(
                     label: const Text('Hôm nay'),
                     selected: _range == _JournalRange.day,
-                    onSelected: (_) => setState(() => _range = _JournalRange.day),
+                    onSelected: (_) =>
+                        setState(() => _range = _JournalRange.day),
                   ),
                   ChoiceChip(
                     label: const Text('Tuần này'),
                     selected: _range == _JournalRange.week,
-                    onSelected: (_) => setState(() => _range = _JournalRange.week),
+                    onSelected: (_) =>
+                        setState(() => _range = _JournalRange.week),
                   ),
                   ChoiceChip(
                     label: const Text('Tháng này'),
                     selected: _range == _JournalRange.month,
-                    onSelected: (_) => setState(() => _range = _JournalRange.month),
+                    onSelected: (_) =>
+                        setState(() => _range = _JournalRange.month),
                   ),
                   ChoiceChip(
                     label: const Text('Tất cả'),
                     selected: _range == _JournalRange.all,
-                    onSelected: (_) => setState(() => _range = _JournalRange.all),
+                    onSelected: (_) =>
+                        setState(() => _range = _JournalRange.all),
                   ),
                 ],
               ),
@@ -287,14 +317,16 @@ class _JournalScreenState extends State<JournalScreen> {
                             child: Text(
                               'Chưa có dữ liệu cho bộ lọc này.',
                               style: TextStyle(
-                                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                                color: colorScheme.onSurface
+                                    .withValues(alpha: 0.7),
                               ),
                             ),
                           )
                         : ListView.separated(
                             itemBuilder: (_, index) {
                               final group = orderedGroups[index];
-                              final groupDate = DateTime.tryParse(group.key) ?? DateTime.now();
+                              final groupDate = DateTime.tryParse(group.key) ??
+                                  DateTime.now();
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -319,20 +351,24 @@ class _JournalScreenState extends State<JournalScreen> {
                                           padding: const EdgeInsets.all(14),
                                           decoration: BoxDecoration(
                                             color: colorScheme.surface,
-                                            borderRadius: BorderRadius.circular(14),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: colorScheme.shadow.withValues(alpha: 0.12),
+                                                color: colorScheme.shadow
+                                                    .withValues(alpha: 0.12),
                                                 blurRadius: 10,
                                                 offset: const Offset(0, 6),
                                               ),
                                             ],
                                           ),
                                           child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               CircleAvatar(
-                                                backgroundColor: colorScheme.surfaceContainerHighest,
+                                                backgroundColor: colorScheme
+                                                    .surfaceContainerHighest,
                                                 child: Icon(
                                                   _iconForEntry(entry),
                                                   color: colorScheme.primary,
@@ -341,21 +377,32 @@ class _JournalScreenState extends State<JournalScreen> {
                                               const SizedBox(width: 12),
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
                                                       entry.title,
                                                       maxLines: 2,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: const TextStyle(fontWeight: FontWeight.w700),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w700),
                                                     ),
-                                                    if (entry.subtitle != null && entry.subtitle!.trim().isNotEmpty) ...[
+                                                    if (entry.subtitle !=
+                                                            null &&
+                                                        entry.subtitle!
+                                                            .trim()
+                                                            .isNotEmpty) ...[
                                                       const SizedBox(height: 4),
                                                       Text(
                                                         entry.subtitle!,
                                                         style: TextStyle(
                                                           fontSize: 12,
-                                                          color: colorScheme.onSurface.withValues(alpha: 0.72),
+                                                          color: colorScheme
+                                                              .onSurface
+                                                              .withValues(
+                                                                  alpha: 0.72),
                                                         ),
                                                       ),
                                                     ],
@@ -372,7 +419,8 @@ class _JournalScreenState extends State<JournalScreen> {
                                 ],
                               );
                             },
-                            separatorBuilder: (context, index) => const SizedBox(height: 10),
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 10),
                             itemCount: orderedGroups.length,
                           ),
               ),

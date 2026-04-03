@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ﻿import 'dart:convert';
+=======
+import 'dart:convert';
+>>>>>>> origin/main
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;

@@ -54,7 +54,10 @@ class _HomeScreenState extends State<HomeScreen> {
   late final TrackingController _trackingController;
   final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
   final BackendApiService _backendApiService = BackendApiService();
+<<<<<<< HEAD
   final JournalNoteService _journalNoteService = const JournalNoteService();
+=======
+>>>>>>> origin/main
   SharedPreferences? _prefs;
   DateTime? _lastCloudConfigSyncAt;
   double _dailyGoalKm = 6.0;

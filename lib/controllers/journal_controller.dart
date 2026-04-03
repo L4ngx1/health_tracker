@@ -7,7 +7,7 @@ import '../services/backend_api_service.dart';
 
 class JournalController {
   JournalController({BackendApiService? backendApiService})
-    : _backendApiService = backendApiService ?? BackendApiService();
+      : _backendApiService = backendApiService ?? BackendApiService();
 
   final BackendApiService _backendApiService;
 
@@ -43,7 +43,8 @@ class JournalController {
     if (kind != 'daily_summary') return null;
 
     final day = _parseSortDate(raw);
-    final dayText = day == null ? 'Hôm nay' : _formatDateTime(localizations, day);
+    final dayText =
+        day == null ? 'Hôm nay' : _formatDateTime(localizations, day);
     final steps = int.tryParse('${raw['steps'] ?? ''}') ?? 0;
     final sleepMinutes = int.tryParse('${raw['sleepMinutes'] ?? ''}') ?? 0;
     final waterMl = int.tryParse('${raw['waterMl'] ?? ''}') ?? 0;
@@ -64,7 +65,8 @@ class JournalController {
       'Bước: $steps',
       'Ngủ: $sleepText',
       'Nước: $waterMl${waterGoalMl > 0 ? '/$waterGoalMl ml' : ' ml'}',
-      if (distanceKm != null) 'Quãng đường: ${distanceKm.toStringAsFixed(1)} km',
+      if (distanceKm != null)
+        'Quãng đường: ${distanceKm.toStringAsFixed(1)} km',
       if (caloriesKcal != null) 'Calories: ${caloriesKcal.round()} kcal',
     ];
     return parts.join(' • ');
@@ -112,7 +114,8 @@ class JournalController {
     );
   }
 
-  Future<List<JournalEntryItem>> getFallbackEntries(BuildContext context) async {
+  Future<List<JournalEntryItem>> getFallbackEntries(
+      BuildContext context) async {
     final frameSubtitle = AppStrings.journalFrameSubtitle(context);
     final sampleEntries = List<JournalEntryItem>.generate(
       6,

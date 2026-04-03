@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
+=======
+import 'package:cloud_firestore/cloud_firestore.dart';
+>>>>>>> origin/main
 
 import '../models/backend/calorie_record.dart';
 import '../models/backend/notification_record.dart';

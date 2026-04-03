@@ -62,7 +62,8 @@ class JournalNoteService {
     for (final item in [...cloud, ...local]) {
       final normalized = _sanitizeEntry(item);
       if (normalized['createdAtMs'] == null) {
-        final dt = DateTime.tryParse((normalized['createdAt'] ?? '').toString());
+        final dt =
+            DateTime.tryParse((normalized['createdAt'] ?? '').toString());
         if (dt != null) {
           normalized['createdAtMs'] = dt.millisecondsSinceEpoch;
         }
@@ -253,7 +254,7 @@ class JournalNoteService {
             .get();
         if (snapshot.docs.isNotEmpty) {
           cloud = snapshot.docs
-            .map((d) => _sanitizeEntry(d.data()))
+              .map((d) => _sanitizeEntry(d.data()))
               .toList(growable: false);
         }
 
@@ -333,7 +334,8 @@ class JournalNoteService {
     final current = await loadRawEntries();
     var updated = false;
     final next = current.map((item) {
-      if (!_entryMatches(item, createdAt: createdAt, scheduledAt: scheduledAt)) {
+      if (!_entryMatches(item,
+          createdAt: createdAt, scheduledAt: scheduledAt)) {
         return item;
       }
       updated = true;
@@ -354,7 +356,8 @@ class JournalNoteService {
           .get();
       for (final doc in snapshot.docs) {
         final data = _sanitizeEntry(doc.data());
-        if (!_entryMatches(data, createdAt: createdAt, scheduledAt: scheduledAt)) {
+        if (!_entryMatches(data,
+            createdAt: createdAt, scheduledAt: scheduledAt)) {
           continue;
         }
         await doc.reference.set(<String, dynamic>{
