@@ -6,60 +6,85 @@ import '../../core/localization/app_strings.dart';
 class TopBar extends StatelessWidget {
   const TopBar({super.key, required this.title, this.onUserTap});
 
+  static final Map<String, String> _avatarBustTokens = <String, String>{};
+
   final String title;
   final VoidCallback? onUserTap;
+
+  String _cacheBustedAvatarUrl(String rawUrl) {
+    final cached = _avatarBustTokens[rawUrl];
+    final token = cached ?? DateTime.now().millisecondsSinceEpoch.toString();
+    if (cached == null) {
+      _avatarBustTokens[rawUrl] = token;
+    }
+
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) {
+      return '$rawUrl${rawUrl.contains('?') ? '&' : '?'}v=$token';
+    }
+
+    final params = <String, String>{...uri.queryParameters};
+    params['v'] = token;
+    return uri.replace(queryParameters: params).toString();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final user = FirebaseAuth.instance.currentUser;
-    final hasGoogleProvider =
-        user?.providerData.any((p) => p.providerId == 'google.com') ?? false;
-    final photoUrl = user?.photoURL?.trim();
-    final showGoogleAvatar =
-        hasGoogleProvider && photoUrl != null && photoUrl.isNotEmpty;
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.userChanges(),
+      builder: (context, snapshot) {
+        final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
+        final photoUrl = user?.photoURL?.trim();
+        final hasAvatar = photoUrl != null && photoUrl.isNotEmpty;
+        final resolvedPhotoUrl = hasAvatar
+            ? _cacheBustedAvatarUrl(photoUrl)
+            : null;
 
-    return Row(
-      children: [
-        InkWell(
-          onTap: onUserTap,
-          borderRadius: BorderRadius.circular(18),
-          child: CircleAvatar(
-            radius: 16,
-            backgroundColor: colorScheme.primary.withValues(alpha: 0.16),
-            child: showGoogleAvatar
-                ? ClipOval(
-                    child: Image.network(
-                      photoUrl,
-                      width: 32,
-                      height: 32,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) {
-                        return Icon(
-                          Icons.person,
-                          color: colorScheme.primary,
-                          size: 18,
-                        );
-                      },
-                    ),
-                  )
-                : Icon(Icons.person, color: colorScheme.primary, size: 18),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              height: 1.05,
-              color: colorScheme.onSurface,
+        return Row(
+          children: [
+            InkWell(
+              onTap: onUserTap,
+              borderRadius: BorderRadius.circular(18),
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: colorScheme.primary.withValues(alpha: 0.16),
+                child: hasAvatar
+                    ? ClipOval(
+                        child: Image.network(
+                          resolvedPhotoUrl!,
+                          key: ValueKey(resolvedPhotoUrl),
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) {
+                            return Icon(
+                              Icons.person,
+                              color: colorScheme.primary,
+                              size: 18,
+                            );
+                          },
+                        ),
+                      )
+                    : Icon(Icons.person, color: colorScheme.primary, size: 18),
+              ),
             ),
-          ),
-        ),
-        Icon(Icons.notifications_none_rounded, color: colorScheme.onSurface),
-      ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  height: 1.05,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ),
+            Icon(Icons.notifications_none_rounded, color: colorScheme.onSurface),
+          ],
+        );
+      },
     );
   }
 }

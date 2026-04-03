@@ -129,7 +129,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
     setState(() => _saving = true);
     try {
-      await _journalNoteService.saveEntry(
+      final cloudSynced = await _journalNoteService.saveEntryWithSyncStatus(
         note: note,
         scheduledAt: _scheduledAt,
       );
@@ -140,9 +140,13 @@ class _NotesScreenState extends State<NotesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isEnglish
-                ? 'Note saved. Opening Journal...'
-                : 'Đã lưu ghi chú. Đang mở Nhật ký...',
+            cloudSynced
+                ? (_isEnglish
+                    ? 'Note saved to database. Opening Journal...'
+                    : 'Đã lưu ghi chú lên CSDL. Đang mở Nhật ký...')
+                : (_isEnglish
+                    ? 'Saved locally. Cloud sync pending.'
+                    : 'Đã lưu cục bộ. Đồng bộ CSDL đang chờ.'),
           ),
         ),
       );

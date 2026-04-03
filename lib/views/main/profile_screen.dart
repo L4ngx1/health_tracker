@@ -30,6 +30,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final BackendApiService _backendApiService = BackendApiService();
   bool _loading = false;
+  static final Map<String, String> _avatarBustTokens = <String, String>{};
+
+  String _cacheBustedAvatarUrl(String rawUrl) {
+    final cached = _avatarBustTokens[rawUrl];
+    final token = cached ?? DateTime.now().millisecondsSinceEpoch.toString();
+    if (cached == null) {
+      _avatarBustTokens[rawUrl] = token;
+    }
+
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) {
+      return '$rawUrl${rawUrl.contains('?') ? '&' : '?'}v=$token';
+    }
+
+    final params = <String, String>{...uri.queryParameters};
+    params['v'] = token;
+    return uri.replace(queryParameters: params).toString();
+  }
 
   String get _workerBaseUrl {
     final fromEnv = (dotenv.env['CLOUDFLARE_R2_WORKER_URL'] ?? '').trim();
@@ -61,12 +79,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundImage: MemoryImage(base64Decode(photo.split(',').last)),
       );
     }
+    final resolvedPhoto = _cacheBustedAvatarUrl(photo);
     return CircleAvatar(
       radius: 46,
       backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
       child: ClipOval(
         child: Image.network(
-          photo,
+          resolvedPhoto,
+          key: ValueKey(resolvedPhoto),
           width: 92,
           height: 92,
           fit: BoxFit.cover,
@@ -242,41 +262,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
               end: Alignment.bottomCenter,
             ),
           ),
-          child: Column(
+          child: Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    ),
-                    Expanded(
-                      child: Text(
-                        AppStrings.profileScreenTitle(context),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: colorScheme.onSurface,
+              Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded),
                         ),
-                      ),
+                        Expanded(
+                          child: Text(
+                            AppStrings.profileScreenTitle(context),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pushNamed(AppRoutes.settings),
+                          icon: const Icon(Icons.settings_outlined),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed(AppRoutes.settings),
-                      icon: const Icon(Icons.settings_outlined),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Column(
-                    children: [
-                      Container(
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                      child: Column(
+                        children: [
+                          Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                         decoration: BoxDecoration(
@@ -371,136 +392,162 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: colorScheme.outlineVariant),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppStrings.accountInfo(context),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                                color: colorScheme.onSurface,
-                              ),
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: colorScheme.outlineVariant),
                             ),
-                            const SizedBox(height: 12),
-                            Row(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.fingerprint,
-                                  size: 18,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.72,
+                                Text(
+                                  AppStrings.accountInfo(context),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: colorScheme.onSurface,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    AppStrings.uidPrefix(
-                                        context, user?.uid ?? '-'),
-                                    style: TextStyle(
+                                const SizedBox(height: 12),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.fingerprint,
+                                      size: 18,
                                       color: colorScheme.onSurface.withValues(
                                         alpha: 0.72,
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        AppStrings.uidPrefix(context, user?.uid ?? '-'),
+                                        style: TextStyle(
+                                          color: colorScheme.onSurface.withValues(
+                                            alpha: 0.72,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.email_outlined,
-                                  size: 18,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.72,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    user?.email ?? '-',
-                                    style: TextStyle(
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.email_outlined,
+                                      size: 18,
                                       color: colorScheme.onSurface.withValues(
                                         alpha: 0.72,
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        user?.email ?? '-',
+                                        style: TextStyle(
+                                          color: colorScheme.onSurface.withValues(
+                                            alpha: 0.72,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+                ],
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withValues(alpha: 0.16),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: _loading
+                        ? Container(
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainer,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: const Center(child: CircularProgressIndicator()),
+                          )
+                        : SizedBox(
+                            height: 56,
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (c) => AlertDialog(
+                                    title: Text(AppStrings.logoutConfirmTitle(context)),
+                                    content: Text(AppStrings.logoutConfirmContent(context)),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.of(c).pop(false),
+                                        child: Text(AppStrings.cancel(context)),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () => Navigator.of(c).pop(true),
+                                        child: Text(AppStrings.logout(context)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm != true) return;
+                                setState(() => _loading = true);
+                                await _controller.signOut();
+                                if (!context.mounted) return;
+                                Navigator.of(context).pushNamedAndRemoveUntil(
+                                  AppRoutes.login,
+                                  (r) => false,
+                                );
+                              },
+                              icon: const Icon(Icons.logout_rounded, size: 20),
+                              label: Text(
+                                AppStrings.logout(context),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                backgroundColor: colorScheme.error,
+                                foregroundColor: colorScheme.onError,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: _loading
-            ? const SizedBox(
-                height: 56,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            : SizedBox(
-                height: 56,
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: Text(AppStrings.logoutConfirmTitle(context)),
-                        content: Text(AppStrings.logoutConfirmContent(context)),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(c).pop(false),
-                            child: Text(AppStrings.cancel(context)),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.of(c).pop(true),
-                            child: Text(AppStrings.logout(context)),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm != true) return;
-                    setState(() => _loading = true);
-                    await _controller.signOut();
-                    if (!context.mounted) return;
-                    Navigator.of(
-                      context,
-                    ).pushNamedAndRemoveUntil(AppRoutes.login, (r) => false);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.error,
-                    foregroundColor: colorScheme.onError,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(
-                    AppStrings.logout(context),
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
       ),
     );
   }
