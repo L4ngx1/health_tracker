@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -66,20 +65,24 @@ class AIService {
   }
 
   /// 1. Nhận diện đồ ăn hoàn toàn bằng API
-  Future<FoodRecognitionResult?> recognizeFood(File imageFile) async {
+  Future<FoodRecognitionResult?> recognizeFood(
+    Uint8List imageBytes, {
+    String mimeType = 'image/jpeg',
+  }) async {
     try {
       debugPrint('--- BẮT ĐẦU NHẬN DIỆN MÓN ĂN QUA API ---');
       final model = _requireModel();
-      
-      final bytes = await imageFile.readAsBytes();
+
       final content = [
         Content.multi([
           TextPart(
-            'Analyze this food image. Return ONLY a JSON object with this format: '
-            '{"name_en": "Common English Name", "name_vi": "Tên tiếng Việt chính xác", "calories_est": 0.0, "description": "Short description"}. '
-            'Be accurate and only return JSON.'
+            'Phan tich hinh anh mon an nay va chi tra ve 1 JSON hop le, khong them markdown hoac giai thich. '
+            'Dinh dang bat buoc: '
+            '{"name_en": "Common English Name", "name_vi": "Ten tieng Viet chinh xac", "calories_est": 0.0, "description": "Mo ta ngan bang tieng Viet"}. '
+            'Yeu cau: name_en la ten pho bien bang tieng Anh; name_vi va description phai la tieng Viet tu nhien; '
+            'description toi da 1-2 cau; calories_est la so duong.'
           ),
-          DataPart('image/jpeg', bytes),
+          DataPart(mimeType, imageBytes),
         ]),
       ];
 

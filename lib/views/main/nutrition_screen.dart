@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -23,7 +23,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final AIController _aiController = AIController();
 
-  File? _selectedImage;
+  Uint8List? _selectedImageBytes;
   String? _cameraError;
   bool _isInitializingCamera = false;
   bool _isCapturing = false;
@@ -97,14 +97,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
     }
   }
 
-  Future<void> _analyzeImage(File image) async {
+  Future<void> _analyzeImage(Uint8List imageBytes) async {
     setState(() {
       _isAnalyzing = true;
       _analysisResult = null;
     });
 
     try {
-      final result = await _aiController.scanFood(image);
+      final result = await _aiController.scanFood(imageBytes);
       if (mounted) {
         setState(() {
           _analysisResult = result;
@@ -148,13 +148,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
       final XFile shot = await controller.takePicture();
       if (!mounted) return;
 
-      final File imageFile = File(shot.path);
+      final Uint8List imageBytes = await shot.readAsBytes();
       setState(() {
-        _selectedImage = imageFile;
+        _selectedImageBytes = imageBytes;
       });
       
       // Tự động phân tích sau khi chụp
-      _analyzeImage(imageFile);
+      _analyzeImage(imageBytes);
       
     } catch (_) {
       if (!mounted) return;
@@ -182,13 +182,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
         return;
       }
 
-      final File imageFile = File(picked.path);
+      final Uint8List imageBytes = await picked.readAsBytes();
       setState(() {
-        _selectedImage = imageFile;
+        _selectedImageBytes = imageBytes;
       });
       
       // Tự động phân tích sau khi chọn từ thư viện
-      _analyzeImage(imageFile);
+      _analyzeImage(imageBytes);
       
     } catch (_) {
       if (!mounted) return;
@@ -200,7 +200,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   void _retakePhoto() {
     setState(() {
-      _selectedImage = null;
+      _selectedImageBytes = null;
       _analysisResult = null;
     });
 
@@ -211,17 +211,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   Widget _buildPreviewBox() {
     final CameraController? controller = _cameraController;
-    if (_selectedImage != null) {
-      if (kIsWeb) {
-        return Image.network(
-          _selectedImage!.path,
-          width: double.infinity,
-          height: 330,
-          fit: BoxFit.cover,
-        );
-      }
-      return Image.file(
-        _selectedImage!,
+    if (_selectedImageBytes != null) {
+      return Image.memory(
+        _selectedImageBytes!,
         width: double.infinity,
         height: 330,
         fit: BoxFit.cover,
@@ -329,7 +321,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         ),
                       ),
                     ),
-                    if (_selectedImage != null)
+                    if (_selectedImageBytes != null)
                       Positioned(
                         top: 12,
                         right: 12,
@@ -445,7 +437,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 ),
 
               const SizedBox(height: 14),
-              if (_selectedImage == null) ...[
+              if (_selectedImageBytes == null) ...[
                 SizedBox(
                   width: double.infinity,
                   height: 56,
