@@ -736,6 +736,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     final programs = _workoutController.getPrograms(context);
+    final bool aiEnabled = _aiController.isAiConfigured;
     final history = _history;
     final filteredHistory = _applyHistoryFilter(history);
     final weekHistory = _currentWeekHistory(history);
@@ -1007,7 +1008,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _getAIWorkout,
+                        onPressed: aiEnabled ? _getAIWorkout : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colorScheme.primary,
                           foregroundColor: colorScheme.onPrimary,
@@ -1015,7 +1016,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: Text(AppStrings.aiGeneratePlanButton(context)),
+                        child: Text(
+                          aiEnabled
+                              ? AppStrings.aiGeneratePlanButton(context)
+                              : 'AI tam khoa: thieu GEMINI_API_KEY',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),

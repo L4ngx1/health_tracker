@@ -26,6 +26,8 @@ class AIService {
     return _apiKeyFromDefine.trim();
   }
 
+  bool get isAiConfigured => _apiKey.isNotEmpty;
+
   GenerativeModel? _buildModel() {
     if (_apiKey.trim().isEmpty) {
       return null;

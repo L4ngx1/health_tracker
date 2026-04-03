@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -108,6 +109,15 @@ class _NutritionScreenState extends State<NutritionScreen> {
         setState(() {
           _analysisResult = result;
         });
+        if (result == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Khong nhan duoc ket qua AI. Kiem tra GEMINI_API_KEY trong assets/env/.env va khoi dong lai app.',
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -202,6 +212,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
   Widget _buildPreviewBox() {
     final CameraController? controller = _cameraController;
     if (_selectedImage != null) {
+      if (kIsWeb) {
+        return Image.network(
+          _selectedImage!.path,
+          width: double.infinity,
+          height: 330,
+          fit: BoxFit.cover,
+        );
+      }
       return Image.file(
         _selectedImage!,
         width: double.infinity,
@@ -254,6 +272,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final bool aiEnabled = _aiController.isAiConfigured;
     return SafeArea(
       child: Container(
         decoration: BoxDecoration(
@@ -347,6 +366,24 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     ),
                   ),
                 ),
+
+              if (!aiEnabled)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'AI dang tam khoa do thieu GEMINI_API_KEY trong assets/env/.env',
+                    style: TextStyle(
+                      color: colorScheme.onErrorContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
                 
               if (_analysisResult != null)
                 Container(
@@ -413,7 +450,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton.icon(
-                    onPressed: _isCapturing ? null : _captureFromPreview,
+                    onPressed: (!aiEnabled || _isCapturing)
+                        ? null
+                        : _captureFromPreview,
                     style: ElevatedButton.styleFrom(
                       elevation: 3,
                       backgroundColor: colorScheme.primary,
@@ -433,7 +472,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed: _pickFoodImage,
+                  onPressed: aiEnabled ? _pickFoodImage : null,
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     side: BorderSide(color: colorScheme.primary),

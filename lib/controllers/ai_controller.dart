@@ -5,6 +5,8 @@ import '../models/food_recognition_result.dart';
 class AIController {
   final AIService _aiService = AIService();
 
+  bool get isAiConfigured => _aiService.isAiConfigured;
+
   Future<FoodRecognitionResult?> scanFood(File imageFile) async {
     return await _aiService.recognizeFood(imageFile);
   }
