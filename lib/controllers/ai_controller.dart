@@ -9,8 +9,16 @@ class AIController {
     return await _aiService.recognizeFood(imageFile);
   }
 
-  Future<String> getPersonalizedWorkout(String goal, String status) async {
-    return await _aiService.getWorkoutSuggestions(goal, status);
+  Future<String> getPersonalizedWorkout(
+    String goal,
+    String status, {
+    double? weightKg,
+  }) async {
+    return await _aiService.getWorkoutSuggestions(
+      goal,
+      status,
+      weightKg: weightKg,
+    );
   }
 
   Future<String> getPersonalizedDiet(String condition, String preferences) async {

@@ -64,9 +64,14 @@ class WorkoutCard extends StatelessWidget {
 }
 
 class HistoryTile extends StatelessWidget {
-  const HistoryTile({super.key, required this.item});
+  const HistoryTile({
+    super.key,
+    required this.item,
+    this.onDelete,
+  });
 
   final WorkoutHistoryItem item;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +127,13 @@ class HistoryTile extends StatelessWidget {
                   color: colorScheme.onSurface.withValues(alpha: 0.72),
                 ),
               ),
+              if (onDelete != null)
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Xóa',
+                  visualDensity: VisualDensity.compact,
+                ),
             ],
           ),
         ],

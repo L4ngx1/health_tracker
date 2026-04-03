@@ -784,4 +784,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiCouldNotGenerateRecommendations =>
       'Could not generate recommendations.';
+
+  @override
+  String get hydrationReminderTitle => 'Time to drink water';
+
+  @override
+  String hydrationRecommended(int min, int max) {
+    return 'Recommended: $min-$max ml/day';
+  }
+
+  @override
+  String get hydrationYourRecommendation => 'Your recommendation';
+
+  @override
+  String hydrationRemaining(int ml) {
+    return 'Remaining today: $ml ml';
+  }
+
+  @override
+  String get hydrationGoalCompleted => 'Goal completed!';
+
+  @override
+  String get hydrationCustomGoal => 'Custom goal';
+
+  @override
+  String get hydrationUseRecommendation => 'Use recommendation';
+
+  @override
+  String get hydrationSmartMode => 'Smart reminder';
+
+  @override
+  String get hydrationManualCap => 'Reminder interval (minutes)';
 }

@@ -1473,6 +1473,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not generate recommendations.'**
   String get aiCouldNotGenerateRecommendations;
+
+  /// No description provided for @hydrationReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to drink water'**
+  String get hydrationReminderTitle;
+
+  /// No description provided for @hydrationRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended: {min}-{max} ml/day'**
+  String hydrationRecommended(int min, int max);
+
+  /// No description provided for @hydrationYourRecommendation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recommendation'**
+  String get hydrationYourRecommendation;
+
+  /// No description provided for @hydrationRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining today: {ml} ml'**
+  String hydrationRemaining(int ml);
+
+  /// No description provided for @hydrationGoalCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal completed!'**
+  String get hydrationGoalCompleted;
+
+  /// No description provided for @hydrationCustomGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom goal'**
+  String get hydrationCustomGoal;
+
+  /// No description provided for @hydrationUseRecommendation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use recommendation'**
+  String get hydrationUseRecommendation;
+
+  /// No description provided for @hydrationSmartMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart reminder'**
+  String get hydrationSmartMode;
+
+  /// No description provided for @hydrationManualCap.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder interval (minutes)'**
+  String get hydrationManualCap;
 }
 
 class _AppLocalizationsDelegate

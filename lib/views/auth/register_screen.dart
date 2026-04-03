@@ -27,6 +27,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  bool _isCancelLikeMessage(String message) {
+    final text = message.toLowerCase();
+    return text.contains('canceled') ||
+        text.contains('cancelled') ||
+        text.contains('hủy đăng nhập google');
+  }
+
   void _setLoading(bool value) {
     if (!mounted) return;
     setState(() => _isLoading = value);
@@ -254,6 +261,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 .continueWithGoogle();
                             if (!mounted) return;
                             _setLoading(false);
+
+                            if (error == AuthController.googleSignInCanceled) {
+                              return;
+                            }
+
+                            if (error != null && _isCancelLikeMessage(error)) {
+                              return;
+                            }
 
                             if (error != null) {
                               _setError(error);

@@ -31,7 +31,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   void dispose() {
-    controller.dispose();
     super.dispose();
   }
 
@@ -94,13 +93,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               );
             }),
           ),
-          floatingActionButton: controller.index == 1
-              ? FloatingActionButton(
-                  onPressed: () {},
-                  backgroundColor: colorScheme.primary,
-                  child: const Icon(Icons.add),
-                )
-              : null,
           bottomNavigationBar: SafeArea(
             top: false,
             child: Container(
