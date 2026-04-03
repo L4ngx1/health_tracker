@@ -28,10 +28,19 @@ class JournalNoteService {
   }
 
   String _entryKey(Map<String, dynamic> item) {
+    final entryType = (item['entryType'] ?? 'note').toString().trim();
+    if (entryType == 'daily_summary') {
+      final dayKey = (item['dayKey'] ?? '').toString().trim();
+      return 'daily_summary|$dayKey';
+    }
     final createdAt = (item['createdAt'] ?? '').toString();
     final note = (item['note'] ?? '').toString();
     final scheduledAt = (item['scheduledAt'] ?? '').toString();
     return '$createdAt|$note|$scheduledAt';
+  }
+
+  String _dayKey(DateTime value) {
+    return '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
   }
 
   int _entrySortMs(Map<String, dynamic> item) {
@@ -53,7 +62,8 @@ class JournalNoteService {
     for (final item in [...cloud, ...local]) {
       final normalized = _sanitizeEntry(item);
       if (normalized['createdAtMs'] == null) {
-        final dt = DateTime.tryParse((normalized['createdAt'] ?? '').toString());
+        final dt =
+            DateTime.tryParse((normalized['createdAt'] ?? '').toString());
         if (dt != null) {
           normalized['createdAtMs'] = dt.millisecondsSinceEpoch;
         }
@@ -141,8 +151,10 @@ class JournalNoteService {
 
     final next = <Map<String, dynamic>>[
       {
+        'entryType': 'note',
         'note': note,
         'createdAt': now.toIso8601String(),
+        'createdAtMs': now.millisecondsSinceEpoch,
         if (scheduledAt != null) 'scheduledAt': scheduledAt.toIso8601String(),
       },
       ...current,
@@ -155,6 +167,7 @@ class JournalNoteService {
     if (uid == null) return false;
     try {
       await _entriesCollection(uid).add({
+        'entryType': 'note',
         'note': note,
         'createdAt': now.toIso8601String(),
         'createdAtMs': now.millisecondsSinceEpoch,
@@ -164,6 +177,67 @@ class JournalNoteService {
       return true;
     } catch (_) {
       // Local cache was already saved; cloud sync can retry on next load/save.
+      return false;
+    }
+  }
+
+  Future<bool> upsertDailySummary({
+    required DateTime day,
+    required int steps,
+    required int sleepMinutes,
+    required int waterMl,
+    required int waterGoalMl,
+    double? distanceKm,
+    double? caloriesKcal,
+  }) async {
+    final current = await loadRawEntries();
+    final now = DateTime.now();
+    final dayKey = _dayKey(day);
+
+    final summary = <String, dynamic>{
+      'entryType': 'daily_summary',
+      'dayKey': dayKey,
+      'createdAt': now.toIso8601String(),
+      'createdAtMs': now.millisecondsSinceEpoch,
+      'steps': steps,
+      'sleepMinutes': sleepMinutes,
+      'waterMl': waterMl,
+      'waterGoalMl': waterGoalMl,
+      if (distanceKm != null) 'distanceKm': distanceKm,
+      if (caloriesKcal != null) 'caloriesKcal': caloriesKcal,
+    };
+
+    final next = <Map<String, dynamic>>[
+      summary,
+      ...current.where((item) => _entryKey(item) != _entryKey(summary)),
+    ].toList(growable: false);
+
+    await _saveLocal(next);
+
+    final uid = _cloudUid;
+    if (uid == null) return false;
+    try {
+      final collection = _entriesCollection(uid);
+      final snapshot = await collection
+          .where('entryType', isEqualTo: 'daily_summary')
+          .where('dayKey', isEqualTo: dayKey)
+          .limit(10)
+          .get();
+      if (snapshot.docs.isEmpty) {
+        await collection.add({
+          ...summary,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        for (final doc in snapshot.docs) {
+          await doc.reference.set({
+            ...summary,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      }
+      return true;
+    } catch (_) {
       return false;
     }
   }
@@ -180,7 +254,7 @@ class JournalNoteService {
             .get();
         if (snapshot.docs.isNotEmpty) {
           cloud = snapshot.docs
-            .map((d) => _sanitizeEntry(d.data()))
+              .map((d) => _sanitizeEntry(d.data()))
               .toList(growable: false);
         }
 
@@ -260,7 +334,8 @@ class JournalNoteService {
     final current = await loadRawEntries();
     var updated = false;
     final next = current.map((item) {
-      if (!_entryMatches(item, createdAt: createdAt, scheduledAt: scheduledAt)) {
+      if (!_entryMatches(item,
+          createdAt: createdAt, scheduledAt: scheduledAt)) {
         return item;
       }
       updated = true;
@@ -281,7 +356,8 @@ class JournalNoteService {
           .get();
       for (final doc in snapshot.docs) {
         final data = _sanitizeEntry(doc.data());
-        if (!_entryMatches(data, createdAt: createdAt, scheduledAt: scheduledAt)) {
+        if (!_entryMatches(data,
+            createdAt: createdAt, scheduledAt: scheduledAt)) {
           continue;
         }
         await doc.reference.set(<String, dynamic>{

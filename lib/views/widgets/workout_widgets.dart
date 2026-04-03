@@ -175,23 +175,29 @@ class QuickActionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            radius: 16,
-            backgroundColor: colorScheme.onPrimary.withValues(alpha: 0.2),
-            child: Icon(icon, color: colorScheme.onPrimary),
+            radius: 20,
+            backgroundColor: Colors.white.withValues(alpha: 0.18),
+            child: Icon(icon, color: Colors.white),
           ),
           const Spacer(),
           Text(
             title,
-            style: TextStyle(
-              color: colorScheme.onPrimary,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: colorScheme.onPrimary.withValues(alpha: 0.82),
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 12,
             ),
           ),
         ],

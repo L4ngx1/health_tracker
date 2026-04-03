@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +14,7 @@ import '../../models/metric_item.dart';
 import '../../models/sleep_session.dart';
 import '../../services/backend_api_service.dart';
 import '../../services/health_cloud_sync_service.dart';
+import '../../services/journal_note_service.dart';
 import '../../services/hydration_notification_service.dart';
 import '../../services/widget_sync_service.dart';
 import '../widgets/common_widgets.dart';
@@ -53,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final TrackingController _trackingController;
   final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
   final BackendApiService _backendApiService = BackendApiService();
+  final JournalNoteService _journalNoteService = const JournalNoteService();
   SharedPreferences? _prefs;
   DateTime? _lastCloudConfigSyncAt;
   double _dailyGoalKm = 6.0;
@@ -527,6 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _lastWaterReminderAt!.millisecondsSinceEpoch,
       );
     }
+    unawaited(_syncDailyJournalSummary());
   }
 
   Future<void> _addWaterIntake(int ml) async {
@@ -1548,6 +1551,22 @@ class _HomeScreenState extends State<HomeScreen> {
     _distanceHistoryKm[today] = todayKm;
     _trimHistory();
     _persistMovementConfig();
+    unawaited(_syncDailyJournalSummary());
+  }
+
+  Future<void> _syncDailyJournalSummary() async {
+    final snapshot = _trackingController.snapshot.value;
+    final today = DateTime.now();
+    final waterGoal = _waterGoalMl > 0 ? _waterGoalMl : _recommendedGoalMl();
+    await _journalNoteService.upsertDailySummary(
+      day: today,
+      steps: snapshot.steps,
+      sleepMinutes: snapshot.sleepMinutes,
+      waterMl: _waterIntakeMl,
+      waterGoalMl: waterGoal,
+      distanceKm: snapshot.distanceMeters / 1000.0,
+      caloriesKcal: snapshot.caloriesKcal,
+    );
   }
 
   List<MapEntry<DateTime, double>> _last7DaysHistory(double todayKm) {

@@ -7,7 +7,7 @@ import '../services/backend_api_service.dart';
 
 class JournalController {
   JournalController({BackendApiService? backendApiService})
-    : _backendApiService = backendApiService ?? BackendApiService();
+      : _backendApiService = backendApiService ?? BackendApiService();
 
   final BackendApiService _backendApiService;
 
@@ -21,10 +21,102 @@ class JournalController {
     return '$date $time';
   }
 
-  Future<List<JournalEntryItem>> getFallbackEntries(BuildContext context) async {
+  DateTime? _parseSortDate(Map<String, dynamic> raw) {
+    final kind = (raw['entryType'] ?? 'note').toString().trim();
+    if (kind == 'daily_summary') {
+      final dayKey = (raw['dayKey'] ?? '').toString().trim();
+      if (dayKey.isNotEmpty) {
+        return DateTime.tryParse('${dayKey}T00:00:00');
+      }
+    }
+
+    final createdAtRaw = (raw['createdAt'] ?? '').toString();
+    final scheduledAtRaw = (raw['scheduledAt'] ?? '').toString();
+    return DateTime.tryParse(createdAtRaw) ?? DateTime.tryParse(scheduledAtRaw);
+  }
+
+  String? _metricSubtitle(
+    MaterialLocalizations localizations,
+    Map<String, dynamic> raw,
+  ) {
+    final kind = (raw['entryType'] ?? 'note').toString().trim();
+    if (kind != 'daily_summary') return null;
+
+    final day = _parseSortDate(raw);
+    final dayText =
+        day == null ? 'Hôm nay' : _formatDateTime(localizations, day);
+    final steps = int.tryParse('${raw['steps'] ?? ''}') ?? 0;
+    final sleepMinutes = int.tryParse('${raw['sleepMinutes'] ?? ''}') ?? 0;
+    final waterMl = int.tryParse('${raw['waterMl'] ?? ''}') ?? 0;
+    final waterGoalMl = int.tryParse('${raw['waterGoalMl'] ?? ''}') ?? 0;
+    final distanceKm = double.tryParse('${raw['distanceKm'] ?? ''}');
+    final caloriesKcal = double.tryParse('${raw['caloriesKcal'] ?? ''}');
+
+    final sleepHours = sleepMinutes ~/ 60;
+    final sleepRemain = sleepMinutes % 60;
+    final sleepText = sleepMinutes <= 0
+        ? '0 phút'
+        : sleepHours > 0
+            ? '${sleepHours}h ${sleepRemain}m'
+            : '$sleepMinutes phút';
+
+    final parts = <String>[
+      'Ngày: $dayText',
+      'Bước: $steps',
+      'Ngủ: $sleepText',
+      'Nước: $waterMl${waterGoalMl > 0 ? '/$waterGoalMl ml' : ' ml'}',
+      if (distanceKm != null)
+        'Quãng đường: ${distanceKm.toStringAsFixed(1)} km',
+      if (caloriesKcal != null) 'Calories: ${caloriesKcal.round()} kcal',
+    ];
+    return parts.join(' • ');
+  }
+
+  JournalEntryItem _mapRawToEntry(
+    BuildContext context,
+    Map<String, dynamic> raw,
+  ) {
     final localizations = MaterialLocalizations.of(context);
-    final frameSubtitle = AppStrings.journalFrameSubtitle(context);
     final frameTitle = AppStrings.journalFrameTitle(context);
+    final note = (raw['note'] ?? '').toString().trim();
+    final createdAtRaw = (raw['createdAt'] ?? '').toString();
+    final scheduledAtRaw = (raw['scheduledAt'] ?? '').toString();
+    final createdAt = _parseSortDate(raw) ?? DateTime.tryParse(createdAtRaw);
+    final scheduledAt = DateTime.tryParse(scheduledAtRaw);
+    final kind = (raw['entryType'] ?? 'note').toString().trim();
+    final title = kind == 'daily_summary'
+        ? 'Tổng hợp sức khỏe trong ngày'
+        : (note.isEmpty ? frameTitle : note);
+
+    String? subtitle;
+    if (kind == 'daily_summary') {
+      subtitle = _metricSubtitle(localizations, raw);
+    } else if (scheduledAt != null) {
+      subtitle =
+          'Lịch: ${_formatDateTime(localizations, scheduledAt)} • Lưu: ${createdAt != null ? _formatDateTime(localizations, createdAt) : '-'}';
+    } else if (createdAt != null) {
+      subtitle = 'Lưu lúc: ${_formatDateTime(localizations, createdAt)}';
+    }
+
+    return JournalEntryItem(
+      title: title,
+      subtitle: subtitle,
+      canManage: true,
+      note: note,
+      createdAtIso: createdAtRaw,
+      scheduledAtIso: scheduledAtRaw.isEmpty ? null : scheduledAtRaw,
+      sortAt: createdAt ?? scheduledAt,
+      kind: kind,
+      steps: int.tryParse('${raw['steps'] ?? ''}'),
+      sleepMinutes: int.tryParse('${raw['sleepMinutes'] ?? ''}'),
+      waterMl: int.tryParse('${raw['waterMl'] ?? ''}'),
+      waterGoalMl: int.tryParse('${raw['waterGoalMl'] ?? ''}'),
+    );
+  }
+
+  Future<List<JournalEntryItem>> getFallbackEntries(
+      BuildContext context) async {
+    final frameSubtitle = AppStrings.journalFrameSubtitle(context);
     final sampleEntries = List<JournalEntryItem>.generate(
       6,
       (index) => JournalEntryItem(
@@ -38,37 +130,12 @@ class JournalController {
     }
 
     return raws.map((raw) {
-      final note = (raw['note'] ?? '').toString().trim();
-      final createdAtRaw = (raw['createdAt'] ?? '').toString();
-      final scheduledAtRaw = (raw['scheduledAt'] ?? '').toString();
-      final createdAt = DateTime.tryParse(createdAtRaw);
-      final scheduledAt = DateTime.tryParse(scheduledAtRaw);
-
-      final title = note.isEmpty ? frameTitle : note;
-
-      String? subtitle;
-      if (scheduledAt != null) {
-        subtitle =
-            'Lịch: ${_formatDateTime(localizations, scheduledAt)} • Lưu: ${createdAt != null ? _formatDateTime(localizations, createdAt) : '-'}';
-      } else if (createdAt != null) {
-        subtitle = 'Lưu lúc: ${_formatDateTime(localizations, createdAt)}';
-      }
-
-      return JournalEntryItem(
-        title: title,
-        subtitle: subtitle,
-        canManage: true,
-        note: note,
-        createdAtIso: createdAtRaw,
-        scheduledAtIso: scheduledAtRaw.isEmpty ? null : scheduledAtRaw,
-      );
+      return _mapRawToEntry(context, raw);
     }).toList(growable: false);
   }
 
   Future<List<JournalEntryItem>> getEntries(BuildContext context) async {
-    final localizations = MaterialLocalizations.of(context);
     final frameSubtitle = AppStrings.journalFrameSubtitle(context);
-    final frameTitle = AppStrings.journalFrameTitle(context);
     final fallback = List<JournalEntryItem>.generate(
       6,
       (index) => JournalEntryItem(
@@ -79,29 +146,10 @@ class JournalController {
     final noteRaws = await _noteService.loadRawEntries();
 
     final timeline = noteRaws.map((raw) {
-      final note = (raw['note'] ?? '').toString().trim();
-      final createdAtRaw = (raw['createdAt'] ?? '').toString();
-      final scheduledAtRaw = (raw['scheduledAt'] ?? '').toString();
-      final createdAt = DateTime.tryParse(createdAtRaw);
-      final scheduledAt = DateTime.tryParse(scheduledAtRaw);
-      final title = note.isEmpty ? frameTitle : note;
-      String? subtitle;
-      if (scheduledAt != null) {
-        subtitle =
-            'Lịch: ${_formatDateTime(localizations, scheduledAt)} • Lưu: ${createdAt != null ? _formatDateTime(localizations, createdAt) : '-'}';
-      } else if (createdAt != null) {
-        subtitle = 'Lưu lúc: ${_formatDateTime(localizations, createdAt)}';
-      }
+      final item = _mapRawToEntry(context, raw);
       return (
-        sortAt: createdAt ?? scheduledAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        item: JournalEntryItem(
-          title: title,
-          subtitle: subtitle,
-          canManage: true,
-          note: note,
-          createdAtIso: createdAtRaw,
-          scheduledAtIso: scheduledAtRaw.isEmpty ? null : scheduledAtRaw,
-        ),
+        sortAt: item.sortAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+        item: item,
       );
     }).toList(growable: true);
 
