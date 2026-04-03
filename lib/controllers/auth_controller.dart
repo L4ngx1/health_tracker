@@ -10,6 +10,18 @@ import '../l10n/app_localizations.dart';
 class AuthController {
   const AuthController();
 
+  static const String googleSignInCanceled = '__google_sign_in_canceled__';
+
+  bool _isCancelLikeError(String raw) {
+    final text = raw.toLowerCase();
+    return text.contains('canceled') ||
+        text.contains('cancelled') ||
+        text.contains('cancel') ||
+        text.contains('popup-closed-by-user') ||
+        text.contains('web-context-canceled') ||
+        text.contains('hủy đăng nhập google');
+  }
+
   AppLocalizations get _l10n =>
       lookupAppLocalizations(LocaleService.instance.locale.value);
 
@@ -174,7 +186,7 @@ class AuthController {
         case GoogleSignInExceptionCode.clientConfigurationError:
           return _l10n.authErrorGoogleConfig;
         case GoogleSignInExceptionCode.canceled:
-          return _l10n.authErrorGoogleCanceled;
+          return googleSignInCanceled;
         case GoogleSignInExceptionCode.uiUnavailable:
           return _l10n.authErrorGoogleUiUnavailable;
         default:
@@ -184,6 +196,9 @@ class AuthController {
       debugPrint(
         _l10n.authLogGoogleFirebaseException(e.code, e.message ?? ''),
       );
+      if (_isCancelLikeError(e.code) || _isCancelLikeError(e.message ?? '')) {
+        return googleSignInCanceled;
+      }
       return _friendlyError(e);
     } on UnimplementedError {
       return _l10n.authErrorGoogleUnsupportedPlatform;
@@ -194,8 +209,8 @@ class AuthController {
           raw.contains('DEVELOPER_ERROR')) {
         return _l10n.authErrorGoogleShaMismatch;
       }
-      if (raw.contains('canceled') || raw.contains('cancelled')) {
-        return _l10n.authErrorGoogleCanceled;
+      if (_isCancelLikeError(raw)) {
+        return googleSignInCanceled;
       }
       return _l10n.authErrorGoogleGeneral(raw);
     }

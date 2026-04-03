@@ -5,6 +5,7 @@ class MetricItem {
     required this.unit,
     required this.subtitle,
     this.showProgress = false,
+    this.progress,
   });
 
   final String title;
@@ -12,4 +13,5 @@ class MetricItem {
   final String unit;
   final String subtitle;
   final bool showProgress;
+  final double? progress;
 }
