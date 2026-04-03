@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/backend/calorie_record.dart';
+import '../models/backend/notification_record.dart';
 import '../models/backend/user_profile.dart';
 import '../models/backend/weight_record.dart';
 import '../models/backend/workout_record.dart';
@@ -25,6 +26,10 @@ class BackendRepository {
 
   CollectionReference<Map<String, dynamic>> _weightCol(String uid) {
     return _userDoc(uid).collection('weights');
+  }
+
+  CollectionReference<Map<String, dynamic>> _notificationCol(String uid) {
+    return _userDoc(uid).collection('notifications');
   }
 
   CollectionReference<Map<String, dynamic>> get _r2UploadsCol {
@@ -202,6 +207,76 @@ class BackendRepository {
     return query.docs
         .map((doc) => WeightRecord.fromMap(doc.id, doc.data()))
         .toList(growable: false);
+  }
+
+  Stream<List<NotificationRecord>> watchNotifications({
+    required String uid,
+    int limit = 100,
+  }) {
+    return _notificationCol(uid)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (query) => query.docs
+              .map((doc) => NotificationRecord.fromMap(doc.id, doc.data()))
+              .toList(growable: false),
+        );
+  }
+
+  Future<void> markNotificationRead({
+    required String uid,
+    required String notificationId,
+  }) async {
+    await _notificationCol(uid).doc(notificationId).set(<String, dynamic>{
+      'isRead': true,
+      'readAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> markAllNotificationsRead({
+    required String uid,
+    bool? onlyImportant,
+  }) async {
+    Query<Map<String, dynamic>> query = _notificationCol(uid)
+        .where('isRead', isEqualTo: false)
+        .limit(300);
+
+    if (onlyImportant != null) {
+      query = query.where('isImportant', isEqualTo: onlyImportant);
+    }
+
+    final snapshot = await query.get();
+    if (snapshot.docs.isEmpty) {
+      return;
+    }
+
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.set(doc.reference, <String, dynamic>{
+        'isRead': true,
+        'readAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+    await batch.commit();
+  }
+
+  Future<String> addNotification({
+    required String uid,
+    required NotificationRecord notification,
+  }) async {
+    final ref = _notificationCol(uid).doc();
+    await ref.set(notification.toMap());
+    return ref.id;
+  }
+
+  Future<void> deleteNotification({
+    required String uid,
+    required String notificationId,
+  }) async {
+    await _notificationCol(uid).doc(notificationId).delete();
   }
 
   Future<void> saveUploadMetadata({

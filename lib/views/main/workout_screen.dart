@@ -11,6 +11,8 @@ import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/workout_item.dart';
 import '../../models/workout_history_item.dart';
+import '../../models/backend/workout_record.dart';
+import '../../services/backend_api_service.dart';
 import '../../services/journal_note_service.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
@@ -33,6 +35,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   static const _prefWeightKg = 'profile.weightKg';
   static const _prefWorkoutHistory = 'workout.history.v1';
   final AIController _aiController = AIController();
+  final BackendApiService _backendApiService = BackendApiService();
   final JournalNoteService _journalNoteService = const JournalNoteService();
   final MainNavigationController _navController = MainNavigationController();
   Timer? _weightSyncTimer;
@@ -215,35 +218,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     await _persistWorkoutHistory();
   }
 
-  Future<void> _confirmDeleteHistoryAt(
-    int indexInFiltered,
-    List<WorkoutHistoryItem> filtered,
-  ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa mục lịch sử'),
-        content: const Text('Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Xóa'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await _deleteHistoryAt(indexInFiltered, filtered);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã xóa mục lịch sử.')),
-    );
-  }
-
   Future<void> _confirmClearAllHistory() async {
     if (_history.isEmpty) return;
     final ok = await showDialog<bool>(
@@ -336,23 +310,54 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () async {
+                          final performedAt = DateTime.now();
                           final entry = WorkoutHistoryItem(
                             name: item.title,
                             date: _todayLabel(),
                             duration: '$draftDuration phút',
                             kcal: '$estimated',
-                            timestampMs: DateTime.now().millisecondsSinceEpoch,
+                            timestampMs: performedAt.millisecondsSinceEpoch,
                           );
                           if (!mounted) return;
                           setState(() {
                             _history = [entry, ..._history].take(50).toList();
                           });
                           await _persistWorkoutHistory();
+
+                          var syncedToCloud = false;
+                          try {
+                            await _backendApiService.addMyWorkout(
+                              WorkoutRecord(
+                                id: '',
+                                name: item.title,
+                                durationMinutes: draftDuration,
+                                caloriesBurned: estimated.toDouble(),
+                                performedAt: performedAt,
+                                note: 'manual-log',
+                              ),
+                            );
+                            await _backendApiService.addMyNotification(
+                              title: 'Buổi tập đã được lưu',
+                              message:
+                                  'Bạn vừa lưu ${item.title} ($draftDuration phút, $estimated kcal).',
+                              isImportant: false,
+                            );
+                            syncedToCloud = true;
+                          } catch (e) {
+                            debugPrint('save workout to cloud failed: $e');
+                          }
+
                           if (!context.mounted) return;
                           Navigator.of(context).pop();
                           if (!mounted) return;
                           ScaffoldMessenger.of(this.context).showSnackBar(
-                            const SnackBar(content: Text('Đã lưu buổi tập vào lịch sử.')),
+                            SnackBar(
+                              content: Text(
+                                syncedToCloud
+                                    ? 'Đã lưu buổi tập vào lịch sử và đồng bộ CSDL.'
+                                    : 'Đã lưu cục bộ. Chưa đồng bộ lên CSDL (kiểm tra đăng nhập/mạng).',
+                              ),
+                            ),
                           );
                         },
                         child: const Text('Lưu buổi tập'),
@@ -384,6 +389,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _weeklyPlan = _buildWeeklyPlan(plan);
       _isLoading = false;
     });
+
+    try {
+      await _backendApiService.addMyNotification(
+        title: 'AI đã tạo kế hoạch mới',
+        message:
+            'Kế hoạch tập luyện đã được cập nhật theo mục tiêu và cân nặng hiện tại.',
+        isImportant: true,
+      );
+    } catch (e) {
+      debugPrint('save ai workout notification failed: $e');
+    }
   }
 
   List<String> _extractExercises(String raw) {
@@ -1148,11 +1164,58 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               ...filteredHistory.asMap().entries.map(
                 (pair) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: HistoryTile(
-                    item: pair.value,
-                    onDelete: _history.isEmpty
-                        ? null
-                        : () => _confirmDeleteHistoryAt(pair.key, filteredHistory),
+                  child: Dismissible(
+                    key: ValueKey(
+                      '${pair.value.name}|${pair.value.date}|${pair.value.duration}|${pair.value.kcal}|${pair.value.timestampMs ?? pair.key}',
+                    ),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            color: colorScheme.onErrorContainer,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Xóa',
+                            style: TextStyle(
+                              color: colorScheme.onErrorContainer,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    confirmDismiss: (_) async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Xóa mục lịch sử'),
+                          content: const Text('Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(dialogContext).pop(false),
+                              child: const Text('Hủy'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(dialogContext).pop(true),
+                              child: const Text('Xóa'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return ok == true;
+                    },
+                    onDismissed: (_) => _deleteHistoryAt(pair.key, filteredHistory),
+                    child: HistoryTile(item: pair.value),
                   ),
                 ),
               ),

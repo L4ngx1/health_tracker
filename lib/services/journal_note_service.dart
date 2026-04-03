@@ -229,4 +229,118 @@ class JournalNoteService {
 
     return local;
   }
+
+  bool _entryMatches(
+    Map<String, dynamic> item, {
+    required String createdAt,
+    String? note,
+    String? scheduledAt,
+  }) {
+    if ((item['createdAt'] ?? '').toString() != createdAt) {
+      return false;
+    }
+    if (note != null && (item['note'] ?? '').toString() != note) {
+      return false;
+    }
+    if (scheduledAt != null &&
+        (item['scheduledAt'] ?? '').toString() != scheduledAt) {
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> updateEntryByCreatedAt({
+    required String createdAt,
+    required String note,
+    String? scheduledAt,
+  }) async {
+    final trimmedNote = note.trim();
+    if (trimmedNote.isEmpty) return false;
+
+    final current = await loadRawEntries();
+    var updated = false;
+    final next = current.map((item) {
+      if (!_entryMatches(item, createdAt: createdAt, scheduledAt: scheduledAt)) {
+        return item;
+      }
+      updated = true;
+      return <String, dynamic>{
+        ...item,
+        'note': trimmedNote,
+      };
+    }).toList(growable: false);
+
+    if (!updated) return false;
+    await _saveLocal(next);
+
+    final uid = _cloudUid;
+    if (uid == null) return true;
+    try {
+      final snapshot = await _entriesCollection(uid)
+          .where('createdAt', isEqualTo: createdAt)
+          .get();
+      for (final doc in snapshot.docs) {
+        final data = _sanitizeEntry(doc.data());
+        if (!_entryMatches(data, createdAt: createdAt, scheduledAt: scheduledAt)) {
+          continue;
+        }
+        await doc.reference.set(<String, dynamic>{
+          'note': trimmedNote,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {
+      // Keep local update even if cloud update fails.
+    }
+
+    return true;
+  }
+
+  Future<bool> deleteEntryByCreatedAt({
+    required String createdAt,
+    String? note,
+    String? scheduledAt,
+  }) async {
+    final current = await loadRawEntries();
+    final next = current
+        .where(
+          (item) => !_entryMatches(
+            item,
+            createdAt: createdAt,
+            note: note,
+            scheduledAt: scheduledAt,
+          ),
+        )
+        .toList(growable: false);
+
+    if (next.length == current.length) {
+      return false;
+    }
+
+    await _saveLocal(next);
+
+    final uid = _cloudUid;
+    if (uid == null) return true;
+    try {
+      final snapshot = await _entriesCollection(uid)
+          .where('createdAt', isEqualTo: createdAt)
+          .get();
+      for (final doc in snapshot.docs) {
+        final data = _sanitizeEntry(doc.data());
+        if (!_entryMatches(
+          data,
+          createdAt: createdAt,
+          note: note,
+          scheduledAt: scheduledAt,
+        )) {
+          continue;
+        }
+        await doc.reference.delete();
+      }
+    } catch (_) {
+      // Keep local delete even if cloud delete fails.
+    }
+
+    return true;
+  }
 }

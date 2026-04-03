@@ -12,6 +12,7 @@ import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/metric_item.dart';
 import '../../models/sleep_session.dart';
+import '../../services/backend_api_service.dart';
 import '../../services/health_cloud_sync_service.dart';
 import '../../services/hydration_notification_service.dart';
 import '../../services/widget_sync_service.dart';
@@ -51,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late final TrackingController _trackingController;
   final HealthCloudSyncService _cloudSync = HealthCloudSyncService();
+  final BackendApiService _backendApiService = BackendApiService();
   SharedPreferences? _prefs;
   DateTime? _lastCloudConfigSyncAt;
   double _dailyGoalKm = 6.0;
@@ -589,6 +591,17 @@ class _HomeScreenState extends State<HomeScreen> {
       title: _waterReminderTitle(),
       body: _waterPromptBody(),
     );
+
+    try {
+      await _backendApiService.addMyNotification(
+        title: _waterReminderTitle(),
+        message: _waterPromptBody(),
+        isImportant: false,
+      );
+    } catch (e) {
+      debugPrint('save hydration notification failed: $e');
+    }
+
     _lastWaterReminderAt = now;
     await _saveHydrationData();
   }

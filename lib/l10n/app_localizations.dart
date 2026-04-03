@@ -1220,6 +1220,12 @@ abstract class AppLocalizations {
   /// **'Incorrect password.'**
   String get authErrorWrongPassword;
 
+  /// No description provided for @authErrorInvalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Email or password is incorrect.'**
+  String get authErrorInvalidCredentials;
+
   /// No description provided for @authErrorEmailInUse.
   ///
   /// In en, this message translates to:

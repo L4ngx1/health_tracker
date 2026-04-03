@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/backend/calorie_record.dart';
+import '../models/backend/notification_record.dart';
 import '../models/backend/user_profile.dart';
 import '../models/backend/weight_record.dart';
 import '../models/backend/workout_record.dart';
@@ -125,6 +126,53 @@ class BackendApiService {
 
   Future<List<WeightRecord>> getMyWeightRecords({int limit = 120}) {
     return _repository.getWeightRecords(uid: _uid, limit: limit);
+  }
+
+  Stream<List<NotificationRecord>> watchMyNotifications({int limit = 100}) {
+    final uid = _safeCurrentUserUid;
+    if (uid == null || uid.isEmpty) {
+      return Stream.value(const <NotificationRecord>[]);
+    }
+    return _repository.watchNotifications(uid: uid, limit: limit);
+  }
+
+  Future<void> markMyNotificationRead(String notificationId) {
+    return _repository.markNotificationRead(
+      uid: _uid,
+      notificationId: notificationId,
+    );
+  }
+
+  Future<void> markAllMyNotificationsRead({bool? onlyImportant}) {
+    return _repository.markAllNotificationsRead(
+      uid: _uid,
+      onlyImportant: onlyImportant,
+    );
+  }
+
+  Future<String> addMyNotification({
+    required String title,
+    required String message,
+    bool isImportant = false,
+  }) {
+    return _repository.addNotification(
+      uid: _uid,
+      notification: NotificationRecord(
+        id: '',
+        title: title,
+        message: message,
+        isImportant: isImportant,
+        isRead: false,
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  Future<void> deleteMyNotification(String notificationId) {
+    return _repository.deleteNotification(
+      uid: _uid,
+      notificationId: notificationId,
+    );
   }
 
   Future<void> saveMyUploadMetadata({

@@ -57,6 +57,10 @@ class JournalController {
       return JournalEntryItem(
         title: title,
         subtitle: subtitle,
+        canManage: true,
+        note: note,
+        createdAtIso: createdAtRaw,
+        scheduledAtIso: scheduledAtRaw.isEmpty ? null : scheduledAtRaw,
       );
     }).toList(growable: false);
   }
@@ -90,7 +94,14 @@ class JournalController {
       }
       return (
         sortAt: createdAt ?? scheduledAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        item: JournalEntryItem(title: title, subtitle: subtitle),
+        item: JournalEntryItem(
+          title: title,
+          subtitle: subtitle,
+          canManage: true,
+          note: note,
+          createdAtIso: createdAtRaw,
+          scheduledAtIso: scheduledAtRaw.isEmpty ? null : scheduledAtRaw,
+        ),
       );
     }).toList(growable: true);
 
@@ -103,6 +114,7 @@ class JournalController {
             item: JournalEntryItem(
               title: '${record.itemName} - ${record.calories.round()} kcal',
               subtitle: 'Calories đã lưu',
+              canManage: false,
             ),
           ),
         ),
@@ -119,5 +131,32 @@ class JournalController {
       timeline.sort((a, b) => b.sortAt.compareTo(a.sortAt));
       return timeline.map((e) => e.item).toList(growable: false);
     }
+  }
+
+  Future<bool> addNote(String note) {
+    return _noteService.saveEntryWithSyncStatus(note: note);
+  }
+
+  Future<bool> updateNote({
+    required JournalEntryItem entry,
+    required String note,
+  }) async {
+    final createdAt = entry.createdAtIso;
+    if (createdAt == null || createdAt.isEmpty) return false;
+    return _noteService.updateEntryByCreatedAt(
+      createdAt: createdAt,
+      note: note,
+      scheduledAt: entry.scheduledAtIso,
+    );
+  }
+
+  Future<bool> deleteNote(JournalEntryItem entry) async {
+    final createdAt = entry.createdAtIso;
+    if (createdAt == null || createdAt.isEmpty) return false;
+    return _noteService.deleteEntryByCreatedAt(
+      createdAt: createdAt,
+      note: entry.note,
+      scheduledAt: entry.scheduledAtIso,
+    );
   }
 }
