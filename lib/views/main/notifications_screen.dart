@@ -268,6 +268,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: colorScheme.surface,
+          surfaceTintColor: colorScheme.surface,
+          scrolledUnderElevation: 0,
+          elevation: 0,
           title: const Text('Thông báo'),
           centerTitle: false,
           actions: [

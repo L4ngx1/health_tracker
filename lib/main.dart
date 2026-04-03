@@ -11,6 +11,7 @@ import 'core/theme/theme_service.dart';
 import 'controllers/tracking_controller.dart';
 import 'firebase_options.dart';
 import 'services/hydration_notification_service.dart';
+import 'services/push_notification_service.dart';
 
 bool get _supportsWorkmanagerOnCurrentPlatform =>
     !kIsWeb &&
@@ -28,6 +29,7 @@ Future<void> main() async {
   await LocaleService.instance.init();
   await HydrationNotificationService.instance.init();
   await HydrationNotificationService.instance.requestPermissionIfNeeded();
+  await PushNotificationService.instance.init();
   if (_supportsWorkmanagerOnCurrentPlatform) {
     await Workmanager().initialize(trackingCallbackDispatcher);
   }

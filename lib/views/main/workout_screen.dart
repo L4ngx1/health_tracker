@@ -24,6 +24,45 @@ class _DayWorkoutPlan {
   final List<String> items;
 }
 
+class _PendingWorkoutDelete {
+  const _PendingWorkoutDelete({
+    required this.identityKey,
+    required this.queuedAtMs,
+    this.cloudId,
+  });
+
+  final String identityKey;
+  final int queuedAtMs;
+  final String? cloudId;
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'identityKey': identityKey,
+      'queuedAtMs': queuedAtMs,
+      'cloudId': cloudId,
+    };
+  }
+
+  static _PendingWorkoutDelete? fromMap(Map<dynamic, dynamic> map) {
+    final identityKey = (map['identityKey'] ?? '').toString().trim();
+    if (identityKey.isEmpty) return null;
+
+    final queuedAtMs = map['queuedAtMs'] is int
+        ? map['queuedAtMs'] as int
+        : int.tryParse('${map['queuedAtMs']}') ??
+            DateTime.now().millisecondsSinceEpoch;
+
+    final cloudIdRaw = (map['cloudId'] ?? '').toString().trim();
+    return _PendingWorkoutDelete(
+      identityKey: identityKey,
+      queuedAtMs: queuedAtMs,
+      cloudId: cloudIdRaw.isEmpty ? null : cloudIdRaw,
+    );
+  }
+
+  String get queueKey => '${cloudId ?? ''}|$identityKey';
+}
+
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
 
@@ -34,11 +73,14 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   static const _prefWeightKg = 'profile.weightKg';
   static const _prefWorkoutHistory = 'workout.history.v1';
+  static const _prefPendingDelete = 'workout.pendingDelete.v1';
   final AIController _aiController = AIController();
   final BackendApiService _backendApiService = BackendApiService();
   final JournalNoteService _journalNoteService = const JournalNoteService();
   final MainNavigationController _navController = MainNavigationController();
   Timer? _weightSyncTimer;
+  Timer? _pendingDeleteSyncTimer;
+  bool _isSyncingPendingDeletes = false;
   final WorkoutController _workoutController = WorkoutController();
   String? _aiWorkoutPlan;
   List<_DayWorkoutPlan> _weeklyPlan = const [];
@@ -81,11 +123,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _loadWeight();
     _loadWorkoutHistory();
     _startWeightSync();
+    _startPendingDeleteSync();
   }
 
   @override
   void dispose() {
     _weightSyncTimer?.cancel();
+    _pendingDeleteSyncTimer?.cancel();
     _navController.removeListener(_onNavChanged);
     super.dispose();
   }
@@ -93,6 +137,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void _onNavChanged() {
     if (_navController.index == 1) {
       _loadWeight();
+      unawaited(_syncPendingCloudDeletes());
     }
   }
 
@@ -101,6 +146,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _weightSyncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (!mounted) return;
       _loadWeight(onlyIfChanged: true);
+    });
+  }
+
+  void _startPendingDeleteSync() {
+    _pendingDeleteSyncTimer?.cancel();
+    _pendingDeleteSyncTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!mounted) return;
+      unawaited(_syncPendingCloudDeletes());
     });
   }
 
@@ -126,23 +179,170 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Future<void> _loadWorkoutHistory() async {
     final prefs = await SharedPreferences.getInstance();
+    final localHistory = _readLocalHistory(prefs);
+    List<WorkoutHistoryItem> cloudHistory = const [];
+    var cloudLoaded = false;
+
+    try {
+      final records = await _backendApiService.getMyWorkouts(limit: 100);
+      cloudHistory = records.map(_mapWorkoutRecordToHistory).toList(growable: false);
+      cloudLoaded = true;
+
+      await _syncLocalHistoryToCloud(localHistory, cloudHistory);
+
+      // Re-read cloud after pushing local items to ensure UI shows synced data.
+      final refreshed = await _backendApiService.getMyWorkouts(limit: 100);
+      cloudHistory = refreshed
+          .map(_mapWorkoutRecordToHistory)
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('load workout cloud history failed: $e');
+    }
+
+    final merged = _mergeHistory(
+      cloudLoaded ? cloudHistory : const [],
+      localHistory,
+    );
+
+    if (!mounted) return;
+    setState(() => _history = merged);
+    await _persistWorkoutHistoryList(merged);
+    await _syncPendingCloudDeletes();
+  }
+
+  Future<void> _persistWorkoutHistory() async {
+    await _persistWorkoutHistoryList(_history);
+  }
+
+  Future<void> _persistWorkoutHistoryList(List<WorkoutHistoryItem> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = list
+        .map(
+          (e) => {
+            'name': e.name,
+            'date': e.date,
+            'duration': e.duration,
+            'kcal': e.kcal,
+            'timestampMs': e.timestampMs,
+            'cloudId': e.cloudId,
+          },
+        )
+        .toList(growable: false);
+    await prefs.setString(_accountKey(_prefWorkoutHistory), jsonEncode(payload));
+  }
+
+  List<_PendingWorkoutDelete> _readPendingCloudDeletes(SharedPreferences prefs) {
+    final raw = prefs.getString(_accountKey(_prefPendingDelete));
+    if (raw == null || raw.isEmpty) {
+      return const [];
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      final items = <_PendingWorkoutDelete>[];
+      for (final element in decoded) {
+        if (element is! Map) continue;
+        final parsed = _PendingWorkoutDelete.fromMap(element);
+        if (parsed == null) continue;
+        items.add(parsed);
+      }
+      return items;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _persistPendingCloudDeletes(
+    List<_PendingWorkoutDelete> pending,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = pending
+        .map((e) => e.toMap())
+        .toList(growable: false);
+    await prefs.setString(_accountKey(_prefPendingDelete), jsonEncode(payload));
+  }
+
+  Future<void> _queuePendingCloudDelete(WorkoutHistoryItem item) async {
+    final prefs = await SharedPreferences.getInstance();
+    final pending = _readPendingCloudDeletes(prefs).toList(growable: true);
+    final queued = _PendingWorkoutDelete(
+      identityKey: _historyIdentityKey(item),
+      cloudId: item.cloudId?.trim().isEmpty == true ? null : item.cloudId,
+      queuedAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    final exists = pending.any((e) => e.queueKey == queued.queueKey);
+    if (exists) return;
+    pending.add(queued);
+    await _persistPendingCloudDeletes(pending);
+  }
+
+  Future<void> _syncPendingCloudDeletes() async {
+    if (_isSyncingPendingDeletes) return;
+    _isSyncingPendingDeletes = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pending = _readPendingCloudDeletes(prefs);
+      if (pending.isEmpty) return;
+
+      List<WorkoutRecord>? recordsCache;
+      final remaining = <_PendingWorkoutDelete>[];
+
+      for (final task in pending) {
+        try {
+          final directId = task.cloudId?.trim();
+          if (directId != null && directId.isNotEmpty) {
+            await _backendApiService.deleteMyWorkout(directId);
+            continue;
+          }
+
+          recordsCache ??= await _backendApiService.getMyWorkouts(limit: 250);
+          final matched = recordsCache
+              .where(
+                (record) =>
+                    _historyIdentityKey(_mapWorkoutRecordToHistory(record)) ==
+                    task.identityKey,
+              )
+              .toList(growable: false);
+
+          if (matched.isEmpty) {
+            continue;
+          }
+
+          for (final record in matched) {
+            await _backendApiService.deleteMyWorkout(record.id);
+          }
+
+          final deletedIds = matched.map((e) => e.id).toSet();
+          recordsCache = recordsCache
+              .where((record) => !deletedIds.contains(record.id))
+              .toList(growable: false);
+        } catch (_) {
+          remaining.add(task);
+        }
+      }
+
+      await _persistPendingCloudDeletes(remaining);
+    } finally {
+      _isSyncingPendingDeletes = false;
+    }
+  }
+
+  List<WorkoutHistoryItem> _readLocalHistory(SharedPreferences prefs) {
     final raw = prefs.getString(_accountKey(_prefWorkoutHistory));
     if (raw == null || raw.isEmpty) {
-      if (!mounted) return;
-      setState(() => _history = const []);
-      return;
+      return const [];
     }
 
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! List) return;
+      if (decoded is! List) return const [];
       final list = <WorkoutHistoryItem>[];
       for (final item in decoded) {
         if (item is! Map) continue;
         final timestampMs = item['timestampMs'] is int
             ? item['timestampMs'] as int
             : int.tryParse('${item['timestampMs']}');
-        // Ignore legacy/sample entries that don't have a real timestamp.
         if (timestampMs == null) continue;
         list.add(
           WorkoutHistoryItem(
@@ -151,31 +351,94 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             duration: (item['duration'] ?? '').toString(),
             kcal: (item['kcal'] ?? '').toString(),
             timestampMs: timestampMs,
+            cloudId: (item['cloudId'] ?? '').toString().trim().isEmpty
+                ? null
+                : (item['cloudId'] ?? '').toString(),
           ),
         );
       }
-      if (!mounted) return;
-      setState(() => _history = list);
+      return list;
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _history = const []);
+      return const [];
     }
   }
 
-  Future<void> _persistWorkoutHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final payload = _history
-        .map(
-          (e) => {
-            'name': e.name,
-            'date': e.date,
-            'duration': e.duration,
-            'kcal': e.kcal,
-            'timestampMs': e.timestampMs,
-          },
-        )
-        .toList(growable: false);
-    await prefs.setString(_accountKey(_prefWorkoutHistory), jsonEncode(payload));
+  WorkoutHistoryItem _mapWorkoutRecordToHistory(WorkoutRecord record) {
+    final dt = record.performedAt;
+    final day = dt.day.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final year = dt.year.toString();
+    return WorkoutHistoryItem(
+      name: record.name,
+      date: '$day/$month/$year',
+      duration: '${record.durationMinutes} phút',
+      kcal: record.caloriesBurned.round().toString(),
+      timestampMs: dt.millisecondsSinceEpoch,
+      cloudId: record.id,
+    );
+  }
+
+  List<WorkoutHistoryItem> _mergeHistory(
+    List<WorkoutHistoryItem> cloud,
+    List<WorkoutHistoryItem> local,
+  ) {
+    final merged = <String, WorkoutHistoryItem>{};
+    for (final item in cloud) {
+      merged[_historyIdentityKey(item)] = item;
+    }
+    for (final item in local) {
+      merged.putIfAbsent(_historyIdentityKey(item), () => item);
+    }
+
+    final list = merged.values.toList(growable: false);
+    list.sort((a, b) => (b.timestampMs ?? 0).compareTo(a.timestampMs ?? 0));
+    return list.take(50).toList(growable: false);
+  }
+
+  String _historyIdentityKey(WorkoutHistoryItem item) {
+    return '${item.timestampMs ?? 0}|${item.name.trim().toLowerCase()}|${item.duration.trim()}|${item.kcal.trim()}';
+  }
+
+  Future<void> _syncLocalHistoryToCloud(
+    List<WorkoutHistoryItem> local,
+    List<WorkoutHistoryItem> cloud,
+  ) async {
+    if (local.isEmpty) return;
+    final cloudKeys = cloud.map(_historyIdentityKey).toSet();
+    for (final item in local) {
+      final ts = item.timestampMs;
+      if (ts == null) continue;
+      if (cloudKeys.contains(_historyIdentityKey(item))) continue;
+
+      final performedAt = DateTime.fromMillisecondsSinceEpoch(ts);
+      final durationMinutes = _parseDurationMinutes(item.duration);
+      final calories = _parseCalories(item.kcal);
+
+      try {
+        await _backendApiService.addMyWorkout(
+          WorkoutRecord(
+            id: '',
+            name: item.name,
+            durationMinutes: durationMinutes,
+            caloriesBurned: calories,
+            performedAt: performedAt,
+            note: 'local-sync',
+          ),
+        );
+      } catch (e) {
+        debugPrint('sync local workout history failed: $e');
+      }
+    }
+  }
+
+  int _parseDurationMinutes(String raw) {
+    final match = RegExp(r'(\d+)').firstMatch(raw);
+    return int.tryParse(match?.group(1) ?? '') ?? 30;
+  }
+
+  double _parseCalories(String raw) {
+    final normalized = raw.replaceAll(',', '.').trim();
+    return double.tryParse(normalized) ?? 0;
   }
 
   List<WorkoutHistoryItem> _applyHistoryFilter(List<WorkoutHistoryItem> source) {
@@ -216,10 +479,21 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _history = List<WorkoutHistoryItem>.from(_history)..removeAt(idx);
     });
     await _persistWorkoutHistory();
+
+    final deletedInCloud = await _deleteHistoryFromCloud(target);
+    if (!mounted || deletedInCloud) return;
+    final messenger = ScaffoldMessenger.of(context);
+    await _queuePendingCloudDelete(target);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Đã xóa cục bộ, sẽ tự đồng bộ xóa cloud khi có mạng.'),
+      ),
+    );
   }
 
   Future<void> _confirmClearAllHistory() async {
     if (_history.isEmpty) return;
+    final removedItems = List<WorkoutHistoryItem>.from(_history, growable: false);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -242,10 +516,59 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _history = const [];
     });
     await _persistWorkoutHistory();
+
+    try {
+      final records = await _backendApiService.getMyWorkouts(limit: 200);
+      for (final record in records) {
+        await _backendApiService.deleteMyWorkout(record.id);
+      }
+    } catch (e) {
+      debugPrint('clear workout history on cloud failed: $e');
+      for (final item in removedItems) {
+        await _queuePendingCloudDelete(item);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã xóa cục bộ, sẽ tự đồng bộ xóa cloud khi có mạng.'),
+        ),
+      );
+      return;
+    }
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đã xóa toàn bộ lịch sử tập luyện.')),
     );
+  }
+
+  Future<bool> _deleteHistoryFromCloud(WorkoutHistoryItem target) async {
+    try {
+      final directId = target.cloudId?.trim();
+      if (directId != null && directId.isNotEmpty) {
+        await _backendApiService.deleteMyWorkout(directId);
+        return true;
+      }
+
+      // Fallback for old local entries that were saved before cloudId existed.
+      final records = await _backendApiService.getMyWorkouts(limit: 150);
+      final matched = records.where((record) {
+        final mapped = _mapWorkoutRecordToHistory(record);
+        return _historyIdentityKey(mapped) == _historyIdentityKey(target);
+      }).toList(growable: false);
+
+      if (matched.isEmpty) {
+        return true;
+      }
+
+      for (final record in matched) {
+        await _backendApiService.deleteMyWorkout(record.id);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('delete workout history on cloud failed: $e');
+      return false;
+    }
   }
 
   int _estimateCalories(String workoutName, int durationMin) {
@@ -326,7 +649,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
                           var syncedToCloud = false;
                           try {
-                            await _backendApiService.addMyWorkout(
+                            final cloudId = await _backendApiService.addMyWorkout(
                               WorkoutRecord(
                                 id: '',
                                 name: item.title,
@@ -336,6 +659,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 note: 'manual-log',
                               ),
                             );
+                            final saved = WorkoutHistoryItem(
+                              name: entry.name,
+                              date: entry.date,
+                              duration: entry.duration,
+                              kcal: entry.kcal,
+                              timestampMs: entry.timestampMs,
+                              cloudId: cloudId,
+                            );
+                            if (mounted) {
+                              setState(() {
+                                _history = _history
+                                    .map((e) => _historyIdentityKey(e) == _historyIdentityKey(entry) ? saved : e)
+                                    .toList(growable: false);
+                              });
+                            }
+                            await _persistWorkoutHistory();
                             await _backendApiService.addMyNotification(
                               title: 'Buổi tập đã được lưu',
                               message:
