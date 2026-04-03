@@ -140,6 +140,148 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
+  Future<void> _openNoteEditor({JournalEntryItem? entry}) async {
+    final controller = TextEditingController(text: entry?.note ?? '');
+    final noteFocusNode = FocusNode();
+    final isEditing = entry != null;
+
+    FocusScope.of(context).unfocus();
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (sheetContext) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => FocusScope.of(sheetContext).unfocus(),
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isEditing ? 'Sửa ghi chú' : 'Thêm ghi chú',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: controller,
+                    focusNode: noteFocusNode,
+                    autofocus: false,
+                    minLines: 3,
+                    maxLines: 6,
+                    onTapOutside: (_) => noteFocusNode.unfocus(),
+                    decoration: const InputDecoration(
+                      hintText: 'Nhập nội dung ghi chú...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('Hủy'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final navigator = Navigator.of(sheetContext);
+                            final text = controller.text.trim();
+                            if (text.isEmpty) {
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Vui lòng nhập nội dung ghi chú.')),
+                              );
+                              return;
+                            }
+
+                            final ok = isEditing
+                                ? await _controller.updateNote(
+                                    entry: entry, note: text)
+                                : await _controller.addNote(text);
+                            if (!mounted) return;
+                            navigator.pop();
+                            await _loadEntries();
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  ok
+                                      ? (isEditing
+                                          ? 'Đã cập nhật ghi chú.'
+                                          : 'Đã thêm ghi chú.')
+                                      : (isEditing
+                                          ? 'Không thể cập nhật ghi chú.'
+                                          : 'Không thể thêm ghi chú.'),
+                                ),
+                              ),
+                            );
+                          },
+                          child: Text(isEditing ? 'Lưu thay đổi' : 'Thêm'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } finally {
+      noteFocusNode.dispose();
+      controller.dispose();
+    }
+  }
+
+  Future<void> _deleteEntry(JournalEntryItem entry) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa ghi chú'),
+        content: const Text('Bạn có chắc muốn xóa ghi chú này không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final deleted = await _controller.deleteNote(entry);
+    if (!mounted) return;
+    await _loadEntries();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted ? 'Đã xóa ghi chú.' : 'Không thể xóa ghi chú.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _showEntryDetails(JournalEntryItem entry) async {
     await showDialog<void>(
       context: context,

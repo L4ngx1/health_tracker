@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-﻿import 'package:firebase_core/firebase_core.dart';
-=======
 import 'package:firebase_core/firebase_core.dart';
->>>>>>> origin/main
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
@@ -46,10 +42,10 @@ class PushNotificationService {
     await _requestPermission();
 
     FirebaseMessaging.onMessage.listen((message) async {
-      final title =
-          message.notification?.title?.trim() ?? message.data['title']?.toString().trim();
-      final body =
-          message.notification?.body?.trim() ?? message.data['body']?.toString().trim();
+      final title = message.notification?.title?.trim() ??
+          message.data['title']?.toString().trim();
+      final body = message.notification?.body?.trim() ??
+          message.data['body']?.toString().trim();
       if (title == null || title.isEmpty || body == null || body.isEmpty) {
         return;
       }
@@ -65,7 +61,8 @@ class PushNotificationService {
 
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      debugPrint('Push launched app from terminated state: ${initialMessage.messageId}');
+      debugPrint(
+          'Push launched app from terminated state: ${initialMessage.messageId}');
     }
 
     final token = await _messaging.getToken();
