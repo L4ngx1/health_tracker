@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../firebase_options.dart';
 import 'backend_api_service.dart';
 import 'hydration_notification_service.dart';
+import 'permission_queue.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -73,7 +74,7 @@ class PushNotificationService {
     await syncTokenForCurrentUser();
   }
 
-  Future<void> init() async {
+  Future<void> init({bool requestPermission = false}) async {
     if (kIsWeb) return;
 
     final enabled = await areNotificationsEnabled();
@@ -93,12 +94,14 @@ class PushNotificationService {
       sound: true,
     );
 
-    final settings = await _requestPermission();
-    final allowed = settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional;
-    if (!allowed) {
-      _initialized = true;
-      return;
+    if (requestPermission) {
+      final settings = await _requestPermission();
+      final allowed = settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+      if (!allowed) {
+        _initialized = true;
+        return;
+      }
     }
 
     await syncTokenForCurrentUser();
@@ -144,11 +147,13 @@ class PushNotificationService {
   }
 
   Future<NotificationSettings> _requestPermission() async {
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
+    final settings = await PermissionQueue.instance.enqueue(
+      () => _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      ),
     );
     debugPrint('Push permission status: ${settings.authorizationStatus}');
     return settings;

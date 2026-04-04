@@ -5,11 +5,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../controllers/ai_controller.dart';
 import '../../models/food_recognition_result.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../services/permission_queue.dart';
 import '../widgets/common_widgets.dart';
 
 class NutritionScreen extends StatefulWidget {
@@ -50,6 +52,25 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
     _isInitializingCamera = true;
     try {
+      var cameraPermission = await Permission.camera.status;
+      if (!cameraPermission.isGranted && !cameraPermission.isLimited) {
+        cameraPermission = await PermissionQueue.instance.enqueue(
+          () => Permission.camera.request(),
+        );
+      }
+
+      if (!cameraPermission.isGranted && !cameraPermission.isLimited) {
+        if (!mounted) return;
+        setState(() {
+          _cameraError = AppStrings.cameraOpenFailed(context);
+        });
+        if (cameraPermission.isPermanentlyDenied ||
+            cameraPermission.isRestricted) {
+          await _showOpenSettingsDialog();
+        }
+        return;
+      }
+
       final List<CameraDescription> cameras = await availableCameras();
       if (cameras.isEmpty) {
         if (!mounted) return;

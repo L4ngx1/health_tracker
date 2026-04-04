@@ -18,6 +18,7 @@ import '../../services/backend_api_service.dart';
 import '../../services/health_cloud_sync_service.dart';
 import '../../services/journal_note_service.dart';
 import '../../services/hydration_notification_service.dart';
+import '../../services/permission_queue.dart';
 import '../../services/widget_sync_service.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/health_widgets.dart';
@@ -134,7 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
 
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      permission = await PermissionQueue.instance.enqueue(
+        () => Geolocator.requestPermission(),
+      );
       if (!mounted) return;
     }
 
@@ -180,9 +183,9 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Request in a separate step to avoid Android swallowing the second popup.
-    await Future<void>.delayed(const Duration(milliseconds: 350));
-    status = await Permission.activityRecognition.request();
+    status = await PermissionQueue.instance.enqueue(
+      () => Permission.activityRecognition.request(),
+    );
     if (!mounted) return;
 
     if (status.isPermanentlyDenied || status.isRestricted) {
@@ -554,7 +557,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  Future<void> _saveHydrationData() async {
+  Future<void> _saveHydrationData({bool syncImmediately = false}) async {
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs?.setInt(_accountKey(_prefWaterGoalMl), _waterGoalMl);
     await _prefs?.setInt(_accountKey(_prefWaterIntakeMl), _waterIntakeMl);
@@ -580,7 +583,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _lastWaterReminderAt!.millisecondsSinceEpoch,
       );
     }
-    unawaited(_syncDailyJournalSummary());
+    if (syncImmediately) {
+      await _syncDailyJournalSummary();
+    } else {
+      unawaited(_syncDailyJournalSummary());
+    }
   }
 
   Future<void> _addWaterIntake(int ml) async {
@@ -592,12 +599,15 @@ class _HomeScreenState extends State<HomeScreen> {
     await _saveHydrationData();
   }
 
-  Future<void> _updateWaterGoal(int goalMl) async {
+  Future<void> _updateWaterGoal(
+    int goalMl, {
+    bool syncImmediately = false,
+  }) async {
     setState(() {
       _waterGoalMl = _normalizeGoalMl(goalMl);
       _waterIntakeMl = _normalizeIntakeMl(_waterIntakeMl);
     });
-    await _saveHydrationData();
+    await _saveHydrationData(syncImmediately: syncImmediately);
   }
 
   void _startWaterReminderLoop() {
@@ -892,8 +902,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 8),
                           FilledButton(
                             onPressed: () async {
-                              await _updateWaterGoal(draftGoal);
+                              await _updateWaterGoal(
+                                draftGoal,
+                                syncImmediately: true,
+                              );
                               if (!context.mounted) return;
+                              Navigator.of(context).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(

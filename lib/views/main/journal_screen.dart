@@ -275,7 +275,9 @@ class _JournalScreenState extends State<JournalScreen> {
   void initState() {
     super.initState();
     _navController.addListener(_onNavChanged);
-    _loadEntries();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadEntries();
+    });
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../controllers/main_navigation_controller.dart';
@@ -6,6 +7,7 @@ import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/google_calendar_sync_service.dart';
 import '../../services/journal_note_service.dart';
+import '../../services/permission_queue.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
 
@@ -41,6 +43,24 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _initializeSpeech() async {
     try {
+      var micPermission = await Permission.microphone.status;
+      if (!micPermission.isGranted && !micPermission.isLimited) {
+        micPermission = await PermissionQueue.instance.enqueue(
+          () => Permission.microphone.request(),
+        );
+      }
+
+      if (!micPermission.isGranted && !micPermission.isLimited) {
+        if (!mounted) return;
+        setState(() {
+          _speechReady = false;
+          _speechHint = _isEnglish
+              ? 'Microphone permission is required.'
+              : 'Cần quyền micro để ghi âm.';
+        });
+        return;
+      }
+
       final available = await _speech.initialize(
         onError: (error) {
           if (!mounted) return;

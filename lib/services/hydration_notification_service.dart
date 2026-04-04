@@ -1,6 +1,8 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'permission_queue.dart';
+
 class HydrationNotificationService {
   HydrationNotificationService._();
 
@@ -49,17 +51,19 @@ class HydrationNotificationService {
   }
 
   Future<void> requestPermissionIfNeeded() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
+    await PermissionQueue.instance.enqueue(() async {
+      final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    await android?.requestNotificationsPermission();
+      await android?.requestNotificationsPermission();
 
-    final ios = _plugin.resolvePlatformSpecificImplementation<
+      final ios = _plugin.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
-    await ios?.requestPermissions(alert: true, badge: true, sound: true);
+      await ios?.requestPermissions(alert: true, badge: true, sound: true);
 
-    final macos = _plugin.resolvePlatformSpecificImplementation<
+      final macos = _plugin.resolvePlatformSpecificImplementation<
         MacOSFlutterLocalNotificationsPlugin>();
-    await macos?.requestPermissions(alert: true, badge: true, sound: true);
+      await macos?.requestPermissions(alert: true, badge: true, sound: true);
+    });
   }
 
   Future<void> showHydrationReminder({
