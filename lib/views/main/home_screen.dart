@@ -2,8 +2,10 @@
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/home_controller.dart';
@@ -115,7 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _trackingController = TrackingController();
     _trackingController.snapshot.addListener(_syncTodayDistanceHistory);
-    unawaited(_startTrackingWithPermissionFlow());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_startTrackingWithPermissionFlow());
+    });
     unawaited(_initializeMovementData());
     unawaited(_loadWeight());
     unawaited(_loadHydrationData());
@@ -125,15 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _startTrackingWithPermissionFlow() async {
     if (!mounted || _didRunPermissionFlow) return;
     _didRunPermissionFlow = true;
-
-    _prefs ??= await SharedPreferences.getInstance();
-    final notificationsEnabled =
-        _prefs?.getBool(_prefNotificationsEnabled) ?? true;
-    if (notificationsEnabled) {
-      await HydrationNotificationService.instance.requestPermissionIfNeeded();
-    }
-    // Wait a short moment to avoid overlapping system dialogs on Android.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
 
     var permission = await Geolocator.checkPermission();
     if (!mounted) return;
@@ -168,9 +163,56 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    await _requestActivityRecognitionPermissionIfNeeded();
+
     if (!mounted) return;
     await _trackingController.start();
     await _trackingController.registerBackgroundTracking();
+  }
+
+  Future<void> _requestActivityRecognitionPermissionIfNeeded() async {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    var status = await Permission.activityRecognition.status;
+    if (status.isGranted || status.isLimited) {
+      return;
+    }
+
+    // Request in a separate step to avoid Android swallowing the second popup.
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    status = await Permission.activityRecognition.request();
+    if (!mounted) return;
+
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(AppStrings.homePermissionTitle(context)),
+            content: Text(
+              AppStrings.isEnglish(context)
+                  ? 'Activity recognition permission is required to track your steps accurately.'
+                  : 'Cần quyền nhận diện hoạt động để theo dõi bước chân chính xác.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(AppStrings.later(context)),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await openAppSettings();
+                },
+                child: Text(AppStrings.openSettings(context)),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   Future<void> _initializeMovementData() async {

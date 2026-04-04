@@ -189,14 +189,11 @@ class _NutritionScreenState extends State<NutritionScreen> {
       return;
     }
 
-    var controller = _cameraController;
+    final controller = _cameraController;
     if (controller == null || !controller.value.isInitialized) {
       await _initializeCameraPreview();
-      if (!mounted) return;
-      controller = _cameraController;
-      if (controller == null || !controller.value.isInitialized) {
-        return;
-      }
+      // First tap should only request permission/open camera preview.
+      return;
     }
 
     try {
@@ -336,6 +333,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final bool aiEnabled = _aiController.isAiConfigured;
+    final bool isCameraReady =
+        _cameraController != null && _cameraController!.value.isInitialized;
     return SafeArea(
       child: Container(
         decoration: BoxDecoration(
@@ -528,7 +527,11 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     label: Text(
                       _isCapturing
                           ? AppStrings.capturingPhoto(context)
-                          : AppStrings.capturePhoto(context),
+                          : isCameraReady
+                              ? AppStrings.capturePhoto(context)
+                              : (AppStrings.isEnglish(context)
+                                  ? 'Open camera'
+                                  : 'Mở camera'),
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
                     ),
                   ),
