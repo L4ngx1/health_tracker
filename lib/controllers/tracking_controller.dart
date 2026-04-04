@@ -541,8 +541,6 @@ class TrackingController {
         (stepDelta * 0.25);
     return score < _sleepScoreThreshold;
   }
-/// Xác định phút hiện tại có được tính là ngủ hay không dựa trên dữ liệu cửa sổ thời gian,
-/// sau đó cập nhật `sleepMinutes`, trạng thái ngủ và đồng bộ cloud.
 
   void _finalizeSleepMinuteIfReady(int minuteIndex, DateTime now) {
     if (_finalizedSleepMinutes.contains(minuteIndex)) {
@@ -804,8 +802,6 @@ class TrackingController {
     );
   }
 
-/// Chuyển đổi tổng bước chân của thiết bị thành số bước theo ngày bằng `_stepBase`,
-/// xử lý reset qua ngày mới, cập nhật state/UI và đồng bộ dữ liệu.
   void _onStepCount(StepCount event) {
     if (_isDisposed) return;
     final now = DateTime.now();
@@ -847,8 +843,6 @@ class TrackingController {
     _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
   }
 
-/// Lọc nhiễu GPS (accuracy, drift, jump), kiểm tra điều kiện di chuyển thật bằng step/speed,
-/// cộng dồn quãng đường hợp lệ và cập nhật calories.
   void _onPosition(Position position) {
     if (_isDisposed) return;
     final now = DateTime.now();
