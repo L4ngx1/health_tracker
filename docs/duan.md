@@ -9,7 +9,42 @@
 
 Sơ đồ Luồng Điều hướng Tổng thể
 Hình ảnh dưới đây mô phỏng lại dòng chảy của các màn hình tương ứng với quy tắc "Trạm gác" vừa nêu:
- 
+
+```mermaid
+flowchart TD
+          A[Mở Ứng dụng] --> C{Trạm gác bảo vệ\nFirebase Auth}
+
+          C -->|Bị chặn lại| D[Màn hình Đăng nhập]
+          D -->|Chuyển qua lại| E[Màn hình Đăng ký]
+          D -->|Chuyển qua lại| F[Màn hình Quên mật khẩu]
+
+          C -->|Thiếu giấy tờ| G[Phòng chờ Xác minh Email]
+          G -.->|Load lại khi xác minh xong| C
+          G -->|Đăng xuất| D
+
+          C -->|Được phép vào trong| H[Thanh Điều Hướng 5 Nút]
+
+          subgraph T[Khách Hợp Lệ - Hệ Thống Chính]
+               direction TB
+               H1[1. Trang chủ]
+               H2[2. Tập luyện]
+               H3[3. Dinh dưỡng]
+               H4[4. Ghi chú]
+               H5[5. Nhật ký]
+          end
+
+          H --> H1
+          H --> H2
+          H --> H3
+          H --> H4
+          H --> H5
+
+          H -->|Mở Thông báo| I[Màn hình Thông báo]
+          H -->|Mở Hồ sơ| J[Màn hình Hồ sơ]
+          J -->|Vào Cài đặt| K[Màn hình Cài đặt]
+          J -->|Đăng xuất| D
+          K -->|Đăng xuất| D
+```
 
 2.4.1.1. Các Mô hình Điều hướng (Routing Patterns) Áp dụng
 Để đảm bảo trải nghiệm người dùng (UX) mượt mà, tối ưu hóa hiệu năng và phù hợp với tiêu chuẩn làm báo cáo, ứng dụng áp dụng 3 quy tắc điều hướng chuẩn chỉnh sau:
@@ -36,7 +71,36 @@ Các route được định nghĩa tập trung trong `lib/core/routes/app_routes
 /settings - Màn hình Cài đặt
 /notifications - Màn hình Thông báo
 2.4.1.2.2. Sơ đồ Named Route
-  
+
+```mermaid
+flowchart TD
+     L[Màn hình Đăng nhập]
+     R[Màn hình Đăng ký]
+     FP[Màn hình Quên mật khẩu]
+     U[Màn hình Chưa xác minh email]
+     M[Màn hình Điều hướng chính]
+     P[Màn hình Hồ sơ]
+     S[Màn hình Cài đặt]
+     N[Màn hình Thông báo]
+
+     L -->|Đi tới Đăng ký| R
+     L -->|Đi tới Quên mật khẩu| FP
+     L -->|Đăng nhập thành công| M
+
+     R -->|Đăng ký xong -> Chờ xác minh| U
+     R -->|Quay về Đăng nhập| L
+     FP -->|Quay về Đăng nhập| L
+
+     U -->|Xác minh xong -> Vào hệ thống| M
+     U -->|Đăng xuất| L
+
+     M -->|Mở Hồ sơ| P
+     M -->|Mở Thông báo| N
+     P -->|Vào Cài đặt| S
+
+     P -->|Đăng xuất| L
+     S -->|Đăng xuất| L
+```
 
 2.4.2. Cấu trúc Widget (Widget Tree)
 Ứng dụng được xây dựng theo kiến trúc phân tách rõ ràng giữa giao diện (View) và logic (Controller), áp dụng chuẩn Declarative UI của Flutter. 
@@ -52,9 +116,9 @@ HealthTrackerApp  (Root Widget - Nền tảng cấu hình Theme, Đa ngôn ngữ
  └── StreamBuilder<User?> (Đứng gác cổng, kiểm tra tài khoản Firebase liên tục)
       │
       ├── (Nếu chưa đăng nhập)
-      │    └── LoginScreen (Hiển thị trang Đăng nhập)
-      │         ├── RegisterScreen (Trang Đăng ký)
-      │         └── ForgotPasswordScreen (Trang Quên mật khẩu)
+     │    ├── LoginScreen (Trang Đăng nhập)
+     │    ├── RegisterScreen (Trang Đăng ký)
+     │    └── ForgotPasswordScreen (Trang Quên mật khẩu)
       │
       ├── (Nếu đã đăng nhập nhưng chưa báo xác nhận Email)
       │    └── UnverifiedScreen (Trang yêu cầu vào hòm thư xác minh)
@@ -133,7 +197,19 @@ NutritionScreen
 
 
 
-2.4.3.4. Màn hình Nhật ký (JournalScreen)
+2.4.3.4. Màn hình Ghi chú nhanh (NotesScreen)
+Màn hình ghi chú nhanh và đồng bộ lịch.
+NotesScreen
+ ├── [Logic] GoogleCalendarSyncService + JournalNoteService
+ │
+ └── Scaffold/SafeArea (Khung màn hình)
+      ├── TopBar (Tiêu đề + điều hướng sang Profile)
+      ├── Khối nhập ghi chú (TextEditingController)
+      ├── Chọn thời gian hẹn (DatePicker + TimePicker)
+      ├── Nút đồng bộ Google Calendar
+      └── Nút lưu vào Journal và chuyển tab Journal
+
+2.4.3.5. Màn hình Nhật ký (JournalScreen)
 Nơi người dùng gõ tay các ghi chú nhắc nhở bệnh lí.
 
 
@@ -147,18 +223,6 @@ JournalScreen
       └── Body: ListView.builder (Danh sách cuộn như Facebook dài bất tận)
            ├── Từng ô ghi chú: Tiêu đề, Nội dung tóm tắt nhỏ.
            └── menu tùy chọn popup (Xóa/Sửa) và BottomSheet dùng để tạo mới/chỉnh sửa nội dung. Lược bỏ nút nổi FAB.
-
-2.4.3.5. Màn hình Ghi chú nhanh (NotesScreen)
-Màn hình ghi chú nhanh và đồng bộ lịch.
-NotesScreen
- ├── [Logic] GoogleCalendarSyncService + JournalNoteService
- │
- └── Scaffold/SafeArea (Khung màn hình)
-      ├── TopBar (Tiêu đề + điều hướng sang Profile)
-      ├── Khối nhập ghi chú (TextEditingController)
-      ├── Chọn thời gian hẹn (DatePicker + TimePicker)
-      ├── Nút đồng bộ Google Calendar
-      └── Nút lưu vào Journal và chuyển tab Journal
 
 
 2.4.3.6. Màn hình Hồ sơ (ProfileScreen)
