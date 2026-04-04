@@ -76,11 +76,22 @@ class AIService {
       final content = [
         Content.multi([
           TextPart(
+<<<<<<< HEAD
             'Phan tich hinh anh mon an nay va chi tra ve 1 JSON hop le, khong them markdown hoac giai thich. '
             'Dinh dang bat buoc: '
             '{"name_en": "Common English Name", "name_vi": "Ten tieng Viet chinh xac", "calories_est": 0.0, "description": "Mo ta ngan bang tieng Viet"}. '
             'Yeu cau: name_en la ten pho bien bang tieng Anh; name_vi va description phai la tieng Viet tu nhien; '
             'description toi da 1-2 cau; calories_est la so duong.'
+=======
+            'Analyze this food image. Return ONLY a JSON object with this format: '
+            '{"name_en": "Common English Name", '
+            '"name_vi": "Tên tiếng Việt chính xác", '
+            '"calories_est": 0.0, '
+            '"description_vi": "Mô tả ngắn bằng tiếng Việt (2-3 câu)", '
+            '"description": "Short description in English (optional)"}. '
+            'The field `description_vi` MUST be provided and written in Vietnamese. '
+            'Respond with the JSON object only, no surrounding text or markdown fences.'
+>>>>>>> e2a4d6a (AI goi y)
           ),
           DataPart(mimeType, imageBytes),
         ]),
@@ -102,7 +113,7 @@ class AIService {
         String nameEn = aiData['name_en'] ?? '';
         String nameVi = aiData['name_vi'] ?? 'Món ăn lạ';
         double calEst = (aiData['calories_est'] ?? 0).toDouble();
-        String desc = aiData['description'] ?? '';
+        String desc = aiData['description_vi'] ?? aiData['description'] ?? '';
 
         // Bước 2: Truy vấn USDA để lấy dữ liệu dinh dưỡng chuẩn xác nhất dựa trên tên tiếng Anh
         try {
@@ -553,7 +564,11 @@ Cân nặng: ...
   Future<String> getDietRecommendations(String condition, String prefs) async {
     try {
       final model = _requireModel();
-      final prompt = 'Sức khỏe: $condition. Sở thích: $prefs. Gợi ý thực đơn bằng tiếng Việt.';
+      final prompt =
+          'Sức khỏe: $condition. Sở thích: ${prefs.isEmpty ? 'Không có yêu cầu đặc biệt' : prefs}. '
+          'Hãy tạo một kế hoạch thực đơn tuần cho 7 ngày bằng tiếng Việt, mỗi ngày gồm ít nhất 3 bữa. '
+          'Cho biết gợi ý món ăn cho mỗi bữa, kèm lưu ý dinh dưỡng ngắn gọn. '
+          'Trả về kết quả rõ ràng theo ngày, dạng văn bản thuần, không có markdown.';
       final content = [Content.text(prompt)];
       final response = await model.generateContent(content);
       return response.text ?? 'Không có gợi ý.';
