@@ -1580,6 +1580,66 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  int _currentWorkoutStreak(double todayKm) {
+    final now = DateTime.now();
+    var streak = 0;
+    for (var i = 0; i < 365; i++) {
+      final day = DateTime(now.year, now.month, now.day - i);
+      final key = _dayKey(day);
+      final km = i == 0 ? todayKm : (_distanceHistoryKm[key] ?? 0);
+      final reached = km + 0.0001 >= _dailyGoalKm;
+      if (!reached) break;
+      streak += 1;
+    }
+    return streak;
+  }
+
+  String _motivationMessage({
+    required int streak,
+    required double todayKm,
+    required int steps,
+  }) {
+    final progress = _dailyGoalKm <= 0 ? 0.0 : (todayKm / _dailyGoalKm);
+
+    if (_isEnglish) {
+      if (streak >= 14) {
+        return 'Incredible consistency! $streak days in a row. You are building elite habits.';
+      }
+      if (streak >= 7) {
+        return 'Amazing streak: $streak days. Keep your rhythm and finish strong today.';
+      }
+      if (progress >= 1.0) {
+        return 'Goal completed today! Great work. Add a short cooldown walk to lock it in.';
+      }
+      if (progress >= 0.7) {
+        return 'You are very close. Another ${( (_dailyGoalKm - todayKm) * 1000).clamp(100, 5000).round()} m and you are done.';
+      }
+      if (steps >= 6000) {
+        return 'Solid effort so far. Keep moving and you can still close today at full goal.';
+      }
+      return 'Every step counts. Start with a 10-minute walk and build momentum.';
+    }
+
+    if (streak >= 14) {
+      return 'Bạn đang giữ phong độ rất ấn tượng: $streak ngày liên tiếp. Quá xuất sắc!';
+    }
+    if (streak >= 7) {
+      return 'Tuyệt vời! Bạn đã có streak $streak ngày. Cố gắng giữ nhịp này.';
+    }
+    if (progress >= 1.0) {
+      return 'Bạn đã hoàn thành mục tiêu hôm nay. Tập rất chăm chỉ!';
+    }
+    if (progress >= 0.7) {
+      final remainMeters =
+          ((_dailyGoalKm - todayKm) * 1000).clamp(100, 5000).round();
+      return 'Sắp đạt mục tiêu rồi, chỉ còn khoảng $remainMeters m nữa. Cố lên!';
+    }
+    if (steps >= 6000) {
+      return 'Bạn đang làm rất tốt. Tăng thêm một chút là sẽ về đích hôm nay.';
+    }
+    return 'Mỗi bước nhỏ đều có ý nghĩa. Thử đi bộ 10 phút để khởi động động lực.';
+  }
+
   Future<void> _showMovementSheet({
     required double distanceKm,
     required int steps,
@@ -2133,6 +2193,78 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 12),
+              ValueListenableBuilder<TrackingSnapshot>(
+                valueListenable: _trackingController.snapshot,
+                builder: (context, snapshot, _) {
+                  final distanceKm = snapshot.distanceMeters / 1000.0;
+                  final streak = _currentWorkoutStreak(distanceKm);
+                  final message = _motivationMessage(
+                    streak: streak,
+                    todayKm: distanceKm,
+                    steps: snapshot.steps,
+                  );
+
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withValues(alpha: 0.12),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withValues(alpha: 0.14),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.local_fire_department,
+                            color: colorScheme.primary,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isEnglish
+                                    ? 'Current streak: $streak day${streak == 1 ? '' : 's'}'
+                                    : 'Streak hiện tại: $streak ngày',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                message,
+                                style: TextStyle(
+                                  color: colorScheme.onSurface.withValues(alpha: 0.82),
+                                  height: 1.25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 12),
               ValueListenableBuilder<TrackingSnapshot>(

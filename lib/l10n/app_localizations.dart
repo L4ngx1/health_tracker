@@ -1250,6 +1250,30 @@ abstract class AppLocalizations {
   /// **'Too many requests. Please try again later.'**
   String get authErrorTooManyRequests;
 
+  /// No description provided for @authErrorInvalidCredential.
+  ///
+  /// In en, this message translates to:
+  /// **'The login credential is incorrect or has expired.'**
+  String get authErrorInvalidCredential;
+
+  /// No description provided for @authErrorEmailNotVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email is not verified yet. Please verify your email before signing in.'**
+  String get authErrorEmailNotVerified;
+
+  /// No description provided for @authErrorEmailNotVerifiedResent.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email is not verified. We have sent another verification email to your inbox.'**
+  String get authErrorEmailNotVerifiedResent;
+
+  /// No description provided for @authErrorEmailNotVerifiedCooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email is not verified. Please wait {seconds} seconds before requesting another verification email.'**
+  String authErrorEmailNotVerifiedCooldown(int seconds);
+
   /// No description provided for @authErrorGeneric.
   ///
   /// In en, this message translates to:

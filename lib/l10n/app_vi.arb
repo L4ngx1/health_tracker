@@ -269,6 +269,17 @@
   "authErrorOperationNotAllowed": "Đăng nhập chưa được bật.",
   "authErrorWeakPassword": "Mật khẩu quá yếu (ít nhất 6 ký tự).",
   "authErrorTooManyRequests": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
+  "authErrorInvalidCredential": "Thông tin đăng nhập không đúng hoặc đã hết hạn.",
+  "authErrorEmailNotVerified": "Email chưa được xác minh. Vui lòng kiểm tra hộp thư và xác minh trước khi đăng nhập.",
+  "authErrorEmailNotVerifiedResent": "Email chưa xác minh. Chúng tôi đã gửi lại email xác minh, vui lòng kiểm tra hộp thư.",
+  "authErrorEmailNotVerifiedCooldown": "Email chưa xác minh. Vui lòng thử lại sau {seconds} giây để gửi lại email xác minh.",
+  "@authErrorEmailNotVerifiedCooldown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "authErrorGeneric": "Có lỗi xảy ra. Vui lòng thử lại.",
   "authErrorValidEmailPassword": "Vui lòng nhập email hợp lệ và mật khẩu.",
   "authErrorCompleteInfo": "Vui lòng nhập đầy đủ thông tin và email hợp lệ.",

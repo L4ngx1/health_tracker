@@ -50,3 +50,4 @@ app.*.map.json
 !.env.example
 assets/env/.env
 !assets/env/.env.example
+/assets/env/.env

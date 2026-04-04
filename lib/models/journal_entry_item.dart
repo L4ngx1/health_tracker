@@ -6,12 +6,8 @@ class JournalEntryItem {
     this.note,
     this.createdAtIso,
     this.scheduledAtIso,
-    this.sortAt,
-    this.kind,
-    this.steps,
-    this.sleepMinutes,
-    this.waterMl,
-    this.waterGoalMl,
+    this.occurredAt,
+    this.category = 'general',
   });
 
   final String title;
@@ -20,10 +16,6 @@ class JournalEntryItem {
   final String? note;
   final String? createdAtIso;
   final String? scheduledAtIso;
-  final DateTime? sortAt;
-  final String? kind;
-  final int? steps;
-  final int? sleepMinutes;
-  final int? waterMl;
-  final int? waterGoalMl;
+  final DateTime? occurredAt;
+  final String category;
 }
