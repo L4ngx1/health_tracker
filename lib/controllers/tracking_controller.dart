@@ -35,7 +35,7 @@ enum DailyGoalType { steps, distanceKm }
 
 const _defaultStepGoal = 8000.0;
 const _defaultDistanceGoalKm = 6.0;
-
+// Điểm vào (entry point) cho Workmanager khi tác vụ chạy nền được hệ điều hành kích hoạt.
 @pragma('vm:entry-point')
 void trackingCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
@@ -179,9 +179,9 @@ class TrackingController {
   static const double _sleepScoreThreshold = 3.2;
   static const int _windowKeepMinutes = 180;
   static const int _stepWakeThresholdPerMinute = 8;
-  static const double _maxAcceptedAccuracyMeters = 25.0;
+  static const double _maxAcceptedAccuracyMeters = 15.0;
   static const double _minMovementDistanceMeters = 3.0;
-  static const double _maxSingleJumpMeters = 90.0;
+  static const double _maxSingleJumpMeters = 60.0;
   static const double _maxStationaryDriftMeters = 10.0;
   static const int _stepMovementFreshSeconds = 75;
   static const double _minSpeedMetersPerSecond = 0.9;
@@ -541,6 +541,8 @@ class TrackingController {
         (stepDelta * 0.25);
     return score < _sleepScoreThreshold;
   }
+/** Xác định phút hiện tại có được tính là ngủ hay không dựa trên dữ liệu cửa sổ thời gian,
+sau đó cập nhật `sleepMinutes`, trạng thái ngủ và đồng bộ cloud.*/
 
   void _finalizeSleepMinuteIfReady(int minuteIndex, DateTime now) {
     if (_finalizedSleepMinutes.contains(minuteIndex)) {
@@ -553,11 +555,6 @@ class TrackingController {
     _finalizedSleepMinutes.add(minuteIndex);
     final bool sleeping = _isSleepingMinute(minuteIndex);
 
-    // Session-based sleep:
-    // - When sleep starts (awake -> sleeping), reset counter to 1.
-    // - While sleeping, increment by 1 per finalized sleeping minute.
-    // - When waking (sleeping -> awake), keep the session total so it still
-    //   shows the full duration after waking up.
     final bool wasSleeping = snapshot.value.isSleeping;
 
     if (sleeping) {
@@ -586,6 +583,7 @@ class TrackingController {
     }
   }
 
+// Lưu mốc thời gian bắt đầu ngủ vào bộ nhớ cục bộ để dùng khi tính tổng thời lượng ngủ của phiên.
   void _recordSleepStart(DateTime now) {
     _sleepSessionStart ??= _minuteStart(now);
     _prefs?.setString(
@@ -594,6 +592,7 @@ class TrackingController {
     );
   }
 
+// Chốt thời gian kết thúc phiên ngủ, tạo bản ghi `SleepSession`, sắp xếp lịch sử ngủ và giới hạn số phiên lưu trữ.
   void _recordSleepEnd(DateTime now) {
     final DateTime end = _minuteStart(now);
     DateTime? start = _sleepSessionStart;
@@ -754,6 +753,8 @@ class TrackingController {
     }
 
     _stepSub?.cancel();
+    // Đăng ký kênh lắng nghe dữ liệu bước chân thời gian thực từ cảm biến hệ điều hành.
+    //Nếu stream lỗi, hệ thống ghi log để theo dõi.
     _stepSub = Pedometer.stepCountStream.listen(
       _onStepCount,
       onError: (Object error) {
@@ -779,6 +780,7 @@ class TrackingController {
         debugPrint(_l10n.trackingLogLocationServicesDisabled);
       } else {
         _positionSub?.cancel();
+        //Mở luồng vị trí GPS liên tục với cấu hình độ chính xác cao và lọc dịch chuyển tối thiểu 5m để giảm nhiễu.
         _positionSub = Geolocator.getPositionStream(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.best,
@@ -802,6 +804,8 @@ class TrackingController {
     );
   }
 
+/** Chuyển đổi tổng bước chân của thiết bị thành số bước theo ngày bằng `_stepBase`,
+xử lý reset qua ngày mới, cập nhật state/UI và đồng bộ dữ liệu. */
   void _onStepCount(StepCount event) {
     if (_isDisposed) return;
     final now = DateTime.now();
@@ -843,6 +847,8 @@ class TrackingController {
     _safeUpdateSnapshot((current) => current.copyWith(lastUpdate: now));
   }
 
+/** Lọc nhiễu GPS (accuracy, drift, jump), kiểm tra điều kiện di chuyển thật bằng step/speed,
+ cộng dồn quãng đường hợp lệ và cập nhật calories.*/
   void _onPosition(Position position) {
     if (_isDisposed) return;
     final now = DateTime.now();
@@ -919,7 +925,7 @@ class TrackingController {
       final bool speedSuggestsMovement =
           (_smoothedSpeedMps ?? 0) >= _minSpeedMetersPerSecond;
       final bool movementLikely =
-          hasRecentStep || stepDeltaSinceAnchor > 0 || speedSuggestsMovement;
+          hasRecentStep || (stepDeltaSinceAnchor > 0 && speedSuggestsMovement);
 
       if (!movementLikely) {
         if (distance <= _maxStationaryDriftMeters) {
@@ -1086,6 +1092,7 @@ class TrackingController {
     }
   }
 
+// Yêu cầu hệ điều hành chạy tác vụ nền định kỳ mỗi 15 phút để duy trì theo dõi khi app không mở foreground.
   Future<void> registerBackgroundTracking() async {
     if (!_supportsWorkmanagerOnCurrentPlatform) return;
     await Workmanager().registerPeriodicTask(
