@@ -26,9 +26,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final AIController _aiController = AIController();
 
-<<<<<<< HEAD
   Uint8List? _selectedImageBytes;
-=======
+
   static const List<Map<String, String>> _goalOptions = [
     {'label': 'Giảm mỡ', 'prompt': 'Giảm mỡ và nâng cao sức bền'},
     {'label': 'Tăng cơ', 'prompt': 'Tăng cơ và cải thiện sức mạnh'},
@@ -46,9 +45,6 @@ class _NutritionScreenState extends State<NutritionScreen> {
   String? _selectedGoalPrompt;
   String? _selectedLevelLabel;
   String? _selectedLevelPrompt;
-
-  File? _selectedImage;
->>>>>>> e2a4d6a (AI goi y)
   String? _cameraError;
   bool _isInitializingCamera = false;
   bool _isCapturing = false;
@@ -426,19 +422,15 @@ class _NutritionScreenState extends State<NutritionScreen> {
           ),
         ),
         child: SingleChildScrollView(
-<<<<<<< HEAD
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
-=======
           padding: EdgeInsets.fromLTRB(
             16,
             10,
             16,
             MediaQuery.of(context).padding.bottom + 90,
           ),
->>>>>>> e2a4d6a (AI goi y)
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -600,13 +592,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ),
                 ),
 
-<<<<<<< HEAD
               const SizedBox(height: 14),
               if (_selectedImageBytes == null) ...[
-=======
-              if (_selectedImage == null) ...[
-                const SizedBox(height: 12),
->>>>>>> e2a4d6a (AI goi y)
                 SizedBox(
                   width: double.infinity,
                   height: 56,
