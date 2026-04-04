@@ -118,7 +118,7 @@ class MetricCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: LinearProgressIndicator(
-                  value: 0.6,
+                  value: item.progress?.clamp(0.0, 1.0) ?? 0.6,
                   minHeight: 8,
                   color: colorScheme.primary,
                   backgroundColor: colorScheme.outlineVariant,

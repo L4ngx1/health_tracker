@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.0
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -17,26 +17,34 @@ dependencies:
   firebase_core: ^4.6.0
   firebase_auth: ^6.3.0
   cloud_firestore: ^6.2.0
-  camera: ^0.11.1
+  firebase_messaging: ^16.0.0
   image_picker: ^1.2.1
   http: ^1.6.0
   mime: ^2.0.0
+  html: ^0.15.4
   geolocator: ^14.0.2
   sensors_plus: ^5.0.1
   shared_preferences: ^2.5.5
   workmanager: ^0.7.0
+  flutter_local_notifications: ^17.2.4
   google_fonts: ^8.0.2
   google_sign_in: ^7.2.0
   pedometer: ^4.1.1
-  google_generative_ai: ^0.4.0 # Added for AI features
+  google_generative_ai: ^0.4.7
+  camera: ^0.11.0
+  flutter_dotenv: ^5.2.1
+  add_2_calendar: ^3.0.1
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  fake_cloud_firestore: ^4.1.0+1
 
 flutter:
   generate: true
   uses-material-design: true
   assets:
+    - assets/env/.env
     - assets/images/

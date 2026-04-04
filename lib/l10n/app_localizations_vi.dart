@@ -615,6 +615,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get authErrorWrongPassword => 'Mật khẩu không đúng.';
 
   @override
+  String get authErrorInvalidCredentials => 'Email hoặc mật khẩu không đúng.';
+
+  @override
   String get authErrorEmailInUse => 'Email đã được sử dụng.';
 
   @override
@@ -722,10 +725,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String authLogGoogleSignInException(
-    Object code,
-    Object description,
-    Object details,
-  ) {
+      Object code, Object description, Object details) {
     return 'GoogleSignInException code=$code, description=$description, details=$details';
   }
 
@@ -795,13 +795,45 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String aiPromptDietRecommendations(
-    Object healthCondition,
-    Object preferences,
-  ) {
+      Object healthCondition, Object preferences) {
     return 'Ban la chuyen gia dinh duong. Hay de xuat che do an cho tinh trang suc khoe \"$healthCondition\" va so thich \"$preferences\".';
   }
 
   @override
   String get aiCouldNotGenerateRecommendations =>
       'Khong the tao de xuat dinh duong.';
+
+  @override
+  String get hydrationReminderTitle => 'Nhắc uống nước';
+
+  @override
+  String hydrationRecommended(int min, int max) {
+    return 'Khuyến cáo: 1.5 - 2.5L/ngày, hoặc 30-35 ml/kg';
+  }
+
+  @override
+  String get hydrationYourRecommendation =>
+      'Gợi ý cho bạn: null - null L/ngày.';
+
+  @override
+  String hydrationRemaining(int ml) {
+    return 'Còn thiếu: $ml ml';
+  }
+
+  @override
+  String get hydrationGoalCompleted => 'Bạn đã đạt mục tiêu hôm nay.';
+
+  @override
+  String get hydrationCustomGoal => 'Mục tiêu tự nhập: null ml';
+
+  @override
+  String get hydrationUseRecommendation => 'Dùng mục tiêu gợi ý';
+
+  @override
+  String get hydrationSmartMode =>
+      'Chế độ thông minh điều chỉnh tần suất nhắc nhở dựa theo lượng nước còn thiếu và thời gian còn lại trong ngày.';
+
+  @override
+  String get hydrationManualCap =>
+      'Nguỡng tay: mỗi null phút (thông minh đề xuất: null phút).';
 }

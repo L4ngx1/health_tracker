@@ -45,4 +45,9 @@ app.*.map.json
 /android/app/release
 
 # Local secrets
+.env
+.env.*
+!.env.example
+assets/env/.env
+!assets/env/.env.example
 /assets/env/.env

@@ -413,6 +413,8 @@
   "@authErrorUserNotFound": {},
   "authErrorWrongPassword": "Incorrect password.",
   "@authErrorWrongPassword": {},
+  "authErrorInvalidCredentials": "Email or password is incorrect.",
+  "@authErrorInvalidCredentials": {},
   "authErrorEmailInUse": "This email is already in use.",
   "@authErrorEmailInUse": {},
   "authErrorOperationNotAllowed": "Sign-in is not enabled.",
@@ -567,5 +569,38 @@
     }
   },
   "aiCouldNotGenerateRecommendations": "Could not generate recommendations.",
-  "@aiCouldNotGenerateRecommendations": {}
+  "@aiCouldNotGenerateRecommendations": {},
+  "hydrationReminderTitle": "Time to drink water",
+  "@hydrationReminderTitle": {},
+  "hydrationRecommended": "Recommended: {min}-{max} ml/day",
+  "@hydrationRecommended": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "hydrationYourRecommendation": "Your recommendation",
+  "@hydrationYourRecommendation": {},
+  "hydrationRemaining": "Remaining today: {ml} ml",
+  "@hydrationRemaining": {
+    "placeholders": {
+      "ml": {
+        "type": "int"
+      }
+    }
+  },
+  "hydrationGoalCompleted": "Goal completed!",
+  "@hydrationGoalCompleted": {},
+  "hydrationCustomGoal": "Custom goal",
+  "@hydrationCustomGoal": {},
+  "hydrationUseRecommendation": "Use recommendation",
+  "@hydrationUseRecommendation": {},
+  "hydrationSmartMode": "Smart reminder",
+  "@hydrationSmartMode": {},
+  "hydrationManualCap": "Reminder interval (minutes)",
+  "@hydrationManualCap": {}
 }

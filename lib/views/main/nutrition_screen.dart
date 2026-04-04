@@ -1,9 +1,12 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../controllers/ai_controller.dart';
+import '../../models/food_recognition_result.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../widgets/common_widgets.dart';
@@ -18,11 +21,15 @@ class NutritionScreen extends StatefulWidget {
 class _NutritionScreenState extends State<NutritionScreen> {
   CameraController? _cameraController;
   final ImagePicker _imagePicker = ImagePicker();
+  final AIController _aiController = AIController();
 
-  File? _selectedImage;
+  Uint8List? _selectedImageBytes;
   String? _cameraError;
   bool _isInitializingCamera = false;
   bool _isCapturing = false;
+  
+  bool _isAnalyzing = false;
+  FoodRecognitionResult? _analysisResult;
 
   @override
   void initState() {
@@ -90,6 +97,43 @@ class _NutritionScreenState extends State<NutritionScreen> {
     }
   }
 
+  Future<void> _analyzeImage(Uint8List imageBytes) async {
+    setState(() {
+      _isAnalyzing = true;
+      _analysisResult = null;
+    });
+
+    try {
+      final result = await _aiController.scanFood(imageBytes);
+      if (mounted) {
+        setState(() {
+          _analysisResult = result;
+        });
+        if (result == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Khong nhan duoc ket qua AI. Kiem tra GEMINI_API_KEY trong assets/env/.env va khoi dong lai app.',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi phân tích ảnh: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+      }
+    }
+  }
+
   Future<void> _captureFromPreview() async {
     final CameraController? controller = _cameraController;
     if (controller == null || !controller.value.isInitialized || _isCapturing) {
@@ -104,9 +148,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
       final XFile shot = await controller.takePicture();
       if (!mounted) return;
 
+      final Uint8List imageBytes = await shot.readAsBytes();
       setState(() {
-        _selectedImage = File(shot.path);
+        _selectedImageBytes = imageBytes;
       });
+      
+      // Tự động phân tích sau khi chụp
+      _analyzeImage(imageBytes);
+      
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,9 +182,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
         return;
       }
 
+      final Uint8List imageBytes = await picked.readAsBytes();
       setState(() {
-        _selectedImage = File(picked.path);
+        _selectedImageBytes = imageBytes;
       });
+      
+      // Tự động phân tích sau khi chọn từ thư viện
+      _analyzeImage(imageBytes);
+      
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,7 +200,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   void _retakePhoto() {
     setState(() {
-      _selectedImage = null;
+      _selectedImageBytes = null;
+      _analysisResult = null;
     });
 
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
@@ -156,9 +211,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   Widget _buildPreviewBox() {
     final CameraController? controller = _cameraController;
-    if (_selectedImage != null) {
-      return Image.file(
-        _selectedImage!,
+    if (_selectedImageBytes != null) {
+      return Image.memory(
+        _selectedImageBytes!,
         width: double.infinity,
         height: 330,
         fit: BoxFit.cover,
@@ -209,6 +264,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final bool aiEnabled = _aiController.isAiConfigured;
     return SafeArea(
       child: Container(
         decoration: BoxDecoration(
@@ -265,7 +321,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         ),
                       ),
                     ),
-                    if (_selectedImage != null)
+                    if (_selectedImageBytes != null)
                       Positioned(
                         top: 12,
                         right: 12,
@@ -287,51 +343,149 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ],
                 ),
               ),
+              
+              // Hiển thị kết quả phân tích AI
+              if (_isAnalyzing)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 10),
+                        Text('Đang phân tích món ăn...'),
+                      ],
+                    ),
+                  ),
+                ),
+
+              if (!aiEnabled)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'AI dang tam khoa do thieu GEMINI_API_KEY trong assets/env/.env',
+                    style: TextStyle(
+                      color: colorScheme.onErrorContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                
+              if (_analysisResult != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _analysisResult!.name,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${_analysisResult!.calories.toInt()} kcal',
+                              style: TextStyle(
+                                color: colorScheme.onPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_analysisResult!.description != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _analysisResult!.description!,
+                          style: TextStyle(
+                            color: colorScheme.onPrimaryContainer.withValues(
+                              alpha: 0.8,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _isCapturing ? null : _captureFromPreview,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 3,
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
+              if (_selectedImageBytes == null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: (!aiEnabled || _isCapturing)
+                        ? null
+                        : _captureFromPreview,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 3,
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: Text(
+                      _isCapturing
+                          ? AppStrings.capturingPhoto(context)
+                          : AppStrings.capturePhoto(context),
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: aiEnabled ? _pickFoodImage : null,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 56),
+                    side: BorderSide(color: colorScheme.primary),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: Text(
-                    _isCapturing
-                        ? AppStrings.capturingPhoto(context)
-                        : AppStrings.capturePhoto(context),
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _pickFoodImage,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 56),
-                  side: BorderSide(color: colorScheme.primary),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                icon: Icon(
-                  Icons.photo_library_outlined,
-                  color: colorScheme.primary,
-                ),
-                label: Text(
-                  AppStrings.pickFromLibrary(context),
-                  style: TextStyle(
+                  icon: Icon(
+                    Icons.photo_library_outlined,
                     color: colorScheme.primary,
-                    fontWeight: FontWeight.w800,
+                  ),
+                  label: Text(
+                    AppStrings.pickFromLibrary(context),
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
+              ],
+              
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
@@ -343,7 +497,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     BoxShadow(
                       color: colorScheme.shadow.withValues(alpha: 0.16),
                       blurRadius: 14,
-                      offset: Offset(0, 6),
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -358,14 +512,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         color: colorScheme.primary,
                       ),
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             AppStrings.tipTitle(context),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w900,
                             ),

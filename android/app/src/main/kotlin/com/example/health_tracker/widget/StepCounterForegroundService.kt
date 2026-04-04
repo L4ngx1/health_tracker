@@ -81,7 +81,7 @@ class StepCounterForegroundService : Service(), SensorEventListener {
 
         val todaySteps = max(0, absoluteSteps - currentBase)
         val distanceKm = (todaySteps * STEP_LENGTH_METERS) / 1000.0f
-        val calories = (distanceKm * CALORIES_PER_KM).roundToInt()
+        val calories = resolveFlutterCalories(today) ?: (distanceKm * CALORIES_PER_KM).roundToInt()
         val previous = prefs.getInt(KEY_TODAY_STEPS, 0)
         val previousDistance = prefs.getFloat(KEY_TODAY_DISTANCE_KM, 0f)
         val previousCalories = prefs.getInt(KEY_TODAY_CALORIES, 0)
@@ -142,11 +142,69 @@ class StepCounterForegroundService : Service(), SensorEventListener {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    private fun resolveFlutterCalories(today: String): Int? {
+        val flutterPrefs = getSharedPreferences(FLUTTER_PREFS_NAME, Context.MODE_PRIVATE)
+        val scope = detectActiveScope(flutterPrefs) ?: return null
+        val dayKey = flutterPrefs.getString("flutter.tracking.dayKey.$scope", null)
+        if (dayKey != today) return null
+
+        val calories = getDoubleFromPrefs(flutterPrefs.all, "flutter.tracking.caloriesKcal.$scope")
+        return if (calories > 0) calories.roundToInt() else null
+    }
+
+    private fun detectActiveScope(flutterPrefs: android.content.SharedPreferences): String? {
+        val today = dayKey()
+        val all = flutterPrefs.all
+        val prefix = "flutter.tracking.dayKey."
+
+        all.entries.forEach { entry ->
+            val key = entry.key
+            val value = entry.value as? String
+            if (key.startsWith(prefix) && value == today) {
+                return key.removePrefix(prefix)
+            }
+        }
+
+        val guestKey = "${prefix}guest"
+        if (all.containsKey(guestKey)) {
+            return "guest"
+        }
+
+        all.keys.firstOrNull { it.startsWith(prefix) }?.let {
+            return it.removePrefix(prefix)
+        }
+
+        val distancePrefix = "flutter.tracking.distanceMeters."
+        all.keys.firstOrNull { it.startsWith(distancePrefix) }?.let {
+            return it.removePrefix(distancePrefix)
+        }
+
+        val stepPrefix = "flutter.tracking.steps."
+        all.keys.firstOrNull { it.startsWith(stepPrefix) }?.let {
+            return it.removePrefix(stepPrefix)
+        }
+
+        return null
+    }
+
+    private fun getDoubleFromPrefs(all: Map<String, *>, key: String): Double {
+        val value = all[key] ?: return 0.0
+        return when (value) {
+            is Int -> value.toDouble()
+            is Long -> value.toDouble()
+            is Float -> value.toDouble()
+            is Double -> value
+            is String -> value.toDoubleOrNull() ?: 0.0
+            else -> 0.0
+        }
+    }
+
     companion object {
         private const val CHANNEL_ID = "step_tracking_channel"
         private const val NOTIFICATION_ID = 8899
 
         private const val PREFS_NAME = "health_tracker_widget"
+        private const val FLUTTER_PREFS_NAME = "FlutterSharedPreferences"
         private const val KEY_BASE_DAY = "base_day"
         private const val KEY_BASE_SENSOR = "base_sensor"
         private const val KEY_TODAY_STEPS = "today_steps"

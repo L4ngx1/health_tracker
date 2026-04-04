@@ -63,7 +63,7 @@ import 'app_localizations_vi.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('vi'),
+    Locale('vi')
   ];
 
   /// No description provided for @appTitle.
@@ -1220,6 +1220,12 @@ abstract class AppLocalizations {
   /// **'Incorrect password.'**
   String get authErrorWrongPassword;
 
+  /// No description provided for @authErrorInvalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Email or password is incorrect.'**
+  String get authErrorInvalidCredentials;
+
   /// No description provided for @authErrorEmailInUse.
   ///
   /// In en, this message translates to:
@@ -1399,10 +1405,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'GoogleSignInException code={code}, description={description}, details={details}'**
   String authLogGoogleSignInException(
-    Object code,
-    Object description,
-    Object details,
-  );
+      Object code, Object description, Object details);
 
   /// No description provided for @authLogGoogleFirebaseException.
   ///
@@ -1493,15 +1496,67 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You are a nutritionist. Suggest a diet plan for health condition \"{healthCondition}\" and preferences \"{preferences}\".'**
   String aiPromptDietRecommendations(
-    Object healthCondition,
-    Object preferences,
-  );
+      Object healthCondition, Object preferences);
 
   /// No description provided for @aiCouldNotGenerateRecommendations.
   ///
   /// In en, this message translates to:
   /// **'Could not generate recommendations.'**
   String get aiCouldNotGenerateRecommendations;
+
+  /// No description provided for @hydrationReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to drink water'**
+  String get hydrationReminderTitle;
+
+  /// No description provided for @hydrationRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended: {min}-{max} ml/day'**
+  String hydrationRecommended(int min, int max);
+
+  /// No description provided for @hydrationYourRecommendation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recommendation'**
+  String get hydrationYourRecommendation;
+
+  /// No description provided for @hydrationRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining today: {ml} ml'**
+  String hydrationRemaining(int ml);
+
+  /// No description provided for @hydrationGoalCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal completed!'**
+  String get hydrationGoalCompleted;
+
+  /// No description provided for @hydrationCustomGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom goal'**
+  String get hydrationCustomGoal;
+
+  /// No description provided for @hydrationUseRecommendation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use recommendation'**
+  String get hydrationUseRecommendation;
+
+  /// No description provided for @hydrationSmartMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart reminder'**
+  String get hydrationSmartMode;
+
+  /// No description provided for @hydrationManualCap.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder interval (minutes)'**
+  String get hydrationManualCap;
 }
 
 class _AppLocalizationsDelegate
@@ -1531,9 +1586,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

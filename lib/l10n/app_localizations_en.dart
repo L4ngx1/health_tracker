@@ -613,6 +613,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authErrorWrongPassword => 'Incorrect password.';
 
   @override
+  String get authErrorInvalidCredentials => 'Email or password is incorrect.';
+
+  @override
   String get authErrorEmailInUse => 'This email is already in use.';
 
   @override
@@ -723,10 +726,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String authLogGoogleSignInException(
-    Object code,
-    Object description,
-    Object details,
-  ) {
+      Object code, Object description, Object details) {
     return 'GoogleSignInException code=$code, description=$description, details=$details';
   }
 
@@ -797,13 +797,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String aiPromptDietRecommendations(
-    Object healthCondition,
-    Object preferences,
-  ) {
+      Object healthCondition, Object preferences) {
     return 'You are a nutritionist. Suggest a diet plan for health condition \"$healthCondition\" and preferences \"$preferences\".';
   }
 
   @override
   String get aiCouldNotGenerateRecommendations =>
       'Could not generate recommendations.';
+
+  @override
+  String get hydrationReminderTitle => 'Time to drink water';
+
+  @override
+  String hydrationRecommended(int min, int max) {
+    return 'Recommended: $min-$max ml/day';
+  }
+
+  @override
+  String get hydrationYourRecommendation => 'Your recommendation';
+
+  @override
+  String hydrationRemaining(int ml) {
+    return 'Remaining today: $ml ml';
+  }
+
+  @override
+  String get hydrationGoalCompleted => 'Goal completed!';
+
+  @override
+  String get hydrationCustomGoal => 'Custom goal';
+
+  @override
+  String get hydrationUseRecommendation => 'Use recommendation';
+
+  @override
+  String get hydrationSmartMode => 'Smart reminder';
+
+  @override
+  String get hydrationManualCap => 'Reminder interval (minutes)';
 }

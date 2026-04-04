@@ -137,7 +137,11 @@ class StepCounterWidgetProvider : BaseTrackingWidgetProvider() {
             } else {
                 (distanceMeters / 0.78).roundToInt()
             }
-            val calories = (distanceKm * 55f).roundToInt()
+            val calories = if (hasFlutterTracking) {
+                getDoubleFromPrefs(all, "flutter.tracking.caloriesKcal.$scope").roundToInt()
+            } else {
+                (distanceKm * 55f).roundToInt()
+            }
 
             val goalKm = if (hasFlutterTracking) {
                 getDoubleFromPrefs(all, "flutter.home.movementGoalKm.$scope").toFloat()

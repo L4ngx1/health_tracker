@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../core/localization/locale_service.dart';
 import '../core/routes/app_routes.dart';
 import '../l10n/app_localizations.dart';
+import '../services/backend_repository.dart';
 
 class AuthController {
   const AuthController();
@@ -13,6 +14,20 @@ class AuthController {
   static const Duration _verificationEmailCooldown = Duration(seconds: 60);
   static final Map<String, DateTime> _verificationEmailLastSentAt =
       <String, DateTime>{};
+
+  static const String googleSignInCanceled = '__google_sign_in_canceled__';
+
+  bool _isCancelLikeError(String raw) {
+    final text = raw.toLowerCase();
+    return text.contains('canceled') ||
+        text.contains('cancelled') ||
+        text.contains('cancel') ||
+        text.contains('popup-closed-by-user') ||
+        text.contains('web-context-canceled') ||
+        text.contains('hủy đăng nhập google');
+  }
+
+  static final BackendRepository _backendRepository = BackendRepository();
 
   AppLocalizations get _l10n =>
       lookupAppLocalizations(LocaleService.instance.locale.value);
@@ -51,6 +66,8 @@ class AuthController {
         return _l10n.authErrorUserNotFound;
       case 'wrong-password':
         return _l10n.authErrorWrongPassword;
+      case 'invalid-credential':
+        return _l10n.authErrorInvalidCredentials;
       case 'email-already-in-use':
         return _l10n.authErrorEmailInUse;
       case 'operation-not-allowed':
@@ -99,6 +116,25 @@ class AuthController {
     Navigator.of(context).pop();
   }
 
+  Future<void> _ensureCloudProfile(User? user) async {
+    if (user == null) return;
+    final email = user.email?.trim() ?? '';
+    final fallbackName = email.isNotEmpty ? email.split('@').first : 'User';
+
+    try {
+      await _backendRepository.ensureUserProfile(
+        uid: user.uid,
+        email: email,
+        fullName: (user.displayName?.trim().isNotEmpty ?? false)
+            ? user.displayName!.trim()
+            : fallbackName,
+        photoUrl: user.photoURL,
+      );
+    } catch (e) {
+      debugPrint('Failed to sync profile to Firestore: $e');
+    }
+  }
+
   Future<String?> login({
     required String email,
     required String password,
@@ -112,6 +148,8 @@ class AuthController {
         email: email.trim(),
         password: password,
       );
+
+      await _ensureCloudProfile(result.user);
 
       if (!(result.user?.emailVerified ?? false)) {
         final message = await _handleUnverifiedEmail(result.user);
@@ -146,6 +184,7 @@ class AuthController {
         password: password,
       );
       await result.user?.updateDisplayName(fullName.trim());
+      await _ensureCloudProfile(result.user);
       await result.user?.sendEmailVerification();
       return null;
     } on FirebaseAuthException catch (e) {
@@ -174,7 +213,8 @@ class AuthController {
     try {
       if (kIsWeb) {
         final provider = GoogleAuthProvider();
-        await FirebaseAuth.instance.signInWithPopup(provider);
+        final result = await FirebaseAuth.instance.signInWithPopup(provider);
+        await _ensureCloudProfile(result.user);
       } else {
         if (defaultTargetPlatform != TargetPlatform.android &&
             defaultTargetPlatform != TargetPlatform.iOS) {
@@ -193,7 +233,10 @@ class AuthController {
         final credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
         );
-        await FirebaseAuth.instance.signInWithCredential(credential);
+        final result = await FirebaseAuth.instance.signInWithCredential(
+          credential,
+        );
+        await _ensureCloudProfile(result.user);
       }
 
       return null;
@@ -209,7 +252,7 @@ class AuthController {
         case GoogleSignInExceptionCode.clientConfigurationError:
           return _l10n.authErrorGoogleConfig;
         case GoogleSignInExceptionCode.canceled:
-          return _l10n.authErrorGoogleCanceled;
+          return googleSignInCanceled;
         case GoogleSignInExceptionCode.uiUnavailable:
           return _l10n.authErrorGoogleUiUnavailable;
         default:
@@ -219,6 +262,9 @@ class AuthController {
       debugPrint(
         _l10n.authLogGoogleFirebaseException(e.code, e.message ?? ''),
       );
+      if (_isCancelLikeError(e.code) || _isCancelLikeError(e.message ?? '')) {
+        return googleSignInCanceled;
+      }
       return _friendlyError(e);
     } on UnimplementedError {
       return _l10n.authErrorGoogleUnsupportedPlatform;
@@ -229,8 +275,8 @@ class AuthController {
           raw.contains('DEVELOPER_ERROR')) {
         return _l10n.authErrorGoogleShaMismatch;
       }
-      if (raw.contains('canceled') || raw.contains('cancelled')) {
-        return _l10n.authErrorGoogleCanceled;
+      if (_isCancelLikeError(raw)) {
+        return googleSignInCanceled;
       }
       return _l10n.authErrorGoogleGeneral(raw);
     }
@@ -238,7 +284,8 @@ class AuthController {
 
   Future<String?> signInAnonymously() async {
     try {
-      await FirebaseAuth.instance.signInAnonymously();
+      final result = await FirebaseAuth.instance.signInAnonymously();
+      await _ensureCloudProfile(result.user);
       return null;
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
@@ -275,6 +322,7 @@ class AuthController {
         await user.updatePhotoURL(photoUrl);
       }
       await user.reload();
+      await _ensureCloudProfile(FirebaseAuth.instance.currentUser);
       return null;
     } on FirebaseAuthException catch (e) {
       return e.message ?? _l10n.authErrorUpdateProfileFailed;
