@@ -66,8 +66,6 @@ class AuthController {
         return _l10n.authErrorUserNotFound;
       case 'wrong-password':
         return _l10n.authErrorWrongPassword;
-      case 'invalid-credential':
-        return _l10n.authErrorInvalidCredentials;
       case 'email-already-in-use':
         return _l10n.authErrorEmailInUse;
       case 'operation-not-allowed':
