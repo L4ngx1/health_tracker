@@ -41,8 +41,7 @@ class AIService {
     final model = _model;
     if (model == null) {
       throw StateError(
-        'GEMINI_API_KEY is missing. Set --dart-define=GEMINI_API_KEY=...'
-      );
+          'GEMINI_API_KEY is missing. Set --dart-define=GEMINI_API_KEY=...');
     }
     return model;
   }
@@ -76,23 +75,14 @@ class AIService {
       final content = [
         Content.multi([
           TextPart(
-<<<<<<< HEAD
-            'Phan tich hinh anh mon an nay va chi tra ve 1 JSON hop le, khong them markdown hoac giai thich. '
-            'Dinh dang bat buoc: '
-            '{"name_en": "Common English Name", "name_vi": "Ten tieng Viet chinh xac", "calories_est": 0.0, "description": "Mo ta ngan bang tieng Viet"}. '
-            'Yeu cau: name_en la ten pho bien bang tieng Anh; name_vi va description phai la tieng Viet tu nhien; '
-            'description toi da 1-2 cau; calories_est la so duong.'
-=======
-            'Analyze this food image. Return ONLY a JSON object with this format: '
-            '{"name_en": "Common English Name", '
-            '"name_vi": "Tên tiếng Việt chính xác", '
-            '"calories_est": 0.0, '
-            '"description_vi": "Mô tả ngắn bằng tiếng Việt (2-3 câu)", '
-            '"description": "Short description in English (optional)"}. '
-            'The field `description_vi` MUST be provided and written in Vietnamese. '
-            'Respond with the JSON object only, no surrounding text or markdown fences.'
->>>>>>> e2a4d6a (AI goi y)
-          ),
+              'Analyze this food image. Return ONLY a JSON object with this format: '
+              '{"name_en": "Common English Name", '
+              '"name_vi": "Tên tiếng Việt chính xác", '
+              '"calories_est": 0.0, '
+              '"description_vi": "Mô tả ngắn bằng tiếng Việt (2-3 câu)", '
+              '"description": "Short description in English (optional)"}. '
+              'The field `description_vi` MUST be provided and written in Vietnamese. '
+              'Respond with the JSON object only, no surrounding text or markdown fences.'),
           DataPart(mimeType, imageBytes),
         ]),
       ];
@@ -102,13 +92,15 @@ class AIService {
 
       if (text != null) {
         debugPrint('Gemini Response: $text');
-        
+
         // Làm sạch chuỗi JSON
-        String jsonStr = text.replaceAll('```json', '').replaceAll('```', '').trim();
+        String jsonStr =
+            text.replaceAll('```json', '').replaceAll('```', '').trim();
         if (jsonStr.contains('{') && jsonStr.contains('}')) {
-          jsonStr = jsonStr.substring(jsonStr.indexOf('{'), jsonStr.lastIndexOf('}') + 1);
+          jsonStr = jsonStr.substring(
+              jsonStr.indexOf('{'), jsonStr.lastIndexOf('}') + 1);
         }
-        
+
         final Map<String, dynamic> aiData = jsonDecode(jsonStr);
         String nameEn = aiData['name_en'] ?? '';
         String nameVi = aiData['name_vi'] ?? 'Món ăn lạ';
@@ -170,7 +162,8 @@ class AIService {
     if (freePlan != null) {
       return freePlan;
     }
-    return _localFallbackWorkoutPlan(goal: goal, status: status, weightKg: weightKg);
+    return _localFallbackWorkoutPlan(
+        goal: goal, status: status, weightKg: weightKg);
   }
 
   Future<String?> _getWorkoutSuggestionsFromGemini({
@@ -294,13 +287,11 @@ Cân nặng: ...
   }
 
   List<Map<String, String>> _pickExercisesByProfile(
-    List<Map<String, String>> exercises,
-    {
+    List<Map<String, String>> exercises, {
     required String goal,
     required String status,
     double? weightKg,
-  }
-  ) {
+  }) {
     final goalLower = goal.toLowerCase();
     final statusLower = status.toLowerCase();
 
@@ -316,8 +307,7 @@ Cân nặng: ...
     final advanced =
         statusLower.contains('nâng cao') || statusLower.contains('advanced');
 
-    final profileSeed =
-      ('$goalLower|$statusLower|${weightKg?.round() ?? 0}')
+    final profileSeed = ('$goalLower|$statusLower|${weightKg?.round() ?? 0}')
         .runes
         .fold<int>(17, (acc, ch) => (acc * 31 + ch) & 0x7fffffff);
 
@@ -461,7 +451,8 @@ Cân nặng: ...
     final result = <Map<String, String>>[];
 
     if (wantsFatLoss) {
-      result.addAll(takeWhere(cardio, weightKg != null && weightKg >= 85 ? 2 : 3));
+      result.addAll(
+          takeWhere(cardio, weightKg != null && weightKg >= 85 ? 2 : 3));
       result.addAll(takeWhere(core, 1));
       result.addAll(takeWhere(legs, 1));
       result.addAll(takeWhere(mobility, 1));
@@ -512,8 +503,10 @@ Cân nặng: ...
 
   String _toViExerciseName(String input) {
     final lower = input.toLowerCase();
-    if (lower.contains('squat bodyweight')) return 'Squat với trọng lượng cơ thể';
-    if (lower.contains('push-up') || lower.contains('push up')) return 'Hít đất';
+    if (lower.contains('squat bodyweight'))
+      return 'Squat với trọng lượng cơ thể';
+    if (lower.contains('push-up') || lower.contains('push up'))
+      return 'Hít đất';
     if (lower.contains('plank')) return 'Plank (giữ thân người)';
     if (lower.contains('dumbbell row')) return 'Kéo tạ đơn';
     if (lower.contains('glute bridge')) return 'Nâng hông';

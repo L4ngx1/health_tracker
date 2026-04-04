@@ -1,4 +1,4 @@
-2.4. Thiết kế Điều hướng (Navigation Flow) & Cấu trúc Widget (Widget Tree)
+﻿2.4. Thiết kế Điều hướng (Navigation Flow) & Cấu trúc Widget (Widget Tree)
 
 2.4.1. Thiết kế Điều hướng (Navigation Flow)
 Ứng dụng áp dụng cơ chế “điều hướng theo trạng thái xác thực (State-based Navigation)”. Luồng truy cập được kiểm soát bởi Firebase Authentication trước khi cấp quyền vào hệ thống chính. Mô hình này giúp đồng bộ giữa trạng thái tài khoản và màn hình hiển thị, đồng thời hạn chế truy cập sai ngữ cảnh.
@@ -286,5 +286,28 @@ Giải pháp logic (Background Service): Để duy trì luồng theo dõi mà kh
  
 
 > **Điểm nhấn chuyên môn đánh giá cao**: Việc ứng dụng một Periodic Task có cam kết *Offline* (`networkType.not_required`) thể hiện tư duy thiết kế phần mềm "Battery-First" (Ưu tiên tuổi thọ pin). Thay vì xả pin để gửi data đẩy lên máy chủ liên tục, app sử dụng "Lazy Sync", lưu mọi thứ vào SharedPreferences trước, và chỉ đẩy dồn cục khi người dùng trực tiếp mở app, đảm bảo mức tiêu hao < 1% pin nền/ngày.
+
+---
+
+### 3.2. Cấu hình Biến Môi Trường (Environment Variables)
+
+Để phân hệ AI (tính năng Nhận diện Món ăn và Gợi ý Chế độ ăn) có thể kết nối với dịch vụ đám mây, kiến trúc hệ thống yêu cầu cung cấp khóa bảo mật (API Key) qua môi trường cục bộ.
+
+**1. Vị trí tệp cấu hình:**
+Tạo (hoặc chỉnh sửa) tệp tin `.env` tại đường dẫn gốc của thư mục assets:
+`assets/env/.env`
+
+**2. Cấu trúc nội dung khóa bảo mật:**
+Tệp tin phải chứa các dòng sau để cấp quyền cho AI Service:
+
+```env
+# Phím khóa cho Gemini Pro Vision API (Bắt buộc)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Phím khóa truy xuất USDA Food Data (Không bắt buộc)
+USDA_API_KEY=your_usda_api_key_here
+```
+
+*Lưu ý bảo mật: Tệp `.env` đã được đưa vào danh sách `.gitignore` của Git để ngăn rò rỉ mã khóa lên thư viện mã nguồn gốc.*
 
 

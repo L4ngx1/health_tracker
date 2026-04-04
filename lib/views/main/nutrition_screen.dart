@@ -26,13 +26,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final AIController _aiController = AIController();
 
-<<<<<<< HEAD
   Uint8List? _selectedImageBytes;
-=======
   static const List<Map<String, String>> _goalOptions = [
     {'label': 'Giảm mỡ', 'prompt': 'Giảm mỡ và nâng cao sức bền'},
     {'label': 'Tăng cơ', 'prompt': 'Tăng cơ và cải thiện sức mạnh'},
-    {'label': 'Tăng sức bền', 'prompt': 'Tăng sức bền tim mạch và độ bền toàn thân'},
+    {
+      'label': 'Tăng sức bền',
+      'prompt': 'Tăng sức bền tim mạch và độ bền toàn thân'
+    },
     {'label': 'Duy trì', 'prompt': 'Duy trì sức khỏe và vận động đều đặn'},
   ];
 
@@ -47,8 +48,6 @@ class _NutritionScreenState extends State<NutritionScreen> {
   String? _selectedLevelLabel;
   String? _selectedLevelPrompt;
 
-  File? _selectedImage;
->>>>>>> e2a4d6a (AI goi y)
   String? _cameraError;
   bool _isInitializingCamera = false;
   bool _isCapturing = false;
@@ -299,11 +298,15 @@ class _NutritionScreenState extends State<NutritionScreen> {
   String? _dietRecommendation;
 
   Future<void> _generateDietRecommendations() async {
-    final condition = '${_selectedGoalPrompt ?? _selectedGoalLabel ?? ''} ${_selectedLevelPrompt ?? _selectedLevelLabel ?? ''}'.trim();
+    final condition =
+        '${_selectedGoalPrompt ?? _selectedGoalLabel ?? ''} ${_selectedLevelPrompt ?? _selectedLevelLabel ?? ''}'
+            .trim();
     final prefs = '';
     if (!_aiController.isAiConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('AI chưa được cấu hình. Vui lòng thêm GEMINI_API_KEY.')),
+        SnackBar(
+            content:
+                Text('AI chưa được cấu hình. Vui lòng thêm GEMINI_API_KEY.')),
       );
       return;
     }
@@ -314,7 +317,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
         _dietRecommendation = null;
       });
 
-      final result = await _aiController.getPersonalizedDiet(condition.isEmpty ? 'Sức khỏe chung' : condition, prefs);
+      final result = await _aiController.getPersonalizedDiet(
+          condition.isEmpty ? 'Sức khỏe chung' : condition, prefs);
       if (mounted) {
         setState(() {
           _dietRecommendation = result;
@@ -426,19 +430,15 @@ class _NutritionScreenState extends State<NutritionScreen> {
           ),
         ),
         child: SingleChildScrollView(
-<<<<<<< HEAD
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
-=======
           padding: EdgeInsets.fromLTRB(
             16,
             10,
             16,
             MediaQuery.of(context).padding.bottom + 90,
           ),
->>>>>>> e2a4d6a (AI goi y)
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -600,13 +600,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ),
                 ),
 
-<<<<<<< HEAD
               const SizedBox(height: 14),
               if (_selectedImageBytes == null) ...[
-=======
-              if (_selectedImage == null) ...[
-                const SizedBox(height: 12),
->>>>>>> e2a4d6a (AI goi y)
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -733,14 +728,18 @@ class _NutritionScreenState extends State<NutritionScreen> {
                       value: _selectedGoalLabel,
                       decoration: InputDecoration(
                         labelText: 'Mục tiêu',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
                         isDense: true,
                       ),
                       items: _goalOptions
-                          .map((o) => DropdownMenuItem(value: o['label'], child: Text(o['label']!)))
+                          .map((o) => DropdownMenuItem(
+                              value: o['label'], child: Text(o['label']!)))
                           .toList(),
                       onChanged: (v) {
-                        final found = _goalOptions.firstWhere((o) => o['label'] == v, orElse: () => {});
+                        final found = _goalOptions.firstWhere(
+                            (o) => o['label'] == v,
+                            orElse: () => {});
                         setState(() {
                           _selectedGoalLabel = v;
                           _selectedGoalPrompt = found['prompt'];
@@ -752,14 +751,18 @@ class _NutritionScreenState extends State<NutritionScreen> {
                       value: _selectedLevelLabel,
                       decoration: InputDecoration(
                         labelText: 'Trình độ',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
                         isDense: true,
                       ),
                       items: _levelOptions
-                          .map((o) => DropdownMenuItem(value: o['label'], child: Text(o['label']!)))
+                          .map((o) => DropdownMenuItem(
+                              value: o['label'], child: Text(o['label']!)))
                           .toList(),
                       onChanged: (v) {
-                        final found = _levelOptions.firstWhere((o) => o['label'] == v, orElse: () => {});
+                        final found = _levelOptions.firstWhere(
+                            (o) => o['label'] == v,
+                            orElse: () => {});
                         setState(() {
                           _selectedLevelLabel = v;
                           _selectedLevelPrompt = found['prompt'];
@@ -771,12 +774,15 @@ class _NutritionScreenState extends State<NutritionScreen> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _isGeneratingDiet ? null : _generateDietRecommendations,
+                        onPressed: _isGeneratingDiet
+                            ? null
+                            : _generateDietRecommendations,
                         style: ElevatedButton.styleFrom(
                           elevation: 3,
                           backgroundColor: colorScheme.primary,
                           foregroundColor: colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
                         ),
                         child: _isGeneratingDiet
                             ? Row(
@@ -793,13 +799,16 @@ class _NutritionScreenState extends State<NutritionScreen> {
                                   const SizedBox(width: 10),
                                   const Text(
                                     'Đang tạo gợi ý...',
-                                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18),
                                   ),
                                 ],
                               )
                             : const Text(
                                 'Tạo gợi ý ăn theo tuần',
-                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w800, fontSize: 18),
                               ),
                       ),
                     ),
@@ -819,7 +828,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
                             const SizedBox(height: 10),
                             Text(
                               'Đang lấy gợi ý chế độ ăn từ AI...',
-                              style: TextStyle(color: colorScheme.onSurfaceVariant),
+                              style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant),
                             ),
                           ],
                         ),
