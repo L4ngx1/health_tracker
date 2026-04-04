@@ -6,7 +6,7 @@
 #  - Create `assets/env/.env` and add this line, or
 #  - Pass it at runtime: `--dart-define=GEMINI_API_KEY=your_key_here`
 
-GEMINI_API_KEY=AIzaSyCVBr4irC8qpzFL1c-1VvlU2h9EsprU6Eg
+GEMINI_API_KEY=AIzaSyDmDzexyhguKTd1bElqC-rJnNDqlJPfnMQ
 
 # Other variables (examples):
 # CLOUDFLARE_R2_WORKER_URL=https://example.workers.dev/upload

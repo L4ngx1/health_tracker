@@ -57,6 +57,12 @@ class AIService {
     if (raw.contains('invalid') && raw.contains('api key')) {
       return 'API key AI khong hop le. Vui long kiem tra lai cau hinh key.';
     }
+    if (raw.contains('expired') && raw.contains('api key')) {
+      return 'API key AI da het han. Vui long cap nhat GEMINI_API_KEY moi.';
+    }
+    if (raw.contains('quota exceeded') || raw.contains('rate limit')) {
+      return 'Da vuot qua han muc AI hien tai. Vui long doi hoac nang cap goi AI/Gemini.';
+    }
     if (raw.contains('missing') && raw.contains('gemini_api_key')) {
       return 'Chua cau hinh GEMINI_API_KEY trong assets/env/.env (hoac --dart-define).';
     }
