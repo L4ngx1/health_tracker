@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../controllers/ai_controller.dart';
@@ -34,7 +35,6 @@ class _NutritionScreenState extends State<NutritionScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeCameraPreview();
   }
 
   @override
@@ -87,6 +87,30 @@ class _NutritionScreenState extends State<NutritionScreen> {
         _cameraController = controller;
         _cameraError = null;
       });
+    } on CameraException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'CameraAccessDenied' ||
+          e.code == 'CameraAccessRestricted') {
+        setState(() {
+          _cameraError = AppStrings.cameraOpenFailed(context);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.cameraOpenFailed(context))),
+        );
+        return;
+      }
+
+      if (e.code == 'CameraAccessDeniedWithoutPrompt') {
+        setState(() {
+          _cameraError = AppStrings.cameraOpenFailed(context);
+        });
+        await _showOpenSettingsDialog();
+        return;
+      }
+
+      setState(() {
+        _cameraError = AppStrings.cameraOpenFailed(context);
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -95,6 +119,32 @@ class _NutritionScreenState extends State<NutritionScreen> {
     } finally {
       _isInitializingCamera = false;
     }
+  }
+
+  Future<void> _showOpenSettingsDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Camera permission required'),
+        content: const Text(
+          'Please allow camera access in Settings to take food photos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await Geolocator.openAppSettings();
+            },
+            child: const Text('Open settings'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _analyzeImage(Uint8List imageBytes) async {
@@ -135,9 +185,18 @@ class _NutritionScreenState extends State<NutritionScreen> {
   }
 
   Future<void> _captureFromPreview() async {
-    final CameraController? controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized || _isCapturing) {
+    if (_isCapturing || _isInitializingCamera) {
       return;
+    }
+
+    var controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) {
+      await _initializeCameraPreview();
+      if (!mounted) return;
+      controller = _cameraController;
+      if (controller == null || !controller.value.isInitialized) {
+        return;
+      }
     }
 
     try {
@@ -223,10 +282,22 @@ class _NutritionScreenState extends State<NutritionScreen> {
     final bool canShowLive =
         controller != null && controller.value.isInitialized;
     if (canShowLive) {
+      final previewSize = controller.value.previewSize;
+      final previewWidth = previewSize?.height ?? 1080;
+      final previewHeight = previewSize?.width ?? 1920;
       return SizedBox(
         width: double.infinity,
         height: 330,
-        child: CameraPreview(controller),
+        child: ClipRect(
+          child: FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: previewWidth,
+              height: previewHeight,
+              child: CameraPreview(controller),
+            ),
+          ),
+        ),
       );
     }
 

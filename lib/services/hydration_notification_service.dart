@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HydrationNotificationService {
   HydrationNotificationService._();
@@ -9,6 +10,7 @@ class HydrationNotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  static const String _prefNotificationsEnabled = 'notifications_enabled';
 
   static const String generalChannelId = 'general_notifications';
   static const String generalChannelName = 'General notifications';
@@ -74,9 +76,17 @@ class HydrationNotificationService {
     String channelName = generalChannelName,
     String channelDescription = generalChannelDescription,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool(_prefNotificationsEnabled) ?? true;
+    if (!enabled) {
+      return;
+    }
+
     if (!_initialized) {
       await init();
     }
+
+    await requestPermissionIfNeeded();
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(

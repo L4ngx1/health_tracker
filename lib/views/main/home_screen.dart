@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _lastCloudConfigSyncAt;
   double _dailyGoalKm = 6.0;
   final Map<String, double> _distanceHistoryKm = <String, double>{};
-  bool _promptedLocationPermission = false;
+  bool _didRunPermissionFlow = false;
   double? _weightKg;
   int _waterGoalMl = 2000;
   int _waterIntakeMl = 0;
@@ -114,22 +114,26 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _trackingController = TrackingController();
-    _trackingController.start();
-    _trackingController.registerBackgroundTracking();
     _trackingController.snapshot.addListener(_syncTodayDistanceHistory);
+    unawaited(_startTrackingWithPermissionFlow());
     unawaited(_initializeMovementData());
     unawaited(_loadWeight());
     unawaited(_loadHydrationData());
     _startWaterReminderLoop();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_maybeRequestLocationPermission());
-    });
   }
 
-  Future<void> _maybeRequestLocationPermission() async {
-    if (!mounted || _promptedLocationPermission) return;
-    _promptedLocationPermission = true;
+  Future<void> _startTrackingWithPermissionFlow() async {
+    if (!mounted || _didRunPermissionFlow) return;
+    _didRunPermissionFlow = true;
+
+    _prefs ??= await SharedPreferences.getInstance();
+    final notificationsEnabled =
+        _prefs?.getBool(_prefNotificationsEnabled) ?? true;
+    if (notificationsEnabled) {
+      await HydrationNotificationService.instance.requestPermissionIfNeeded();
+    }
+    // Wait a short moment to avoid overlapping system dialogs on Android.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
 
     var permission = await Geolocator.checkPermission();
     if (!mounted) return;
@@ -163,6 +167,10 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
     }
+
+    if (!mounted) return;
+    await _trackingController.start();
+    await _trackingController.registerBackgroundTracking();
   }
 
   Future<void> _initializeMovementData() async {

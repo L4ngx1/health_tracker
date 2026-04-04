@@ -6,6 +6,8 @@ import '../../controllers/auth_controller.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/theme_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../services/push_notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,29 +16,111 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   final _authController = const AuthController();
   bool _loading = false;
   bool _notifications = true;
+  bool _updatingNotifications = false;
+  PermissionStatus _notificationPermissionStatus = PermissionStatus.denied;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadPrefs();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadPrefs();
+    }
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    final permissionStatus = await Permission.notification.status;
     if (!mounted) return;
     setState(() {
       _notifications = prefs.getBool('notifications_enabled') ?? true;
+      _notificationPermissionStatus = permissionStatus;
     });
   }
 
   Future<void> _setNotifications(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('notifications_enabled', enabled);
-    setState(() => _notifications = enabled);
+    if (_updatingNotifications) return;
+
+    setState(() {
+      _updatingNotifications = true;
+    });
+
+    try {
+      await PushNotificationService.instance.setEnabled(enabled);
+      final permissionStatus = await Permission.notification.status;
+      final granted = permissionStatus.isGranted || permissionStatus.isLimited;
+      final effectiveEnabled = enabled && granted;
+
+      if (enabled && !granted) {
+        await PushNotificationService.instance.setEnabled(false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppStrings.isEnglish(context)
+                    ? 'Notification permission is not granted yet.'
+                    : 'Bạn chưa cấp quyền thông báo.',
+              ),
+            ),
+          );
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _notifications = effectiveEnabled;
+        _notificationPermissionStatus = permissionStatus;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingNotifications = false;
+        });
+      }
+    }
+  }
+
+  String _notificationPermissionLabel() {
+    if (_notificationPermissionStatus.isGranted ||
+        _notificationPermissionStatus.isLimited) {
+      return AppStrings.isEnglish(context) ? 'Allowed' : 'Đã cấp';
+    }
+    if (_notificationPermissionStatus.isPermanentlyDenied ||
+        _notificationPermissionStatus.isRestricted) {
+      return AppStrings.isEnglish(context)
+          ? 'Permanently denied'
+          : 'Từ chối vĩnh viễn';
+    }
+    return AppStrings.isEnglish(context) ? 'Denied' : 'Bị từ chối';
+  }
+
+  Future<void> _handleNotificationPermissionAction() async {
+    if (_notificationPermissionStatus.isPermanentlyDenied ||
+        _notificationPermissionStatus.isRestricted) {
+      await openAppSettings();
+      final permissionStatus = await Permission.notification.status;
+      if (!mounted) return;
+      setState(() => _notificationPermissionStatus = permissionStatus);
+      return;
+    }
+
+    await _setNotifications(true);
   }
 
   Future<void> _setLanguage(String lang) async {
@@ -210,7 +294,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               subtitle: Text(
                                 AppStrings.notificationsSubtitle(context),
                               ),
-                              onChanged: (v) => _setNotifications(v),
+                              onChanged: _updatingNotifications
+                                  ? null
+                                  : (v) => _setNotifications(v),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _notificationPermissionStatus.isGranted ||
+                                            _notificationPermissionStatus
+                                                .isLimited
+                                        ? Icons.verified_rounded
+                                        : Icons.warning_amber_rounded,
+                                    size: 18,
+                                    color: _notificationPermissionStatus
+                                                .isGranted ||
+                                            _notificationPermissionStatus
+                                                .isLimited
+                                        ? colorScheme.primary
+                                        : colorScheme.error,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${AppStrings.isEnglish(context) ? 'Permission' : 'Quyền'}: ${_notificationPermissionLabel()}',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.8),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  if (!_notificationPermissionStatus.isGranted &&
+                                      !_notificationPermissionStatus.isLimited)
+                                    TextButton(
+                                      onPressed: _handleNotificationPermissionAction,
+                                      child: Text(
+                                        (_notificationPermissionStatus
+                                                    .isPermanentlyDenied ||
+                                                _notificationPermissionStatus
+                                                    .isRestricted)
+                                            ? (AppStrings.isEnglish(context)
+                                                ? 'Open settings'
+                                                : 'Mở cài đặt')
+                                            : (AppStrings.isEnglish(context)
+                                                ? 'Allow'
+                                                : 'Cấp quyền'),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ],
                         ),

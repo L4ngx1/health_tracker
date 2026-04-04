@@ -59,6 +59,14 @@ class BackendApiService {
     return _repository.saveUserProfile(normalized);
   }
 
+  Future<void> saveMyFcmToken(String token) {
+    return _repository.saveUserFcmToken(uid: _uid, token: token);
+  }
+
+  Future<void> clearMyFcmToken() {
+    return _repository.clearUserFcmToken(uid: _uid);
+  }
+
   Future<String> addMyWorkout(WorkoutRecord workout) {
     return _repository.addWorkout(uid: _uid, workout: workout);
   }

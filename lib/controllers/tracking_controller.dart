@@ -763,11 +763,6 @@ class TrackingController {
     var permission = await Geolocator.checkPermission();
     if (_isDisposed) return;
 
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (_isDisposed) return;
-    }
-
     if (permission == LocationPermission.deniedForever) {
       debugPrint(_l10n.trackingLogLocationPermissionDeniedForever);
     } else if (permission == LocationPermission.whileInUse ||

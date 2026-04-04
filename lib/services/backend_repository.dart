@@ -75,6 +75,25 @@ class BackendRepository {
     await _userDoc(profile.uid).set(profile.toMap(), SetOptions(merge: true));
   }
 
+  Future<void> saveUserFcmToken({
+    required String uid,
+    required String token,
+  }) async {
+    await _userDoc(uid).set(<String, dynamic>{
+      'fcmToken': token,
+      'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> clearUserFcmToken({required String uid}) async {
+    await _userDoc(uid).set(<String, dynamic>{
+      'fcmToken': FieldValue.delete(),
+      'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<String> addWorkout({
     required String uid,
     required WorkoutRecord workout,

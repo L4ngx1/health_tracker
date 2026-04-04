@@ -7,6 +7,7 @@ import '../core/localization/locale_service.dart';
 import '../core/routes/app_routes.dart';
 import '../l10n/app_localizations.dart';
 import '../services/backend_repository.dart';
+import '../services/push_notification_service.dart';
 
 class AuthController {
   const AuthController();
@@ -151,9 +152,12 @@ class AuthController {
 
       if (!(result.user?.emailVerified ?? false)) {
         final message = await _handleUnverifiedEmail(result.user);
+        await PushNotificationService.instance.handleUserLogout();
         await FirebaseAuth.instance.signOut();
         return message;
       }
+
+      await PushNotificationService.instance.syncTokenForCurrentUser();
 
       return null;
     } on FirebaseAuthException catch (e) {
@@ -184,6 +188,7 @@ class AuthController {
       await result.user?.updateDisplayName(fullName.trim());
       await _ensureCloudProfile(result.user);
       await result.user?.sendEmailVerification();
+      await PushNotificationService.instance.syncTokenForCurrentUser();
       return null;
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
@@ -237,6 +242,8 @@ class AuthController {
         await _ensureCloudProfile(result.user);
       }
 
+      await PushNotificationService.instance.syncTokenForCurrentUser();
+
       return null;
     } on GoogleSignInException catch (e) {
       debugPrint(
@@ -284,6 +291,7 @@ class AuthController {
     try {
       final result = await FirebaseAuth.instance.signInAnonymously();
       await _ensureCloudProfile(result.user);
+      await PushNotificationService.instance.syncTokenForCurrentUser();
       return null;
     } on FirebaseAuthException catch (e) {
       return _friendlyError(e);
@@ -306,6 +314,7 @@ class AuthController {
   }
 
   Future<void> signOut() async {
+    await PushNotificationService.instance.handleUserLogout();
     await FirebaseAuth.instance.signOut();
   }
 
@@ -333,6 +342,7 @@ class AuthController {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return _l10n.authErrorUserMissing;
     try {
+      await PushNotificationService.instance.handleUserLogout();
       await user.delete();
       return null;
     } on FirebaseAuthException catch (e) {
