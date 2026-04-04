@@ -81,11 +81,19 @@ class AIService {
       final content = [
         Content.multi([
           TextPart(
-              'Phân tích hình ảnh món ăn và chỉ trả về một JSON hợp lệ, không thêm markdown hay giải thích. '
-              'Định dạng bắt buộc: '
-              '{"name_en": "Common English Name", "name_vi": "Tên tiếng Việt chính xác", "calories_est": 0.0, "description_vi": "Mô tả ngắn bằng tiếng Việt (2-3 câu)", "description": "Short description in English (optional)"}. '
-              'Yêu cầu: name_en là tên phổ biến bằng tiếng Anh; name_vi và description_vi phải là tiếng Việt tự nhiên; '
-              'description_vi tối đa 2-3 câu; calories_est là số dương.'),
+              'Phan tich hinh anh mon an nay va chi tra ve 1 JSON hop le, khong them markdown hoac giai thich. '
+              'Dinh dang bat buoc: '
+              '{"name_en": "Common English Name", "name_vi": "Ten tieng Viet chinh xac", "calories_est": 0.0, "description": "Mo ta ngan bang tieng Viet"}. '
+              'Yeu cau: name_en la ten pho bien bang tieng Anh; name_vi va description phai la tieng Viet tu nhien; '
+              'description toi da 1-2 cau; calories_est la so duong.'
+              'Analyze this food image. Return ONLY a JSON object with this format: '
+              '{"name_en": "Common English Name", '
+              '"name_vi": "Tên tiếng Việt chính xác", '
+              '"calories_est": 0.0, '
+              '"description_vi": "Mô tả ngắn bằng tiếng Việt (2-3 câu)", '
+              '"description": "Short description in English (optional)"}. '
+              'The field `description_vi` MUST be provided and written in Vietnamese. '
+              'Respond with the JSON object only, no surrounding text or markdown fences.'),
           DataPart(mimeType, imageBytes),
         ]),
       ];
