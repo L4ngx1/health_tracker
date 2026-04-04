@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui';
 
 import '../../controllers/main_navigation_controller.dart';
-import '../../core/theme/app_palette.dart';
+import '../../core/localization/app_strings.dart';
 import '../../models/bottom_nav_item.dart';
 import 'home_screen.dart';
 import 'journal_screen.dart';
@@ -28,159 +30,207 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     JournalScreen(),
   ];
 
-  final items = const [
-    BottomNavItem(
-      label: 'Trang chủ',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
-    ),
-    BottomNavItem(
-      label: 'Tập luyện',
-      icon: Icons.sports_gymnastics_outlined,
-      activeIcon: Icons.sports_gymnastics,
-    ),
-    BottomNavItem(
-      label: 'Ăn uống',
-      icon: Icons.camera_alt_outlined,
-      activeIcon: Icons.camera_alt,
-    ),
-    BottomNavItem(
-      label: 'Ghi chú',
-      icon: Icons.article_outlined,
-      activeIcon: Icons.article,
-    ),
-    BottomNavItem(
-      label: 'Nhật ký',
-      icon: Icons.menu_book_outlined,
-      activeIcon: Icons.menu_book,
-    ),
-  ];
-
   @override
   void dispose() {
-    controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final colorScheme = Theme.of(context).colorScheme;
+    final unselectedColor =
+        Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.72) ??
+        colorScheme.onSurface.withValues(alpha: 0.72);
+    final items = [
+      BottomNavItem(
+        label: AppStrings.navHome(context),
+        icon: Icons.home_outlined,
+        activeIcon: Icons.home_rounded,
+      ),
+      BottomNavItem(
+        label: AppStrings.navWorkout(context),
+        icon: Icons.sports_gymnastics_outlined,
+        activeIcon: Icons.sports_gymnastics,
+      ),
+      BottomNavItem(
+        label: AppStrings.navNutrition(context),
+        icon: Icons.restaurant_menu_outlined,
+        activeIcon: Icons.restaurant_menu,
+      ),
+      BottomNavItem(
+        label: AppStrings.navNotes(context),
+        icon: Icons.article_outlined,
+        activeIcon: Icons.article,
+      ),
+      BottomNavItem(
+        label: AppStrings.navJournal(context),
+        icon: Icons.menu_book_outlined,
+        activeIcon: Icons.menu_book,
+      ),
+    ];
+
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
         return Scaffold(
-          body: IndexedStack(index: controller.index, children: pages),
-          floatingActionButton: controller.index == 1
-              ? FloatingActionButton(
-                  onPressed: () {},
-                  backgroundColor: AppPalette.primaryDark,
-                  child: const Icon(Icons.add),
-                )
-              : null,
-          bottomNavigationBar: keyboardVisible
-              ? null
-              : SafeArea(
-                  top: false,
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppPalette.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x1A1B7D5B),
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
+          body: Container(
+            color: colorScheme.surface,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Stack(
+                    children: List.generate(pages.length, (i) {
+                      final active = controller.index == i;
+                      return IgnorePointer(
+                        ignoring: !active,
+                        child: RepaintBoundary(
+                          child: AnimatedOpacity(
+                            opacity: active ? 1 : 0,
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOut,
+                            child: AnimatedSlide(
+                              offset: active ? Offset.zero : const Offset(0.028, 0),
+                              duration: const Duration(milliseconds: 280),
+                              curve: Curves.easeOutCubic,
+                              child: pages[i],
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                    child: SizedBox(
-                      height: 62,
-                      child: Row(
-                        children: List.generate(items.length, (i) {
-                          final selected = controller.index == i;
-                          final item = items[i];
-                          return Expanded(
-                            child: AnimatedScale(
-                              scale: _pressedIndex == i ? 0.92 : 1,
-                              duration: const Duration(milliseconds: 120),
-                              curve: Curves.easeOut,
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(18),
-                                  splashColor: AppPalette.primary.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  highlightColor: AppPalette.primary.withValues(
-                                    alpha: 0.08,
-                                  ),
-                                  onHighlightChanged: (isPressed) {
-                                    setState(() {
-                                      _pressedIndex = isPressed ? i : null;
-                                    });
-                                  },
-                                  onTap: () => controller.setIndex(i),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 4,
-                                    ),
-                                    child: AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 180),
+                      );
+                    }),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SafeArea(
+                    top: false,
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.shadow.withValues(alpha: 0.32),
+                            blurRadius: 34,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 16),
+                          ),
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.16),
+                            blurRadius: 22,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface.withValues(alpha: 0.68),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(
+                                color: colorScheme.outlineVariant.withValues(alpha: 0.32),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: SizedBox(
+                              height: 66,
+                              child: Row(
+                                children: List.generate(items.length, (i) {
+                                  final selected = controller.index == i;
+                                  final item = items[i];
+                                  return Expanded(
+                                    child: AnimatedScale(
+                                      scale: _pressedIndex == i ? 0.92 : 1,
+                                      duration: const Duration(milliseconds: 120),
                                       curve: Curves.easeOut,
-                                      decoration: BoxDecoration(
-                                        color: selected
-                                            ? AppPalette.primary.withValues(
-                                                alpha: 0.12,
-                                              )
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              selected
-                                                  ? item.activeIcon
-                                                  : item.icon,
-                                              size: 22,
-                                              color: selected
-                                                  ? AppPalette.primary
-                                                  : const Color(0xFF95A39B),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(20),
+                                          splashColor: colorScheme.primary.withValues(
+                                            alpha: 0.18,
+                                          ),
+                                          highlightColor: colorScheme.primary.withValues(
+                                            alpha: 0.10,
+                                          ),
+                                          onHighlightChanged: (isPressed) {
+                                            setState(() {
+                                              _pressedIndex = isPressed ? i : null;
+                                            });
+                                          },
+                                          onTap: () {
+                                            FocusManager.instance.primaryFocus?.unfocus();
+                                            if (controller.index != i) {
+                                              HapticFeedback.selectionClick();
+                                            }
+                                            controller.setIndex(i);
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 4,
                                             ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              item.label,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: selected
-                                                    ? FontWeight.w700
-                                                    : FontWeight.w500,
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 180),
+                                              curve: Curves.easeOut,
+                                              decoration: BoxDecoration(
                                                 color: selected
-                                                    ? AppPalette.primary
-                                                    : const Color(0xFF95A39B),
+                                                    ? colorScheme.primary.withValues(
+                                                        alpha: 0.18,
+                                                      )
+                                                    : Colors.transparent,
+                                                borderRadius: BorderRadius.circular(18),
+                                              ),
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(top: 6),
+                                                child: Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      selected ? item.activeIcon : item.icon,
+                                                      size: 22,
+                                                      color: selected
+                                                          ? colorScheme.primary
+                                                          : unselectedColor,
+                                                    ),
+                                                    const SizedBox(height: 3),
+                                                    Text(
+                                                      item.label,
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: selected
+                                                            ? FontWeight.w700
+                                                            : FontWeight.w500,
+                                                        color: selected
+                                                            ? colorScheme.primary
+                                                            : unselectedColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                          ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                }),
                               ),
                             ),
-                          );
-                        }),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
         );
       },
     );

@@ -1,52 +1,357 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/journal_controller.dart';
-import '../../core/theme/app_palette.dart';
+import '../../controllers/main_navigation_controller.dart';
+import '../../core/localization/app_strings.dart';
+import '../../core/routes/app_routes.dart';
+import '../../models/journal_entry_item.dart';
 import '../widgets/common_widgets.dart';
 
-class JournalScreen extends StatelessWidget {
+class JournalScreen extends StatefulWidget {
   const JournalScreen({super.key});
 
   @override
+  State<JournalScreen> createState() => _JournalScreenState();
+}
+
+class _JournalScreenState extends State<JournalScreen> {
+  final JournalController _controller = JournalController();
+  final MainNavigationController _navController = MainNavigationController();
+  List<JournalEntryItem> _entries = <JournalEntryItem>[];
+  bool _isLoading = false;
+  _JournalFilterMode _filterMode = _JournalFilterMode.day;
+  DateTime _anchorDate = DateTime.now();
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  DateTime _startOfWeek(DateTime value) {
+    final base = DateTime(value.year, value.month, value.day);
+    return base.subtract(Duration(days: base.weekday - DateTime.monday));
+  }
+
+  String _formatFilterLabel(DateTime value) {
+    final localizations = MaterialLocalizations.of(context);
+    if (_filterMode == _JournalFilterMode.day) {
+      return localizations.formatShortDate(value);
+    }
+    if (_filterMode == _JournalFilterMode.week) {
+      final start = _startOfWeek(value);
+      final end = start.add(const Duration(days: 6));
+      return '${localizations.formatShortDate(start)} - ${localizations.formatShortDate(end)}';
+    }
+    return '${value.month}/${value.year}';
+  }
+
+  bool _matchesFilter(JournalEntryItem entry) {
+    final date = entry.occurredAt;
+    if (date == null) return true;
+    if (_filterMode == _JournalFilterMode.day) {
+      return _isSameDay(date, _anchorDate);
+    }
+    if (_filterMode == _JournalFilterMode.week) {
+      final start = _startOfWeek(_anchorDate);
+      final endExclusive = start.add(const Duration(days: 7));
+      return !date.isBefore(start) && date.isBefore(endExclusive);
+    }
+    return date.year == _anchorDate.year && date.month == _anchorDate.month;
+  }
+
+  Future<void> _pickAnchorDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _anchorDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _anchorDate = picked);
+  }
+
+  Future<void> _openNoteEditor({JournalEntryItem? entry}) async {
+    final controller = TextEditingController(text: entry?.note ?? '');
+    final noteFocusNode = FocusNode();
+    final isEditing = entry != null;
+
+    FocusScope.of(context).unfocus();
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (sheetContext) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => FocusScope.of(sheetContext).unfocus(),
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isEditing ? 'Sửa ghi chú' : 'Thêm ghi chú',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: controller,
+                    focusNode: noteFocusNode,
+                    autofocus: false,
+                    minLines: 3,
+                    maxLines: 6,
+                    onTapOutside: (_) => noteFocusNode.unfocus(),
+                    decoration: const InputDecoration(
+                      hintText: 'Nhập nội dung ghi chú...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('Hủy'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final navigator = Navigator.of(sheetContext);
+                            final text = controller.text.trim();
+                            if (text.isEmpty) {
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Vui lòng nhập nội dung ghi chú.')),
+                              );
+                              return;
+                            }
+
+                            final ok = isEditing
+                                ? await _controller.updateNote(
+                                    entry: entry, note: text)
+                                : await _controller.addNote(text);
+                            if (!mounted) return;
+                            navigator.pop();
+                            await _loadEntries();
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  ok
+                                      ? (isEditing
+                                          ? 'Đã cập nhật ghi chú.'
+                                          : 'Đã thêm ghi chú.')
+                                      : (isEditing
+                                          ? 'Không thể cập nhật ghi chú.'
+                                          : 'Không thể thêm ghi chú.'),
+                                ),
+                              ),
+                            );
+                          },
+                          child: Text(isEditing ? 'Lưu thay đổi' : 'Thêm'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } finally {
+      noteFocusNode.dispose();
+      controller.dispose();
+    }
+  }
+
+  Future<void> _deleteEntry(JournalEntryItem entry) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa ghi chú'),
+        content: const Text('Bạn có chắc muốn xóa ghi chú này không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final deleted = await _controller.deleteNote(entry);
+    if (!mounted) return;
+    await _loadEntries();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted ? 'Đã xóa ghi chú.' : 'Không thể xóa ghi chú.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEntryDetails(JournalEntryItem entry) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          title: const Text('Chi tiết ghi chú'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.title,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                if (entry.subtitle != null &&
+                    entry.subtitle!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    entry.subtitle!,
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.74),
+                    ),
+                  ),
+                ],
+                if (entry.occurredAt != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Thời điểm: ${MaterialLocalizations.of(context).formatShortDate(entry.occurredAt!)} ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(entry.occurredAt!))}',
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.74),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            if (entry.canManage)
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _openNoteEditor(entry: entry);
+                },
+                child: const Text('Sửa'),
+              ),
+            if (entry.canManage)
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _deleteEntry(entry);
+                },
+                child: const Text('Xóa'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Đóng'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _navController.addListener(_onNavChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadEntries();
+    });
+  }
+
+  @override
+  void dispose() {
+    _navController.removeListener(_onNavChanged);
+    super.dispose();
+  }
+
+  void _onNavChanged() {
+    if (_navController.index == 4) {
+      _loadEntries();
+    }
+  }
+
+  Future<void> _loadEntries() async {
+    setState(() => _isLoading = true);
+    final items = await _controller.getEntries(context);
+    if (!mounted) return;
+    setState(() {
+      _entries = items;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const controller = JournalController();
-    final entries = controller.getEntries();
+    final colorScheme = Theme.of(context).colorScheme;
+    final filteredEntries =
+        _entries.where(_matchesFilter).toList(growable: false);
 
     return SafeArea(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF7F3EC), Color(0xFFF1F7F3)],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TopBar(title: 'Nhật ký sức khỏe'),
+              TopBar(
+                title: AppStrings.journalScreenTitle(context),
+                onUserTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.profile),
+              ),
               const SizedBox(height: 22),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x1A1B7D5B),
+                      color: colorScheme.shadow.withValues(alpha: 0.16),
                       blurRadius: 18,
                       offset: Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Khung trang nhật ký',
+                      AppStrings.journalFrameTitle(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -55,51 +360,172 @@ class JournalScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 10),
-                    Text(
-                      'Trang này được tạo sẵn để bạn tiếp tục gắn nội dung ghi chép sau.',
-                    ),
+                    Text(AppStrings.journalFrameSubtitle(context)),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              Expanded(
-                child: ListView.separated(
-                  itemBuilder: (_, i) => Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x12000000),
-                          blurRadius: 10,
-                          offset: Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        const CircleAvatar(
-                          backgroundColor: Color(0xFFE4EFEA),
-                          child: Icon(
-                            Icons.notes,
-                            color: AppPalette.primaryDark,
-                          ),
+                        ChoiceChip(
+                          label: const Text('Ngày'),
+                          selected: _filterMode == _JournalFilterMode.day,
+                          onSelected: (_) {
+                            setState(
+                                () => _filterMode = _JournalFilterMode.day);
+                          },
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            entries[i].title,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
+                        ChoiceChip(
+                          label: const Text('Tuần'),
+                          selected: _filterMode == _JournalFilterMode.week,
+                          onSelected: (_) {
+                            setState(
+                                () => _filterMode = _JournalFilterMode.week);
+                          },
                         ),
-                        const Icon(Icons.chevron_right),
+                        ChoiceChip(
+                          label: const Text('Tháng'),
+                          selected: _filterMode == _JournalFilterMode.month,
+                          onSelected: (_) {
+                            setState(
+                                () => _filterMode = _JournalFilterMode.month);
+                          },
+                        ),
                       ],
                     ),
                   ),
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemCount: entries.length,
-                ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickAnchorDate,
+                      icon: const Icon(Icons.calendar_today_outlined),
+                      label: Text(_formatFilterLabel(_anchorDate)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _anchorDate = DateTime.now());
+                    },
+                    child: const Text('Hôm nay'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredEntries.isEmpty
+                        ? const Center(
+                            child: Text('Không có dữ liệu trong bộ lọc này.'),
+                          )
+                        : ListView.separated(
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.only(bottom: 150),
+                            itemBuilder: (_, i) => InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () =>
+                                  _showEntryDetails(filteredEntries[i]),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colorScheme.shadow.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor:
+                                          colorScheme.surfaceContainerHighest,
+                                      child: Icon(
+                                        Icons.notes,
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            filteredEntries[i].title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w700),
+                                          ),
+                                          if (filteredEntries[i].subtitle !=
+                                              null) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              filteredEntries[i].subtitle!,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: colorScheme.onSurface
+                                                    .withValues(alpha: 0.72),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    if (filteredEntries[i].canManage)
+                                      PopupMenuButton<String>(
+                                        onSelected: (value) async {
+                                          if (value == 'edit') {
+                                            await _openNoteEditor(
+                                                entry: filteredEntries[i]);
+                                            return;
+                                          }
+                                          if (value == 'delete') {
+                                            await _deleteEntry(
+                                                filteredEntries[i]);
+                                          }
+                                        },
+                                        itemBuilder: (context) => const [
+                                          PopupMenuItem<String>(
+                                            value: 'edit',
+                                            child: Text('Sửa'),
+                                          ),
+                                          PopupMenuItem<String>(
+                                            value: 'delete',
+                                            child: Text('Xóa'),
+                                          ),
+                                        ],
+                                      )
+                                    else
+                                      const Icon(Icons.chevron_right),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 8),
+                            itemCount: filteredEntries.length,
+                          ),
               ),
             ],
           ),
@@ -108,3 +534,5 @@ class JournalScreen extends StatelessWidget {
     );
   }
 }
+
+enum _JournalFilterMode { day, week, month }

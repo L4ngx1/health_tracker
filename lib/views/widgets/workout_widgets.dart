@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_palette.dart';
+import '../../core/localization/app_strings.dart';
 import '../../models/workout_history_item.dart';
 import '../../models/workout_item.dart';
 
@@ -11,15 +11,16 @@ class WorkoutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDCE9E2)),
-        boxShadow: const [
+        border: Border.all(color: colorScheme.outlineVariant),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A0F3A2E),
+            color: colorScheme.shadow.withValues(alpha: 0.14),
             blurRadius: 12,
             offset: Offset(0, 5),
           ),
@@ -28,8 +29,8 @@ class WorkoutCard extends StatelessWidget {
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: const Color(0xFFBDEFD5),
-            child: Icon(item.icon, color: AppPalette.primaryDark),
+            backgroundColor: colorScheme.primary.withValues(alpha: 0.18),
+            child: Icon(item.icon, color: colorScheme.primary),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -48,8 +49,8 @@ class WorkoutCard extends StatelessWidget {
                   item.subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppPalette.textMuted,
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                     fontSize: 12,
                   ),
                 ),
@@ -63,23 +64,29 @@ class WorkoutCard extends StatelessWidget {
 }
 
 class HistoryTile extends StatelessWidget {
-  const HistoryTile({super.key, required this.item});
+  const HistoryTile({
+    super.key,
+    required this.item,
+    this.onDelete,
+  });
 
   final WorkoutHistoryItem item;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            backgroundColor: Color(0xFFEAF2EE),
-            child: Icon(Icons.directions_run, color: AppPalette.primaryDark),
+          CircleAvatar(
+            backgroundColor: colorScheme.surfaceContainerHighest,
+            child: Icon(Icons.directions_run, color: colorScheme.primary),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -95,7 +102,9 @@ class HistoryTile extends StatelessWidget {
                 ),
                 Text(
                   '${item.date} • ${item.duration}',
-                  style: const TextStyle(color: AppPalette.textMuted),
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+                  ),
                 ),
               ],
             ),
@@ -105,16 +114,26 @@ class HistoryTile extends StatelessWidget {
             children: [
               Text(
                 item.kcal,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w900,
-                  color: AppPalette.primaryDark,
+                  color: colorScheme.primary,
                   fontSize: 30,
                 ),
               ),
-              const Text(
-                'KCAL',
-                style: TextStyle(fontSize: 10, color: AppPalette.textMuted),
+              Text(
+                AppStrings.caloriesLabel(context),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
+                ),
               ),
+              if (onDelete != null)
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Xóa',
+                  visualDensity: VisualDensity.compact,
+                ),
             ],
           ),
         ],
@@ -137,13 +156,17 @@ class QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       height: 140,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF16995F), Color(0xFF118A58)],
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primary,
+            colorScheme.primary.withValues(alpha: 0.86),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -152,20 +175,31 @@ class QuickActionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            radius: 20,
+            backgroundColor: Colors.white.withValues(alpha: 0.18),
             child: Icon(icon, color: Colors.white),
           ),
           const Spacer(),
           Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          Text(subtitle, style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
