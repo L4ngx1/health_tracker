@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final HomeController _homeController = HomeController();
   static const _prefGoalKm = 'home.movementGoalKm';
   static const _prefDistanceHistory = 'home.distanceHistoryKm';
+  static const _prefWorkoutHistory = 'workout.history.v1';
   static const _prefMigrationDone = 'home.migration.v1';
   static const _prefTodayResetDone = 'home.movementTodayResetDone';
   static const _prefWeightKg = 'profile.weightKg';
@@ -1582,16 +1583,73 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int _currentWorkoutStreak(double todayKm) {
     final now = DateTime.now();
+    final workoutDays = _daysWithWorkoutActivity();
     var streak = 0;
     for (var i = 0; i < 365; i++) {
       final day = DateTime(now.year, now.month, now.day - i);
       final key = _dayKey(day);
       final km = i == 0 ? todayKm : (_distanceHistoryKm[key] ?? 0);
-      final reached = km + 0.0001 >= _dailyGoalKm;
+      final reached = km + 0.0001 >= _dailyGoalKm || workoutDays.contains(key);
       if (!reached) break;
       streak += 1;
     }
     return streak;
+  }
+
+  Set<String> _daysWithWorkoutActivity() {
+    final prefs = _prefs;
+    if (prefs == null) return const <String>{};
+    final raw = prefs.getString(_accountKey(_prefWorkoutHistory)) ?? '';
+    if (raw.isEmpty) return const <String>{};
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const <String>{};
+
+      final days = <String>{};
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final name = (item['name'] ?? '').toString().toLowerCase();
+        final isWeeklyPlan =
+            name.contains('kế hoạch tập tuần') || name.contains('ke hoach tap tuan');
+        final kcal = _extractNumber((item['kcal'] ?? '').toString());
+        if (isWeeklyPlan && kcal <= 0) {
+          continue;
+        }
+
+        final tsRaw = item['timestampMs'];
+        final ts = tsRaw is int ? tsRaw : int.tryParse('$tsRaw');
+        if (ts != null) {
+          days.add(_dayKey(DateTime.fromMillisecondsSinceEpoch(ts)));
+          continue;
+        }
+
+        final parsedDate = _parseDisplayDate((item['date'] ?? '').toString());
+        if (parsedDate != null) {
+          days.add(_dayKey(parsedDate));
+        }
+      }
+      return days;
+    } catch (_) {
+      return const <String>{};
+    }
+  }
+
+  int _extractNumber(String raw) {
+    final match = RegExp(r'(\d+(?:[\.,]\d+)?)').firstMatch(raw);
+    if (match == null) return 0;
+    final normalized = (match.group(1) ?? '').replaceAll(',', '.');
+    return (double.tryParse(normalized) ?? 0).round();
+  }
+
+  DateTime? _parseDisplayDate(String raw) {
+    final match = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(raw.trim());
+    if (match == null) return null;
+    final day = int.tryParse(match.group(1) ?? '');
+    final month = int.tryParse(match.group(2) ?? '');
+    final year = int.tryParse(match.group(3) ?? '');
+    if (day == null || month == null || year == null) return null;
+    return DateTime(year, month, day);
   }
 
   String _motivationMessage({
