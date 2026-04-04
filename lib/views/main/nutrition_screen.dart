@@ -27,6 +27,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   final AIController _aiController = AIController();
 
   Uint8List? _selectedImageBytes;
+
   static const List<Map<String, String>> _goalOptions = [
     {'label': 'Giảm mỡ', 'prompt': 'Giảm mỡ và nâng cao sức bền'},
     {'label': 'Tăng cơ', 'prompt': 'Tăng cơ và cải thiện sức mạnh'},
@@ -430,14 +431,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
           ),
         ),
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
           padding: EdgeInsets.fromLTRB(
             16,
             10,
             16,
             MediaQuery.of(context).padding.bottom + 90,
+          ),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

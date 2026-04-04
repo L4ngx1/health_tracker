@@ -56,6 +56,12 @@ class AIService {
     if (raw.contains('invalid') && raw.contains('api key')) {
       return 'API key AI khong hop le. Vui long kiem tra lai cau hinh key.';
     }
+    if (raw.contains('expired') && raw.contains('api key')) {
+      return 'API key AI da het han. Vui long cap nhat GEMINI_API_KEY moi.';
+    }
+    if (raw.contains('quota exceeded') || raw.contains('rate limit')) {
+      return 'Da vuot qua han muc AI hien tai. Vui long doi hoac nang cap goi AI/Gemini.';
+    }
     if (raw.contains('missing') && raw.contains('gemini_api_key')) {
       return 'Chua cau hinh GEMINI_API_KEY trong assets/env/.env (hoac --dart-define).';
     }
@@ -75,14 +81,11 @@ class AIService {
       final content = [
         Content.multi([
           TextPart(
-              'Analyze this food image. Return ONLY a JSON object with this format: '
-              '{"name_en": "Common English Name", '
-              '"name_vi": "Tên tiếng Việt chính xác", '
-              '"calories_est": 0.0, '
-              '"description_vi": "Mô tả ngắn bằng tiếng Việt (2-3 câu)", '
-              '"description": "Short description in English (optional)"}. '
-              'The field `description_vi` MUST be provided and written in Vietnamese. '
-              'Respond with the JSON object only, no surrounding text or markdown fences.'),
+              'Phân tích hình ảnh món ăn và chỉ trả về một JSON hợp lệ, không thêm markdown hay giải thích. '
+              'Định dạng bắt buộc: '
+              '{"name_en": "Common English Name", "name_vi": "Tên tiếng Việt chính xác", "calories_est": 0.0, "description_vi": "Mô tả ngắn bằng tiếng Việt (2-3 câu)", "description": "Short description in English (optional)"}. '
+              'Yêu cầu: name_en là tên phổ biến bằng tiếng Anh; name_vi và description_vi phải là tiếng Việt tự nhiên; '
+              'description_vi tối đa 2-3 câu; calories_est là số dương.'),
           DataPart(mimeType, imageBytes),
         ]),
       ];
