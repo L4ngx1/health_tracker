@@ -48,6 +48,7 @@ app.*.map.json
 .env
 .env.*
 !.env.example
+assets/env
 assets/env/.env
 !assets/env/.env.example
 /assets/env/.env
