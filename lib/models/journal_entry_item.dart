@@ -6,6 +6,8 @@ class JournalEntryItem {
     this.note,
     this.createdAtIso,
     this.scheduledAtIso,
+    this.occurredAt,
+    this.category = 'general',
   });
 
   final String title;
@@ -14,4 +16,6 @@ class JournalEntryItem {
   final String? note;
   final String? createdAtIso;
   final String? scheduledAtIso;
+  final DateTime? occurredAt;
+  final String category;
 }

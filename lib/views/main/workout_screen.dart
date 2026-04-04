@@ -74,6 +74,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   static const _prefWeightKg = 'profile.weightKg';
   static const _prefWorkoutHistory = 'workout.history.v1';
   static const _prefPendingDelete = 'workout.pendingDelete.v1';
+  static const _prefPlanProgress = 'workout.planProgress.v1';
   final AIController _aiController = AIController();
   final BackendApiService _backendApiService = BackendApiService();
   final JournalNoteService _journalNoteService = const JournalNoteService();
@@ -93,6 +94,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   int _sessionsPerWeek = 4;
   int _historyFilterDays = 0; // 0=all, 7, 30
   int _selectedProgramFilter = -1; // -1 = tất cả
+  Map<String, bool> _planProgress = <String, bool>{};
 
   static const List<(String label, String prompt)> _goalOptions = [
     ('Giảm mỡ', 'Giảm mỡ và nâng cao sức bền'),
@@ -208,6 +210,119 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     setState(() => _history = merged);
     await _persistWorkoutHistoryList(merged);
     await _syncPendingCloudDeletes();
+    await _loadPlanProgress();
+  }
+
+  String _planProgressKey(String day, String item) => '$day|$item';
+
+  Future<void> _loadPlanProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_accountKey(_prefPlanProgress));
+    if (raw == null || raw.isEmpty) {
+      if (!mounted) return;
+      setState(() => _planProgress = <String, bool>{});
+      return;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final parsed = <String, bool>{};
+      decoded.forEach((key, value) {
+        parsed['$key'] = value == true;
+      });
+      if (!mounted) return;
+      setState(() => _planProgress = parsed);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _planProgress = <String, bool>{});
+    }
+  }
+
+  Future<void> _persistPlanProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _accountKey(_prefPlanProgress),
+      jsonEncode(_planProgress),
+    );
+  }
+
+  void _initializePlanProgress(List<_DayWorkoutPlan> plan, {bool reset = false}) {
+    final next = <String, bool>{};
+    for (final day in plan) {
+      for (final item in day.items) {
+        final key = _planProgressKey(day.day, item);
+        next[key] = reset ? false : (_planProgress[key] ?? false);
+      }
+    }
+    _planProgress = next;
+  }
+
+  double _planProgressRatio() {
+    if (_weeklyPlan.isEmpty) return 0;
+    var total = 0;
+    var done = 0;
+    for (final day in _weeklyPlan) {
+      for (final item in day.items) {
+        total += 1;
+        if (_planProgress[_planProgressKey(day.day, item)] == true) {
+          done += 1;
+        }
+      }
+    }
+    if (total == 0) return 0;
+    return done / total;
+  }
+
+  Future<void> _showPlanDetails() async {
+    if (_weeklyPlan.isEmpty) return;
+    final progressPercent = (_planProgressRatio() * 100).round();
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Chi tiết kế hoạch ($progressPercent%)'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _weeklyPlan.map((dayPlan) {
+                final checked = dayPlan.items
+                    .where((item) =>
+                        _planProgress[_planProgressKey(dayPlan.day, item)] ==
+                        true)
+                    .length;
+                final total = dayPlan.items.length;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_viDayLabel(dayPlan.day)} ($checked/$total)',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      ...dayPlan.items.map((item) {
+                        final done =
+                            _planProgress[_planProgressKey(dayPlan.day, item)] ==
+                                true;
+                        return Text('${done ? '[x]' : '[ ]'} ${_translatePlanItemText(item)}');
+                      }),
+                    ],
+                  ),
+                );
+              }).toList(growable: false),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _persistWorkoutHistory() async {
@@ -723,11 +838,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       selectedLevel,
       weightKg: _weightKg,
     );
+    final nextPlan = _buildWeeklyPlan(plan);
     setState(() {
       _aiWorkoutPlan = plan;
-      _weeklyPlan = _buildWeeklyPlan(plan);
+      _weeklyPlan = nextPlan;
+      _initializePlanProgress(nextPlan, reset: true);
       _isLoading = false;
     });
+    await _persistPlanProgress();
 
     try {
       await _backendApiService.addMyNotification(
@@ -1062,20 +1180,53 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       for (final day in _weeklyPlan) {
         buffer.writeln('${day.day}:');
         for (final item in day.items) {
-          buffer.writeln('- $item');
+          final checked = _planProgress[_planProgressKey(day.day, item)] == true;
+          buffer.writeln('${checked ? '[x]' : '[ ]'} $item');
         }
+      }
+
+      final now = DateTime.now();
+      final planHistory = WorkoutHistoryItem(
+        name: 'Kế hoạch tập tuần',
+        date: _todayLabel(),
+        duration: '$_sessionsPerWeek buổi',
+        kcal: '0',
+        timestampMs: now.millisecondsSinceEpoch,
+      );
+
+      final updatedHistory = [planHistory, ..._history].take(50).toList(growable: false);
+      if (mounted) {
+        setState(() {
+          _history = updatedHistory;
+        });
+      }
+      await _persistWorkoutHistory();
+
+      try {
+        await _backendApiService.addMyWorkout(
+          WorkoutRecord(
+            id: '',
+            name: 'Kế hoạch tập tuần',
+            durationMinutes: _sessionsPerWeek * 30,
+            caloriesBurned: 0,
+            performedAt: now,
+            note: buffer.toString(),
+          ),
+        );
+      } catch (_) {
+        // Keep local history entry even if cloud sync fails.
       }
 
       await _journalNoteService.saveEntry(
         note: buffer.toString(),
-        scheduledAt: DateTime.now(),
+        scheduledAt: now,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã lưu kế hoạch vào Nhật ký.')),
+        const SnackBar(content: Text('Đã lưu kế hoạch vào lịch sử tập luyện.')),
       );
-      MainNavigationController().setIndex(4);
+      MainNavigationController().setIndex(1);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1233,7 +1384,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               _selectedGoalIndex = index;
                               _aiWorkoutPlan = null;
                               _weeklyPlan = const [];
+                              _planProgress = <String, bool>{};
                             });
+                            _persistPlanProgress();
                           },
                         );
                       }),
@@ -1260,7 +1413,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               _selectedLevelIndex = index;
                               _aiWorkoutPlan = null;
                               _weeklyPlan = const [];
+                              _planProgress = <String, bool>{};
                             });
+                            _persistPlanProgress();
                           },
                         );
                       }),
@@ -1291,9 +1446,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             setState(() {
                               _sessionsPerWeek = value;
                               if (_aiWorkoutPlan != null) {
-                                _weeklyPlan = _buildWeeklyPlan(_aiWorkoutPlan!);
+                                final nextPlan = _buildWeeklyPlan(_aiWorkoutPlan!);
+                                _weeklyPlan = nextPlan;
+                                _initializePlanProgress(nextPlan);
                               }
                             });
+                            _persistPlanProgress();
                           },
                         ),
                       ],
@@ -1305,6 +1463,33 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Builder(
+                            builder: (context) {
+                              final ratio = _planProgressRatio();
+                              final percent = (ratio * 100).round();
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Tiến độ kế hoạch: $percent%',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: ratio,
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 10),
                           Text(
                             'Kế hoạch theo ngày',
                             style: TextStyle(
@@ -1336,8 +1521,23 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   const SizedBox(height: 6),
                                   ...dayPlan.items.map(
                                     (item) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Text('- ${_translatePlanItemText(item)}'),
+                                      padding: const EdgeInsets.only(bottom: 2),
+                                      child: CheckboxListTile(
+                                        value:
+                                            _planProgress[_planProgressKey(dayPlan.day, item)] == true,
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        title: Text(_translatePlanItemText(item)),
+                                        onChanged: (checked) {
+                                          setState(() {
+                                            _planProgress[_planProgressKey(dayPlan.day, item)] =
+                                                checked == true;
+                                          });
+                                          _persistPlanProgress();
+                                        },
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1382,6 +1582,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
+                        onPressed: _weeklyPlan.isEmpty ? null : _showPlanDetails,
+                        icon: const Icon(Icons.visibility_outlined),
+                        label: const Text('Xem chi tiết kế hoạch'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
                         onPressed: _isSavingPlan ? null : _saveWeeklyPlanToJournal,
                         icon: _isSavingPlan
                             ? const SizedBox(
@@ -1390,7 +1599,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.save_outlined),
-                        label: const Text('Lưu kế hoạch vào Nhật ký'),
+                        label: const Text('Lưu kế hoạch vào lịch sử tập luyện'),
                       ),
                     ),
                   ],
