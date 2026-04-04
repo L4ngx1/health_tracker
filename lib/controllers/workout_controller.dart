@@ -69,6 +69,7 @@ class WorkoutController {
           date: '$day/$month/$year',
           duration: '${record.durationMinutes} min',
           kcal: record.caloriesBurned.round().toString(),
+          note: record.note,
         );
       }).toList(growable: false);
     } catch (_) {
