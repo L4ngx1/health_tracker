@@ -142,6 +142,15 @@ class AIService {
     String status, {
     double? weightKg,
   }) async {
+    final geminiPlan = await _getWorkoutSuggestionsFromGemini(
+      goal: goal,
+      status: status,
+      weightKg: weightKg,
+    );
+    if (geminiPlan != null) {
+      return geminiPlan;
+    }
+
     final freePlan = await _getWorkoutSuggestionsFromFreeApi(
       goal: goal,
       status: status,
@@ -151,6 +160,53 @@ class AIService {
       return freePlan;
     }
     return _localFallbackWorkoutPlan(goal: goal, status: status, weightKg: weightKg);
+  }
+
+  Future<String?> _getWorkoutSuggestionsFromGemini({
+    required String goal,
+    required String status,
+    double? weightKg,
+  }) async {
+    if (!isAiConfigured) return null;
+    try {
+      final model = _requireModel();
+      final prompt = '''
+Tạo kế hoạch tập luyện tuần bằng tiếng Việt.
+Mục tiêu: $goal
+Trình độ: $status
+Cân nặng: ${weightKg?.toStringAsFixed(1) ?? 'chưa cập nhật'} kg
+
+Yêu cầu định dạng:
+- Trả về text thuần, không markdown.
+- Có các dòng đầu:
+Nguồn: Gemini API
+Mục tiêu: ...
+Trình độ: ...
+Cân nặng: ...
+
+- Sau đó tạo phần "Bài tập gợi ý:" gồm đúng 6 dòng được đánh số:
+1. ...
+2. ...
+...
+6. ...
+
+- Mỗi dòng là một bài tập cụ thể, không trùng nhau, có thể kèm nhóm cơ trong ngoặc.
+- Kết thúc bằng dòng: Lịch đề xuất: 3-5 buổi/tuần, 35-60 phút/buổi.
+''';
+
+      final response = await model.generateContent([Content.text(prompt)]);
+      final text = (response.text ?? '').trim();
+      if (text.isEmpty) return null;
+
+      final numbered = RegExp(r'^\s*\d+\.\s+', multiLine: true);
+      if (!numbered.hasMatch(text)) {
+        return null;
+      }
+      return text;
+    } catch (e) {
+      debugPrint('Gemini workout API error: $e');
+      return null;
+    }
   }
 
   Future<String?> _getWorkoutSuggestionsFromFreeApi({

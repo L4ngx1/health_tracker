@@ -19,6 +19,55 @@ class _JournalScreenState extends State<JournalScreen> {
   final MainNavigationController _navController = MainNavigationController();
   List<JournalEntryItem> _entries = <JournalEntryItem>[];
   bool _isLoading = false;
+  _JournalFilterMode _filterMode = _JournalFilterMode.day;
+  DateTime _anchorDate = DateTime.now();
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  DateTime _startOfWeek(DateTime value) {
+    final base = DateTime(value.year, value.month, value.day);
+    return base.subtract(Duration(days: base.weekday - DateTime.monday));
+  }
+
+  String _formatFilterLabel(DateTime value) {
+    final localizations = MaterialLocalizations.of(context);
+    if (_filterMode == _JournalFilterMode.day) {
+      return localizations.formatShortDate(value);
+    }
+    if (_filterMode == _JournalFilterMode.week) {
+      final start = _startOfWeek(value);
+      final end = start.add(const Duration(days: 6));
+      return '${localizations.formatShortDate(start)} - ${localizations.formatShortDate(end)}';
+    }
+    return '${value.month}/${value.year}';
+  }
+
+  bool _matchesFilter(JournalEntryItem entry) {
+    final date = entry.occurredAt;
+    if (date == null) return true;
+    if (_filterMode == _JournalFilterMode.day) {
+      return _isSameDay(date, _anchorDate);
+    }
+    if (_filterMode == _JournalFilterMode.week) {
+      final start = _startOfWeek(_anchorDate);
+      final endExclusive = start.add(const Duration(days: 7));
+      return !date.isBefore(start) && date.isBefore(endExclusive);
+    }
+    return date.year == _anchorDate.year && date.month == _anchorDate.month;
+  }
+
+  Future<void> _pickAnchorDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _anchorDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _anchorDate = picked);
+  }
 
   Future<void> _openNoteEditor({JournalEntryItem? entry}) async {
     final controller = TextEditingController(text: entry?.note ?? '');
@@ -183,6 +232,15 @@ class _JournalScreenState extends State<JournalScreen> {
                     ),
                   ),
                 ],
+                if (entry.occurredAt != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Thời điểm: ${MaterialLocalizations.of(context).formatShortDate(entry.occurredAt!)} ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(entry.occurredAt!))}',
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.74),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -245,6 +303,7 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final filteredEntries = _entries.where(_matchesFilter).toList(growable: false);
 
     return SafeArea(
       child: Container(
@@ -298,13 +357,70 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Ngày'),
+                          selected: _filterMode == _JournalFilterMode.day,
+                          onSelected: (_) {
+                            setState(() => _filterMode = _JournalFilterMode.day);
+                          },
+                        ),
+                        ChoiceChip(
+                          label: const Text('Tuần'),
+                          selected: _filterMode == _JournalFilterMode.week,
+                          onSelected: (_) {
+                            setState(() => _filterMode = _JournalFilterMode.week);
+                          },
+                        ),
+                        ChoiceChip(
+                          label: const Text('Tháng'),
+                          selected: _filterMode == _JournalFilterMode.month,
+                          onSelected: (_) {
+                            setState(() => _filterMode = _JournalFilterMode.month);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickAnchorDate,
+                      icon: const Icon(Icons.calendar_today_outlined),
+                      label: Text(_formatFilterLabel(_anchorDate)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _anchorDate = DateTime.now());
+                    },
+                    child: const Text('Hôm nay'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
+                    : filteredEntries.isEmpty
+                    ? const Center(
+                        child: Text('Không có dữ liệu trong bộ lọc này.'),
+                      )
                     : ListView.separated(
                         itemBuilder: (_, i) => InkWell(
                           borderRadius: BorderRadius.circular(14),
-                          onTap: () => _showEntryDetails(_entries[i]),
+                          onTap: () => _showEntryDetails(filteredEntries[i]),
                           child: Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
@@ -337,15 +453,15 @@ class _JournalScreenState extends State<JournalScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        _entries[i].title,
+                                        filteredEntries[i].title,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(fontWeight: FontWeight.w700),
                                       ),
-                                      if (_entries[i].subtitle != null) ...[
+                                      if (filteredEntries[i].subtitle != null) ...[
                                         const SizedBox(height: 4),
                                         Text(
-                                          _entries[i].subtitle!,
+                                          filteredEntries[i].subtitle!,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
@@ -358,15 +474,15 @@ class _JournalScreenState extends State<JournalScreen> {
                                     ],
                                   ),
                                 ),
-                                if (_entries[i].canManage)
+                                if (filteredEntries[i].canManage)
                                   PopupMenuButton<String>(
                                     onSelected: (value) async {
                                       if (value == 'edit') {
-                                        await _openNoteEditor(entry: _entries[i]);
+                                        await _openNoteEditor(entry: filteredEntries[i]);
                                         return;
                                       }
                                       if (value == 'delete') {
-                                        await _deleteEntry(_entries[i]);
+                                        await _deleteEntry(filteredEntries[i]);
                                       }
                                     },
                                     itemBuilder: (context) => const [
@@ -388,7 +504,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         ),
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: 8),
-                        itemCount: _entries.length,
+                        itemCount: filteredEntries.length,
                       ),
               ),
             ],
@@ -398,3 +514,5 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 }
+
+enum _JournalFilterMode { day, week, month }

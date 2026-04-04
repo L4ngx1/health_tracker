@@ -8,7 +8,7 @@ import '../models/backend/workout_record.dart';
 
 class BackendRepository {
   BackendRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -239,9 +239,8 @@ class BackendRepository {
     required String uid,
     bool? onlyImportant,
   }) async {
-    Query<Map<String, dynamic>> query = _notificationCol(uid)
-        .where('isRead', isEqualTo: false)
-        .limit(300);
+    Query<Map<String, dynamic>> query =
+        _notificationCol(uid).where('isRead', isEqualTo: false).limit(300);
 
     if (onlyImportant != null) {
       query = query.where('isImportant', isEqualTo: onlyImportant);
@@ -254,11 +253,14 @@ class BackendRepository {
 
     final batch = _firestore.batch();
     for (final doc in snapshot.docs) {
-      batch.set(doc.reference, <String, dynamic>{
-        'isRead': true,
-        'readAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      batch.set(
+          doc.reference,
+          <String, dynamic>{
+            'isRead': true,
+            'readAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true));
     }
     await batch.commit();
   }

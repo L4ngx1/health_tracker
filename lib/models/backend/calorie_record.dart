@@ -27,9 +27,8 @@ class CalorieRecord {
 
   static CalorieRecord fromMap(String id, Map<String, dynamic> map) {
     final dynamic recordedAt = map['recordedAt'];
-    final DateTime when = recordedAt is Timestamp
-        ? recordedAt.toDate()
-        : DateTime.now();
+    final DateTime when =
+        recordedAt is Timestamp ? recordedAt.toDate() : DateTime.now();
 
     return CalorieRecord(
       id: id,

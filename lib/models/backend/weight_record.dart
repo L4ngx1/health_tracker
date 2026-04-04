@@ -27,9 +27,8 @@ class WeightRecord {
 
   static WeightRecord fromMap(String id, Map<String, dynamic> map) {
     final dynamic recordedAt = map['recordedAt'];
-    final DateTime when = recordedAt is Timestamp
-        ? recordedAt.toDate()
-        : DateTime.now();
+    final DateTime when =
+        recordedAt is Timestamp ? recordedAt.toDate() : DateTime.now();
 
     return WeightRecord(
       id: id,

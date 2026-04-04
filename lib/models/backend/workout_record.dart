@@ -30,9 +30,8 @@ class WorkoutRecord {
 
   static WorkoutRecord fromMap(String id, Map<String, dynamic> map) {
     final dynamic performedAt = map['performedAt'];
-    final DateTime when = performedAt is Timestamp
-        ? performedAt.toDate()
-        : DateTime.now();
+    final DateTime when =
+        performedAt is Timestamp ? performedAt.toDate() : DateTime.now();
 
     return WorkoutRecord(
       id: id,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../controllers/main_navigation_controller.dart';
 import '../../core/localization/app_strings.dart';
@@ -22,14 +23,150 @@ class _NotesScreenState extends State<NotesScreen> {
   final GoogleCalendarSyncService _calendarSyncService =
       const GoogleCalendarSyncService();
   final JournalNoteService _journalNoteService = const JournalNoteService();
+  final stt.SpeechToText _speech = stt.SpeechToText();
   bool _syncing = false;
   bool _saving = false;
+  bool _speechReady = false;
+  bool _isListening = false;
+  String? _speechHint;
+  String? _speechLocaleId;
   DateTime? _scheduledAt;
 
   @override
   void initState() {
     super.initState();
     _navController.addListener(_onNavChanged);
+    _initializeSpeech();
+  }
+
+  Future<void> _initializeSpeech() async {
+    try {
+      final available = await _speech.initialize(
+        onError: (error) {
+          if (!mounted) return;
+          setState(() {
+            _speechHint = _isEnglish
+                ? 'Speech error: ${error.errorMsg}'
+                : 'Lỗi ghi âm: ${error.errorMsg}';
+            _isListening = false;
+          });
+        },
+        onStatus: (status) {
+          if (!mounted) return;
+          setState(() {
+            _isListening = status == 'listening';
+          });
+        },
+      );
+      if (!mounted) return;
+      String? preferredLocale;
+      if (available) {
+        try {
+          final locales = await _speech.locales();
+          for (final locale in locales) {
+            final id = locale.localeId.toLowerCase();
+            if (id == 'vi_vn' || id == 'vi-vn') {
+              preferredLocale = locale.localeId;
+              break;
+            }
+          }
+          preferredLocale ??= locales
+              .map((e) => e.localeId)
+              .firstWhere(
+                (id) => id.toLowerCase().startsWith('vi'),
+                orElse: () => '',
+              );
+          if (preferredLocale.isEmpty) {
+            preferredLocale = null;
+          }
+        } catch (_) {
+          preferredLocale = null;
+        }
+      }
+      setState(() {
+        _speechReady = available;
+        _speechLocaleId = preferredLocale;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _speechReady = false;
+        _speechLocaleId = null;
+      });
+    }
+  }
+
+  Future<void> _toggleSpeech() async {
+    if (!_speechReady) {
+      await _initializeSpeech();
+    }
+    if (!_speechReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isEnglish
+                ? 'Speech recognition is not available on this device.'
+                : 'Thiết bị này chưa sẵn sàng nhận diện giọng nói.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_isListening) {
+      await _speech.stop();
+      if (!mounted) return;
+      setState(() {
+        _isListening = false;
+        _speechHint = _isEnglish ? 'Recording stopped.' : 'Đã dừng ghi âm.';
+      });
+      return;
+    }
+
+    setState(() {
+      _speechHint = _isEnglish
+          ? 'Listening in Vietnamese...'
+          : 'Đang nghe tiếng Việt...';
+    });
+
+    await _speech.listen(
+      localeId: _speechLocaleId,
+      listenFor: const Duration(minutes: 2),
+      pauseFor: const Duration(seconds: 6),
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: stt.ListenMode.dictation,
+        partialResults: true,
+      ),
+      onResult: (result) {
+        if (!mounted) return;
+        final text = result.recognizedWords.trim();
+        if (text.isEmpty) return;
+        setState(() {
+          _noteController.text = text;
+          _noteController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _noteController.text.length),
+          );
+          _isListening = !result.finalResult;
+          _speechHint = result.finalResult
+              ? (_isEnglish
+                  ? 'Speech converted to text.'
+                  : 'Đã chuyển giọng nói thành văn bản.')
+              : (_isEnglish
+                  ? 'Listening in Vietnamese...'
+                  : 'Đang nghe tiếng Việt...');
+        });
+      },
+    );
+
+    if (!mounted) return;
+    if (!_speech.isListening) {
+      setState(() {
+        _speechHint = _isEnglish
+            ? 'Cannot start microphone. Check permission/network.'
+            : 'Không thể bắt đầu ghi âm. Hãy kiểm tra quyền micro hoặc mạng.';
+      });
+    }
   }
 
   void _onNavChanged() {
@@ -186,6 +323,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
   @override
   void dispose() {
+    _speech.cancel();
     _navController.removeListener(_onNavChanged);
     _noteFocusNode.dispose();
     _noteController.dispose();
@@ -223,20 +361,29 @@ class _NotesScreenState extends State<NotesScreen> {
                 ),
                 const SizedBox(height: 20),
                 Center(
-                  child: CircleAvatar(
-                    radius: 52,
-                    backgroundColor: colorScheme.primary,
-                    child: Icon(
-                      Icons.mic_none_rounded,
-                      size: 46,
-                      color: colorScheme.onPrimary,
+                  child: GestureDetector(
+                    onTap: _toggleSpeech,
+                    child: CircleAvatar(
+                      radius: 52,
+                      backgroundColor: _isListening
+                          ? colorScheme.error
+                          : colorScheme.primary,
+                      child: Icon(
+                        _isListening
+                            ? Icons.stop_rounded
+                            : Icons.mic_none_rounded,
+                        size: 46,
+                        color: colorScheme.onPrimary,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
-                    AppStrings.tapToRecord(context),
+                    _isListening
+                        ? (_isEnglish ? 'Recording' : 'Đang ghi âm')
+                        : AppStrings.tapToRecord(context),
                     style: TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.w900,
@@ -247,7 +394,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    AppStrings.notesPrompt(context),
+                    _speechHint ?? AppStrings.notesPrompt(context),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: colorScheme.onSurface.withValues(alpha: 0.72),
