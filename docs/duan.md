@@ -119,6 +119,9 @@ HealthTrackerApp  (Root Widget - Nền tảng cấu hình Theme, Đa ngôn ngữ
      │    ├── LoginScreen (Trang Đăng nhập)
      │    ├── RegisterScreen (Trang Đăng ký)
      │    └── ForgotPasswordScreen (Trang Quên mật khẩu)
+      │    ├── LoginScreen (Trang Đăng nhập)
+      │    ├── RegisterScreen (Trang Đăng ký)
+      │    └── ForgotPasswordScreen (Trang Quên mật khẩu)
       │
       ├── (Nếu đã đăng nhập nhưng chưa báo xác nhận Email)
       │    └── UnverifiedScreen (Trang yêu cầu vào hòm thư xác minh)
