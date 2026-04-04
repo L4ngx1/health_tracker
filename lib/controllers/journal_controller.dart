@@ -253,7 +253,6 @@ class JournalController {
     if (createdAt == null || createdAt.isEmpty) return false;
     return _noteService.deleteEntryByCreatedAt(
       createdAt: createdAt,
-      note: entry.note,
       scheduledAt: entry.scheduledAtIso,
     );
   }
