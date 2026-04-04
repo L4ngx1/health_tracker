@@ -39,6 +39,21 @@ const _defaultDistanceGoalKm = 6.0;
 @pragma('vm:entry-point')
 void trackingCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    if (task == _trackingTask) {
+      final prefs = await SharedPreferences.getInstance();
+
+      final lastStepTime = prefs.getInt('last_step_time') ??
+          DateTime.now().millisecondsSinceEpoch;
+      final inactiveDuration =
+          DateTime.now().millisecondsSinceEpoch - lastStepTime;
+
+      // Logic giấc ngủ: nếu 15 phút không có cập nhật bước chân -> có thể đang ngủ
+      if (inactiveDuration > 15 * 60 * 1000) {
+        prefs.setBool('is_sleeping', true);
+      }
+
+      prefs.setInt('last_lazy_sync', DateTime.now().millisecondsSinceEpoch);
+    }
     return true;
   });
 }
