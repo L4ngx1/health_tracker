@@ -26,7 +26,29 @@ class _NutritionScreenState extends State<NutritionScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final AIController _aiController = AIController();
 
+<<<<<<< HEAD
   Uint8List? _selectedImageBytes;
+=======
+  static const List<Map<String, String>> _goalOptions = [
+    {'label': 'Giảm mỡ', 'prompt': 'Giảm mỡ và nâng cao sức bền'},
+    {'label': 'Tăng cơ', 'prompt': 'Tăng cơ và cải thiện sức mạnh'},
+    {'label': 'Tăng sức bền', 'prompt': 'Tăng sức bền tim mạch và độ bền toàn thân'},
+    {'label': 'Duy trì', 'prompt': 'Duy trì sức khỏe và vận động đều đặn'},
+  ];
+
+  static const List<Map<String, String>> _levelOptions = [
+    {'label': 'Mới bắt đầu', 'prompt': 'Mới bắt đầu, tập 2 buổi/tuần'},
+    {'label': 'Trung cấp', 'prompt': 'Trung cấp, tập 3-4 buổi/tuần'},
+    {'label': 'Nâng cao', 'prompt': 'Nâng cao, tập 5 buổi/tuần'},
+  ];
+
+  String? _selectedGoalLabel;
+  String? _selectedGoalPrompt;
+  String? _selectedLevelLabel;
+  String? _selectedLevelPrompt;
+
+  File? _selectedImage;
+>>>>>>> e2a4d6a (AI goi y)
   String? _cameraError;
   bool _isInitializingCamera = false;
   bool _isCapturing = false;
@@ -273,6 +295,46 @@ class _NutritionScreenState extends State<NutritionScreen> {
     }
   }
 
+  bool _isGeneratingDiet = false;
+  String? _dietRecommendation;
+
+  Future<void> _generateDietRecommendations() async {
+    final condition = '${_selectedGoalPrompt ?? _selectedGoalLabel ?? ''} ${_selectedLevelPrompt ?? _selectedLevelLabel ?? ''}'.trim();
+    final prefs = '';
+    if (!_aiController.isAiConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('AI chưa được cấu hình. Vui lòng thêm GEMINI_API_KEY.')),
+      );
+      return;
+    }
+
+    try {
+      setState(() {
+        _isGeneratingDiet = true;
+        _dietRecommendation = null;
+      });
+
+      final result = await _aiController.getPersonalizedDiet(condition.isEmpty ? 'Sức khỏe chung' : condition, prefs);
+      if (mounted) {
+        setState(() {
+          _dietRecommendation = result;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi tạo gợi ý: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingDiet = false;
+        });
+      }
+    }
+  }
+
   void _retakePhoto() {
     setState(() {
       _selectedImageBytes = null;
@@ -364,10 +426,19 @@ class _NutritionScreenState extends State<NutritionScreen> {
           ),
         ),
         child: SingleChildScrollView(
+<<<<<<< HEAD
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
+=======
+          padding: EdgeInsets.fromLTRB(
+            16,
+            10,
+            16,
+            MediaQuery.of(context).padding.bottom + 90,
+          ),
+>>>>>>> e2a4d6a (AI goi y)
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -529,8 +600,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ),
                 ),
 
+<<<<<<< HEAD
               const SizedBox(height: 14),
               if (_selectedImageBytes == null) ...[
+=======
+              if (_selectedImage == null) ...[
+                const SizedBox(height: 12),
+>>>>>>> e2a4d6a (AI goi y)
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -628,6 +704,158 @@ class _NutritionScreenState extends State<NutritionScreen> {
                         ],
                       ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Gợi ý chế độ ăn uống
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: colorScheme.surfaceVariant.withValues(alpha: 0.06),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gợi ý chế độ ăn theo tuần',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      value: _selectedGoalLabel,
+                      decoration: InputDecoration(
+                        labelText: 'Mục tiêu',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        isDense: true,
+                      ),
+                      items: _goalOptions
+                          .map((o) => DropdownMenuItem(value: o['label'], child: Text(o['label']!)))
+                          .toList(),
+                      onChanged: (v) {
+                        final found = _goalOptions.firstWhere((o) => o['label'] == v, orElse: () => {});
+                        setState(() {
+                          _selectedGoalLabel = v;
+                          _selectedGoalPrompt = found['prompt'];
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedLevelLabel,
+                      decoration: InputDecoration(
+                        labelText: 'Trình độ',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        isDense: true,
+                      ),
+                      items: _levelOptions
+                          .map((o) => DropdownMenuItem(value: o['label'], child: Text(o['label']!)))
+                          .toList(),
+                      onChanged: (v) {
+                        final found = _levelOptions.firstWhere((o) => o['label'] == v, orElse: () => {});
+                        setState(() {
+                          _selectedLevelLabel = v;
+                          _selectedLevelPrompt = found['prompt'];
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isGeneratingDiet ? null : _generateDietRecommendations,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 3,
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: _isGeneratingDiet
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text(
+                                    'Đang tạo gợi ý...',
+                                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                                  ),
+                                ],
+                              )
+                            : const Text(
+                                'Tạo gợi ý ăn theo tuần',
+                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_isGeneratingDiet)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Đang lấy gợi ý chế độ ăn từ AI...',
+                              style: TextStyle(color: colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_dietRecommendation != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Kế hoạch tuần',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SelectableText(
+                              _dietRecommendation!,
+                              style: TextStyle(color: colorScheme.onSurface),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        'Chọn mục tiêu và trình độ, sau đó nhấn tạo gợi ý để nhận thực đơn tuần bằng AI.',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
                   ],
                 ),
               ),

@@ -1,0 +1,12 @@
+# Example environment variables for Health Tracker
+# Copy this file to `assets/env/.env` (or set via --dart-define) and
+# replace the placeholder values with your actual keys.
+
+# Gemini AI (Google) API key used by the app. You can either:
+#  - Create `assets/env/.env` and add this line, or
+#  - Pass it at runtime: `--dart-define=GEMINI_API_KEY=your_key_here`
+
+GEMINI_API_KEY=AIzaSyBFcXe9k0_1TdK9Jkk_BelMI_BaHVfwjwE
+
+# Other variables (examples):
+# CLOUDFLARE_R2_WORKER_URL=https://example.workers.dev/upload
