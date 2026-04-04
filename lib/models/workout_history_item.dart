@@ -6,6 +6,7 @@ class WorkoutHistoryItem {
     required this.kcal,
     this.timestampMs,
     this.cloudId,
+    this.note,
   });
 
   final String name;
@@ -14,4 +15,5 @@ class WorkoutHistoryItem {
   final String kcal;
   final int? timestampMs;
   final String? cloudId;
+  final String? note;
 }

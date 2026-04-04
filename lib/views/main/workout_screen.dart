@@ -340,6 +340,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             'kcal': e.kcal,
             'timestampMs': e.timestampMs,
             'cloudId': e.cloudId,
+            'note': e.note,
           },
         )
         .toList(growable: false);
@@ -469,6 +470,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             cloudId: (item['cloudId'] ?? '').toString().trim().isEmpty
                 ? null
                 : (item['cloudId'] ?? '').toString(),
+            note: (item['note'] ?? '').toString().trim().isEmpty
+                ? null
+                : (item['note'] ?? '').toString(),
           ),
         );
       }
@@ -490,6 +494,49 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       kcal: record.caloriesBurned.round().toString(),
       timestampMs: dt.millisecondsSinceEpoch,
       cloudId: record.id,
+      note: record.note,
+    );
+  }
+
+  Future<void> _showHistoryDetails(WorkoutHistoryItem item) async {
+    final detailNote = (item.note ?? '').trim();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Chi tiết bài tập'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Tên bài tập: ${item.name}'),
+                const SizedBox(height: 6),
+                Text('Ngày: ${item.date}'),
+                const SizedBox(height: 6),
+                Text('Thời lượng: ${item.duration}'),
+                const SizedBox(height: 6),
+                Text('Calories: ${item.kcal} kcal'),
+                if (detailNote.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Ghi chú:',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText(detailNote),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Đóng'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -755,6 +802,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             duration: '$draftDuration phút',
                             kcal: '$estimated',
                             timestampMs: performedAt.millisecondsSinceEpoch,
+                            note: 'manual-log',
                           );
                           if (!mounted) return;
                           setState(() {
@@ -781,6 +829,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               kcal: entry.kcal,
                               timestampMs: entry.timestampMs,
                               cloudId: cloudId,
+                              note: entry.note,
                             );
                             if (mounted) {
                               setState(() {
@@ -1192,6 +1241,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         duration: '$_sessionsPerWeek buổi',
         kcal: '0',
         timestampMs: now.millisecondsSinceEpoch,
+        note: buffer.toString(),
       );
 
       final updatedHistory = [planHistory, ..._history].take(50).toList(growable: false);
@@ -1763,7 +1813,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       return ok == true;
                     },
                     onDismissed: (_) => _deleteHistoryAt(pair.key, filteredHistory),
-                    child: HistoryTile(item: pair.value),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => _showHistoryDetails(pair.value),
+                      child: HistoryTile(item: pair.value),
+                    ),
                   ),
                 ),
               ),
