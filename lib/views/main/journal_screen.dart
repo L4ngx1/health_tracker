@@ -98,7 +98,8 @@ class _JournalScreenState extends State<JournalScreen> {
                 children: [
                   Text(
                     isEditing ? 'Sửa ghi chú' : 'Thêm ghi chú',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -131,13 +132,16 @@ class _JournalScreenState extends State<JournalScreen> {
                             final text = controller.text.trim();
                             if (text.isEmpty) {
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('Vui lòng nhập nội dung ghi chú.')),
+                                const SnackBar(
+                                    content: Text(
+                                        'Vui lòng nhập nội dung ghi chú.')),
                               );
                               return;
                             }
 
                             final ok = isEditing
-                                ? await _controller.updateNote(entry: entry, note: text)
+                                ? await _controller.updateNote(
+                                    entry: entry, note: text)
                                 : await _controller.addNote(text);
                             if (!mounted) return;
                             navigator.pop();
@@ -223,7 +227,8 @@ class _JournalScreenState extends State<JournalScreen> {
                   entry.title,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                if (entry.subtitle != null && entry.subtitle!.trim().isNotEmpty) ...[
+                if (entry.subtitle != null &&
+                    entry.subtitle!.trim().isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Text(
                     entry.subtitle!,
@@ -305,7 +310,8 @@ class _JournalScreenState extends State<JournalScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final filteredEntries = _entries.where(_matchesFilter).toList(growable: false);
+    final filteredEntries =
+        _entries.where(_matchesFilter).toList(growable: false);
 
     return SafeArea(
       child: Container(
@@ -370,21 +376,24 @@ class _JournalScreenState extends State<JournalScreen> {
                           label: const Text('Ngày'),
                           selected: _filterMode == _JournalFilterMode.day,
                           onSelected: (_) {
-                            setState(() => _filterMode = _JournalFilterMode.day);
+                            setState(
+                                () => _filterMode = _JournalFilterMode.day);
                           },
                         ),
                         ChoiceChip(
                           label: const Text('Tuần'),
                           selected: _filterMode == _JournalFilterMode.week,
                           onSelected: (_) {
-                            setState(() => _filterMode = _JournalFilterMode.week);
+                            setState(
+                                () => _filterMode = _JournalFilterMode.week);
                           },
                         ),
                         ChoiceChip(
                           label: const Text('Tháng'),
                           selected: _filterMode == _JournalFilterMode.month,
                           onSelected: (_) {
-                            setState(() => _filterMode = _JournalFilterMode.month);
+                            setState(
+                                () => _filterMode = _JournalFilterMode.month);
                           },
                         ),
                       ],
@@ -416,98 +425,107 @@ class _JournalScreenState extends State<JournalScreen> {
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : filteredEntries.isEmpty
-                    ? const Center(
-                        child: Text('Không có dữ liệu trong bộ lọc này.'),
-                      )
-                    : ListView.separated(
-                        itemBuilder: (_, i) => InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => _showEntryDetails(filteredEntries[i]),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surface,
+                        ? const Center(
+                            child: Text('Không có dữ liệu trong bộ lọc này.'),
+                          )
+                        : ListView.separated(
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.only(bottom: 150),
+                            itemBuilder: (_, i) => InkWell(
                               borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colorScheme.shadow.withValues(
-                                    alpha: 0.12,
-                                  ),
-                                  blurRadius: 10,
-                                  offset: Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor:
-                                    colorScheme.surfaceContainerHighest,
-                                  child: Icon(
-                                    Icons.notes,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        filteredEntries[i].title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(fontWeight: FontWeight.w700),
+                              onTap: () =>
+                                  _showEntryDetails(filteredEntries[i]),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colorScheme.shadow.withValues(
+                                        alpha: 0.12,
                                       ),
-                                      if (filteredEntries[i].subtitle != null) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          filteredEntries[i].subtitle!,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.72),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor:
+                                          colorScheme.surfaceContainerHighest,
+                                      child: Icon(
+                                        Icons.notes,
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            filteredEntries[i].title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w700),
                                           ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
+                                          if (filteredEntries[i].subtitle !=
+                                              null) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              filteredEntries[i].subtitle!,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: colorScheme.onSurface
+                                                    .withValues(alpha: 0.72),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    if (filteredEntries[i].canManage)
+                                      PopupMenuButton<String>(
+                                        onSelected: (value) async {
+                                          if (value == 'edit') {
+                                            await _openNoteEditor(
+                                                entry: filteredEntries[i]);
+                                            return;
+                                          }
+                                          if (value == 'delete') {
+                                            await _deleteEntry(
+                                                filteredEntries[i]);
+                                          }
+                                        },
+                                        itemBuilder: (context) => const [
+                                          PopupMenuItem<String>(
+                                            value: 'edit',
+                                            child: Text('Sửa'),
+                                          ),
+                                          PopupMenuItem<String>(
+                                            value: 'delete',
+                                            child: Text('Xóa'),
+                                          ),
+                                        ],
+                                      )
+                                    else
+                                      const Icon(Icons.chevron_right),
+                                  ],
                                 ),
-                                if (filteredEntries[i].canManage)
-                                  PopupMenuButton<String>(
-                                    onSelected: (value) async {
-                                      if (value == 'edit') {
-                                        await _openNoteEditor(entry: filteredEntries[i]);
-                                        return;
-                                      }
-                                      if (value == 'delete') {
-                                        await _deleteEntry(filteredEntries[i]);
-                                      }
-                                    },
-                                    itemBuilder: (context) => const [
-                                      PopupMenuItem<String>(
-                                        value: 'edit',
-                                        child: Text('Sửa'),
-                                      ),
-                                      PopupMenuItem<String>(
-                                        value: 'delete',
-                                        child: Text('Xóa'),
-                                      ),
-                                    ],
-                                  )
-                                else
-                                  const Icon(Icons.chevron_right),
-                              ],
+                              ),
                             ),
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 8),
+                            itemCount: filteredEntries.length,
                           ),
-                        ),
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemCount: filteredEntries.length,
-                      ),
               ),
             ],
           ),

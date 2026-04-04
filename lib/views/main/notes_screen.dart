@@ -9,7 +9,6 @@ import '../../services/google_calendar_sync_service.dart';
 import '../../services/journal_note_service.dart';
 import '../../services/permission_queue.dart';
 import '../widgets/common_widgets.dart';
-import '../widgets/workout_widgets.dart';
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
@@ -90,9 +89,7 @@ class _NotesScreenState extends State<NotesScreen> {
               break;
             }
           }
-          preferredLocale ??= locales
-              .map((e) => e.localeId)
-              .firstWhere(
+          preferredLocale ??= locales.map((e) => e.localeId).firstWhere(
                 (id) => id.toLowerCase().startsWith('vi'),
                 orElse: () => '',
               );
@@ -145,9 +142,8 @@ class _NotesScreenState extends State<NotesScreen> {
     }
 
     setState(() {
-      _speechHint = _isEnglish
-          ? 'Listening in Vietnamese...'
-          : 'Đang nghe tiếng Việt...';
+      _speechHint =
+          _isEnglish ? 'Listening in Vietnamese...' : 'Đang nghe tiếng Việt...';
     });
 
     await _speech.listen(
@@ -370,7 +366,10 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -563,26 +562,6 @@ class _NotesScreenState extends State<NotesScreen> {
                         label: Text(
                           _isEnglish ? 'Sync calendar' : 'Đồng bộ lịch',
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: QuickActionCard(
-                        title: AppStrings.quickMealTitle(context),
-                        subtitle: AppStrings.quickMealSubtitle(context),
-                        icon: Icons.restaurant_menu,
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: QuickActionCard(
-                        title: AppStrings.quickMoodTitle(context),
-                        subtitle: AppStrings.quickMoodSubtitle(context),
-                        icon: Icons.sentiment_satisfied_alt,
                       ),
                     ),
                   ],

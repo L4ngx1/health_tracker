@@ -30,7 +30,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   String? _cameraError;
   bool _isInitializingCamera = false;
   bool _isCapturing = false;
-  
+
   bool _isAnalyzing = false;
   FoodRecognitionResult? _analysisResult;
 
@@ -229,10 +229,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
       setState(() {
         _selectedImageBytes = imageBytes;
       });
-      
+
       // Tự động phân tích sau khi chụp
       _analyzeImage(imageBytes);
-      
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -263,10 +262,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
       setState(() {
         _selectedImageBytes = imageBytes;
       });
-      
+
       // Tự động phân tích sau khi chọn từ thư viện
       _analyzeImage(imageBytes);
-      
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -366,7 +364,10 @@ class _NutritionScreenState extends State<NutritionScreen> {
           ),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -434,7 +435,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ],
                 ),
               ),
-              
+
               // Hiển thị kết quả phân tích AI
               if (_isAnalyzing)
                 const Padding(
@@ -467,7 +468,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     ),
                   ),
                 ),
-                
+
               if (_analysisResult != null)
                 Container(
                   width: double.infinity,
@@ -497,7 +498,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: colorScheme.primary,
                               borderRadius: BorderRadius.circular(20),
@@ -553,7 +555,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
                               : (AppStrings.isEnglish(context)
                                   ? 'Open camera'
                                   : 'Mở camera'),
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 18),
                     ),
                   ),
                 ),
@@ -580,7 +583,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ),
                 ),
               ],
-              
+
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,

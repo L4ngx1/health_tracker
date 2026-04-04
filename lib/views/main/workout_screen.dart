@@ -80,6 +80,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   final MainNavigationController _navController = MainNavigationController();
   Timer? _weightSyncTimer;
   Timer? _pendingDeleteSyncTimer;
+  Timer? _goalBannerTimer;
   bool _isSyncingPendingDeletes = false;
   final WorkoutController _workoutController = WorkoutController();
   String? _aiWorkoutPlan;
@@ -95,6 +96,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   int _historyFilterDays = 0; // 0=all, 7, 30
   int _selectedProgramFilter = -1; // -1 = tất cả
   Map<String, bool> _planProgress = <String, bool>{};
+  final PageController _goalBannerController = PageController();
+  int _goalBannerIndex = 0;
 
   static const List<(String label, String prompt)> _goalOptions = [
     ('Giảm mỡ', 'Giảm mỡ và nâng cao sức bền'),
@@ -127,14 +130,30 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _loadSavedWeeklyPlan();
     _startWeightSync();
     _startPendingDeleteSync();
+    _startGoalBannerAutoSlide();
   }
 
   @override
   void dispose() {
     _weightSyncTimer?.cancel();
     _pendingDeleteSyncTimer?.cancel();
+    _goalBannerTimer?.cancel();
+    _goalBannerController.dispose();
     _navController.removeListener(_onNavChanged);
     super.dispose();
+  }
+
+  void _startGoalBannerAutoSlide() {
+    _goalBannerTimer?.cancel();
+    _goalBannerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_goalBannerController.hasClients) return;
+      final target = (_goalBannerIndex + 1) % 3;
+      _goalBannerController.animateToPage(
+        target,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _onNavChanged() {
@@ -188,16 +207,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
     try {
       final records = await _backendApiService.getMyWorkouts(limit: 100);
-      cloudHistory = records.map(_mapWorkoutRecordToHistory).toList(growable: false);
+      cloudHistory =
+          records.map(_mapWorkoutRecordToHistory).toList(growable: false);
       cloudLoaded = true;
 
       await _syncLocalHistoryToCloud(localHistory, cloudHistory);
 
       // Re-read cloud after pushing local items to ensure UI shows synced data.
       final refreshed = await _backendApiService.getMyWorkouts(limit: 100);
-      cloudHistory = refreshed
-          .map(_mapWorkoutRecordToHistory)
-          .toList(growable: false);
+      cloudHistory =
+          refreshed.map(_mapWorkoutRecordToHistory).toList(growable: false);
     } catch (e) {
       debugPrint('load workout cloud history failed: $e');
     }
@@ -237,13 +256,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   String _normalizePlanNote(String note) {
     final metaIndex = note.indexOf('[[PLAN_META]]');
     final visible = metaIndex >= 0 ? note.substring(0, metaIndex) : note;
-    final lines = visible.split('\n').map((line) {
-      final cleaned = line.replaceFirst(
-        RegExp(r'^\s*\[(?:x| )\]\s*', caseSensitive: false),
-        '',
-      );
-      return cleaned.trim();
-    }).where((line) => line.isNotEmpty).toList(growable: false);
+    final lines = visible
+        .split('\n')
+        .map((line) {
+          final cleaned = line.replaceFirst(
+            RegExp(r'^\s*\[(?:x| )\]\s*', caseSensitive: false),
+            '',
+          );
+          return cleaned.trim();
+        })
+        .where((line) => line.isNotEmpty)
+        .toList(growable: false);
     return lines.join('\n');
   }
 
@@ -252,7 +275,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     if (ts != null) return DateTime.fromMillisecondsSinceEpoch(ts);
     final parsed = DateTime.tryParse(item.date);
     if (parsed != null) return parsed;
-    final match = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(item.date.trim());
+    final match =
+        RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(item.date.trim());
     if (match == null) return null;
     final day = int.tryParse(match.group(1) ?? '');
     final month = int.tryParse(match.group(2) ?? '');
@@ -338,7 +362,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
   }
 
-  void _initializePlanProgress(List<_DayWorkoutPlan> plan, {bool reset = false}) {
+  void _initializePlanProgress(List<_DayWorkoutPlan> plan,
+      {bool reset = false}) {
     _setActiveWeeklyPlan(plan);
     final next = <String, bool>{};
     for (final day in plan) {
@@ -356,8 +381,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   int _extractEstimatedCalories(String item) {
-    final match = RegExp(r'~\s*(\d+)\s*kcal', caseSensitive: false)
-        .firstMatch(item);
+    final match =
+        RegExp(r'~\s*(\d+)\s*kcal', caseSensitive: false).firstMatch(item);
     if (match == null) return 0;
     return int.tryParse(match.group(1) ?? '') ?? 0;
   }
@@ -395,8 +420,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     if (parsed > 0) return parsed;
 
     final lowerName = name.trim().toLowerCase();
-    final isWeeklyPlan =
-        lowerName.contains('kế hoạch tập tuần') ||
+    final isWeeklyPlan = lowerName.contains('kế hoạch tập tuần') ||
         lowerName.contains('ke hoach tap tuan');
     if (!isWeeklyPlan) return parsed;
 
@@ -414,17 +438,25 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         : (level.contains('trung cấp') ? 1.0 : 0.85);
 
     var base = 70.0;
-    if (lower.contains('chạy') || lower.contains('run') || lower.contains('cardio')) {
+    if (lower.contains('chạy') ||
+        lower.contains('run') ||
+        lower.contains('cardio')) {
       base = 120;
     } else if (lower.contains('đạp xe') || lower.contains('cycling')) {
       base = 95;
     } else if (lower.contains('plank') || lower.contains('core')) {
       base = 55;
-    } else if (lower.contains('squat') || lower.contains('lunge') || lower.contains('chân')) {
+    } else if (lower.contains('squat') ||
+        lower.contains('lunge') ||
+        lower.contains('chân')) {
       base = 90;
-    } else if (lower.contains('hít đất') || lower.contains('push') || lower.contains('ngực')) {
+    } else if (lower.contains('hít đất') ||
+        lower.contains('push') ||
+        lower.contains('ngực')) {
       base = 80;
-    } else if (lower.contains('kéo') || lower.contains('row') || lower.contains('lưng')) {
+    } else if (lower.contains('kéo') ||
+        lower.contains('row') ||
+        lower.contains('lưng')) {
       base = 78;
     }
 
@@ -443,6 +475,81 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       if (allDone) completed += 1;
     }
     return completed;
+  }
+
+  int _manualWorkoutSessionsThisWeek() {
+    final now = DateTime.now();
+    final weekStart = _startOfWeek(now);
+    final weekEndExclusive = weekStart.add(const Duration(days: 7));
+    var sessions = 0;
+    for (final entry in _history) {
+      if (_isWeeklyPlanHistoryItem(entry)) continue;
+      final date = _historyItemDate(entry);
+      if (date == null) continue;
+      if (date.isBefore(weekStart) || !date.isBefore(weekEndExclusive)) {
+        continue;
+      }
+      sessions += 1;
+    }
+    return sessions;
+  }
+
+  int? _weekdayFromPlanDay(String day) {
+    final normalized = day.toLowerCase().trim();
+    if (normalized == 'thứ 2') return DateTime.monday;
+    if (normalized == 'thứ 3') return DateTime.tuesday;
+    if (normalized == 'thứ 4') return DateTime.wednesday;
+    if (normalized == 'thứ 5') return DateTime.thursday;
+    if (normalized == 'thứ 6') return DateTime.friday;
+    if (normalized == 'thứ 7') return DateTime.saturday;
+    if (normalized == 'chủ nhật') return DateTime.sunday;
+    return null;
+  }
+
+  Map<int, int> _weeklyCaloriesByWeekday(
+    List<WorkoutHistoryItem> weekRealSessions,
+  ) {
+    final byDay = <int, int>{
+      for (var weekday = DateTime.monday; weekday <= DateTime.sunday; weekday++)
+        weekday: 0,
+    };
+
+    for (final session in weekRealSessions) {
+      final date = _historyItemDate(session);
+      if (date == null) continue;
+      byDay[date.weekday] =
+          (byDay[date.weekday] ?? 0) + _parseKcalInt(session.kcal);
+    }
+
+    for (final day in _weeklyPlan) {
+      final weekday = _weekdayFromPlanDay(day.day);
+      if (weekday == null) continue;
+      for (final item in day.items) {
+        if (!_isExerciseTask(item)) continue;
+        if (_planProgress[_planProgressKey(day.day, item)] == true) {
+          byDay[weekday] =
+              (byDay[weekday] ?? 0) + _extractEstimatedCalories(item);
+        }
+      }
+    }
+
+    return byDay;
+  }
+
+  int _aiPlanStreakDays() {
+    final aiCompletedSessions = _plannedCompletedSessions();
+    final manualSessions = _manualWorkoutSessionsThisWeek();
+    final combined = aiCompletedSessions + manualSessions;
+    if (combined < 0) return 0;
+    return combined;
+  }
+
+  String _aiStreakDescription() {
+    final hasAiPlan = _weeklyPlan.any((day) => day.items.any(_isExerciseTask));
+    if (!hasAiPlan) {
+      return 'Tạo kế hoạch AI để bắt đầu theo dõi streak tập luyện.';
+    }
+    return 'Streak tăng theo tổng số buổi trong tuần: buổi AI hoàn thành + buổi tập trong Chế độ tập luyện.';
   }
 
   int _plannedCheckedCalories() {
@@ -554,10 +661,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           },
         )
         .toList(growable: false);
-    await prefs.setString(_accountKey(_prefWorkoutHistory), jsonEncode(payload));
+    await prefs.setString(
+        _accountKey(_prefWorkoutHistory), jsonEncode(payload));
   }
 
-  List<_PendingWorkoutDelete> _readPendingCloudDeletes(SharedPreferences prefs) {
+  List<_PendingWorkoutDelete> _readPendingCloudDeletes(
+      SharedPreferences prefs) {
     final raw = prefs.getString(_accountKey(_prefPendingDelete));
     if (raw == null || raw.isEmpty) {
       return const [];
@@ -582,9 +691,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     List<_PendingWorkoutDelete> pending,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final payload = pending
-        .map((e) => e.toMap())
-        .toList(growable: false);
+    final payload = pending.map((e) => e.toMap()).toList(growable: false);
     await prefs.setString(_accountKey(_prefPendingDelete), jsonEncode(payload));
   }
 
@@ -824,7 +931,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return _parseKcalInt(raw).toDouble();
   }
 
-  List<WorkoutHistoryItem> _applyHistoryFilter(List<WorkoutHistoryItem> source) {
+  List<WorkoutHistoryItem> _applyHistoryFilter(
+      List<WorkoutHistoryItem> source) {
     if (_historyFilterDays == 0) return source;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final maxAgeMs = Duration(days: _historyFilterDays).inMilliseconds;
@@ -835,7 +943,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     }).toList(growable: false);
   }
 
-  List<WorkoutHistoryItem> _currentWeekHistory(List<WorkoutHistoryItem> source) {
+  List<WorkoutHistoryItem> _currentWeekHistory(
+      List<WorkoutHistoryItem> source) {
     final now = DateTime.now();
     final weekdayOffset = now.weekday - DateTime.monday;
     final weekStart = DateTime(now.year, now.month, now.day)
@@ -865,14 +974,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     WorkoutHistoryItem? latest;
     for (final item in source) {
       if (!_isWeeklyPlanHistoryItem(item)) continue;
-      if (latest == null || (item.timestampMs ?? 0) > (latest.timestampMs ?? 0)) {
+      if (latest == null ||
+          (item.timestampMs ?? 0) > (latest.timestampMs ?? 0)) {
         latest = item;
       }
     }
     return latest;
   }
 
-  Future<void> _deleteHistoryAt(int indexInFiltered, List<WorkoutHistoryItem> filtered) async {
+  Future<void> _deleteHistoryAt(
+      int indexInFiltered, List<WorkoutHistoryItem> filtered) async {
     if (indexInFiltered < 0 || indexInFiltered >= filtered.length) return;
     final target = filtered[indexInFiltered];
     final idx = _history.indexWhere((e) =>
@@ -900,7 +1011,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Future<void> _confirmClearAllHistory() async {
     if (_history.isEmpty) return;
-    final removedItems = List<WorkoutHistoryItem>.from(_history, growable: false);
+    final removedItems =
+        List<WorkoutHistoryItem>.from(_history, growable: false);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1057,7 +1169,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
                           var syncedToCloud = false;
                           try {
-                            final cloudId = await _backendApiService.addMyWorkout(
+                            final cloudId =
+                                await _backendApiService.addMyWorkout(
                               WorkoutRecord(
                                 id: '',
                                 name: item.title,
@@ -1079,7 +1192,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             if (mounted) {
                               setState(() {
                                 _history = _history
-                                    .map((e) => _historyIdentityKey(e) == _historyIdentityKey(entry) ? saved : e)
+                                    .map((e) => _historyIdentityKey(e) ==
+                                            _historyIdentityKey(entry)
+                                        ? saved
+                                        : e)
                                     .toList(growable: false);
                               });
                             }
@@ -1316,25 +1432,33 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final isAdvanced = level.contains('nâng cao');
 
     if (goal.contains('giảm mỡ')) {
-      if (isAdvanced) return firstExercise ? '4 hiệp x 12-15 lần' : '4 hiệp x 10-12 lần';
-      if (isBeginner) return firstExercise ? '3 hiệp x 10-12 lần' : '3 hiệp x 8-10 lần';
+      if (isAdvanced)
+        return firstExercise ? '4 hiệp x 12-15 lần' : '4 hiệp x 10-12 lần';
+      if (isBeginner)
+        return firstExercise ? '3 hiệp x 10-12 lần' : '3 hiệp x 8-10 lần';
       return firstExercise ? '4 hiệp x 10-12 lần' : '3 hiệp x 10-12 lần';
     }
 
     if (goal.contains('tăng cơ')) {
-      if (isAdvanced) return firstExercise ? '5 hiệp x 6-8 lần' : '4 hiệp x 8-10 lần';
-      if (isBeginner) return firstExercise ? '3 hiệp x 8-10 lần' : '3 hiệp x 10-12 lần';
+      if (isAdvanced)
+        return firstExercise ? '5 hiệp x 6-8 lần' : '4 hiệp x 8-10 lần';
+      if (isBeginner)
+        return firstExercise ? '3 hiệp x 8-10 lần' : '3 hiệp x 10-12 lần';
       return firstExercise ? '4 hiệp x 8-10 lần' : '4 hiệp x 10-12 lần';
     }
 
     if (goal.contains('sức bền')) {
-      if (isAdvanced) return firstExercise ? '4 hiệp x 15-20 lần' : '4 hiệp x 12-15 lần';
-      if (isBeginner) return firstExercise ? '3 hiệp x 12-15 lần' : '3 hiệp x 10-12 lần';
+      if (isAdvanced)
+        return firstExercise ? '4 hiệp x 15-20 lần' : '4 hiệp x 12-15 lần';
+      if (isBeginner)
+        return firstExercise ? '3 hiệp x 12-15 lần' : '3 hiệp x 10-12 lần';
       return firstExercise ? '4 hiệp x 12-15 lần' : '3 hiệp x 12-15 lần';
     }
 
-    if (isAdvanced) return firstExercise ? '4 hiệp x 10-12 lần' : '4 hiệp x 8-10 lần';
-    if (isBeginner) return firstExercise ? '3 hiệp x 8-10 lần' : '3 hiệp x 8-10 lần';
+    if (isAdvanced)
+      return firstExercise ? '4 hiệp x 10-12 lần' : '4 hiệp x 8-10 lần';
+    if (isBeginner)
+      return firstExercise ? '3 hiệp x 8-10 lần' : '3 hiệp x 8-10 lần';
     return firstExercise ? '4 hiệp x 8-10 lần' : '3 hiệp x 10-12 lần';
   }
 
@@ -1448,9 +1572,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     try {
       final completedCalories = _plannedCheckedCalories();
       final plannedCalories = _plannedTotalCalories();
-      final savedCalories = completedCalories > 0
-          ? completedCalories
-          : plannedCalories;
+      final savedCalories =
+          completedCalories > 0 ? completedCalories : plannedCalories;
       final note = _buildWeeklyPlanNote();
       final noteSignature = _normalizePlanNote(note);
       final today = DateTime.now();
@@ -1458,11 +1581,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         normalizedNote: noteSignature,
         weekDate: today,
       );
-      final previousItem = existingSamePlanIndex >= 0
-          ? _history[existingSamePlanIndex]
-          : null;
-        final timestamp = previousItem?.timestampMs ?? today.millisecondsSinceEpoch;
-        final performedAt = previousItem?.timestampMs == null
+      final previousItem =
+          existingSamePlanIndex >= 0 ? _history[existingSamePlanIndex] : null;
+      final timestamp =
+          previousItem?.timestampMs ?? today.millisecondsSinceEpoch;
+      final performedAt = previousItem?.timestampMs == null
           ? today
           : DateTime.fromMillisecondsSinceEpoch(previousItem!.timestampMs!);
       final cloudId = previousItem?.cloudId;
@@ -1492,7 +1615,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       await _persistWorkoutHistoryList(cappedHistory);
 
       try {
-        if (previousItem?.cloudId != null && previousItem!.cloudId!.isNotEmpty) {
+        if (previousItem?.cloudId != null &&
+            previousItem!.cloudId!.isNotEmpty) {
           await _backendApiService.updateMyWorkout(
             workoutId: previousItem.cloudId!,
             workout: WorkoutRecord(
@@ -1517,9 +1641,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           );
           if (mounted) {
             final refreshed = List<WorkoutHistoryItem>.from(_history);
-            final targetIndex = existingSamePlanIndex >= 0
-                ? existingSamePlanIndex
-                : 0;
+            final targetIndex =
+                existingSamePlanIndex >= 0 ? existingSamePlanIndex : 0;
             if (targetIndex >= 0 && targetIndex < refreshed.length) {
               refreshed[targetIndex] = WorkoutHistoryItem(
                 name: historyItem.name,
@@ -1530,7 +1653,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 cloudId: cloudId,
                 note: historyItem.note,
               );
-              setState(() => _history = refreshed.take(50).toList(growable: false));
+              setState(
+                  () => _history = refreshed.take(50).toList(growable: false));
             }
           }
         }
@@ -1573,7 +1697,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
     final planSessions = _plannedCompletedSessions();
     final planKcal = _plannedCheckedCalories();
-    final weekSessions = _weeklyPlan.isNotEmpty ? planSessions : historySessions;
+    final weekSessions =
+        _weeklyPlan.isNotEmpty ? planSessions : historySessions;
     final weekKcal = _weeklyPlan.isNotEmpty ? planKcal : historyKcal;
     final targetFromHistory = _extractSessionsFromDuration(
       latestPlan?.duration ?? '',
@@ -1581,9 +1706,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final weekTargetSessions = targetFromHistory > 0
         ? targetFromHistory
         : (_weeklyPlan.isNotEmpty ? _sessionsPerWeek : 5);
+    final weeklyCaloriesByDay = _weeklyCaloriesByWeekday(weekRealSessions);
+    final maxDailyCalories = weeklyCaloriesByDay.values.fold<int>(
+      0,
+      (maxValue, value) => value > maxValue ? value : maxValue,
+    );
     final List<WorkoutItem> shownPrograms = _selectedProgramFilter == -1
-      ? programs
-      : <WorkoutItem>[programs[_selectedProgramFilter]];
+        ? programs
+        : <WorkoutItem>[programs[_selectedProgramFilter]];
     final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
@@ -1596,7 +1726,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           ),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1628,29 +1761,211 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      AppStrings.weekGoalTitle(context),
-                      style: TextStyle(
-                        color: colorScheme.onPrimary.withValues(alpha: 0.85),
+                    SizedBox(
+                      height: 122,
+                      child: PageView(
+                        controller: _goalBannerController,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _goalBannerIndex = index;
+                          });
+                        },
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$weekSessions/$weekTargetSessions Buổi tập',
+                                style: TextStyle(
+                                  color: colorScheme.onPrimary,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '$weekKcal kcal đã đốt',
+                                style: TextStyle(
+                                  color: colorScheme.onPrimary,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tiến độ ${(_planProgressRatio() * 100).round()}%',
+                                style: TextStyle(
+                                  color: colorScheme.onPrimary
+                                      .withValues(alpha: 0.92),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Builder(
+                            builder: (context) {
+                              final streakDays = _aiPlanStreakDays();
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.local_fire_department,
+                                        color: colorScheme.onPrimary,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'AI Streak',
+                                        style: TextStyle(
+                                          color: colorScheme.onPrimary
+                                              .withValues(alpha: 0.9),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          '$streakDays Ngày tập luyện',
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            color: colorScheme.onPrimary,
+                                            fontSize: 34,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    _aiStreakDescription(),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimary
+                                          .withValues(alpha: 0.9),
+                                      fontSize: 12,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Calories theo ngày',
+                                style: TextStyle(
+                                  color: colorScheme.onPrimary
+                                      .withValues(alpha: 0.92),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '$weekKcal kcal tuần này',
+                                style: TextStyle(
+                                  color: colorScheme.onPrimary
+                                      .withValues(alpha: 0.86),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Expanded(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: List.generate(7, (index) {
+                                    final weekday = DateTime.monday + index;
+                                    final labels = const [
+                                      'T2',
+                                      'T3',
+                                      'T4',
+                                      'T5',
+                                      'T6',
+                                      'T7',
+                                      'CN',
+                                    ];
+                                    final value =
+                                        weeklyCaloriesByDay[weekday] ?? 0;
+                                    final ratio = maxDailyCalories == 0
+                                        ? 0.0
+                                        : value / maxDailyCalories;
+                                    final barHeight = 6 + (ratio * 36);
+
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 2),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            Container(
+                                              height: barHeight,
+                                              decoration: BoxDecoration(
+                                                color: value > 0
+                                                    ? colorScheme.onPrimary
+                                                    : colorScheme.onPrimary
+                                                        .withValues(
+                                                            alpha: 0.28),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              labels[index],
+                                              style: TextStyle(
+                                                color: colorScheme.onPrimary
+                                                    .withValues(alpha: 0.92),
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      '$weekSessions/$weekTargetSessions Buổi tập',
-                      style: TextStyle(
-                        color: colorScheme.onPrimary,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      '$weekKcal kcal đã đốt',
-                      style: TextStyle(
-                        color: colorScheme.onPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(3, (index) {
+                        final active = _goalBannerIndex == index;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: active ? 18 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: active
+                                ? colorScheme.onPrimary
+                                : colorScheme.onPrimary.withValues(alpha: 0.45),
+                          ),
+                        );
+                      }),
                     ),
                   ],
                 ),
@@ -1778,7 +2093,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             setState(() {
                               _sessionsPerWeek = value;
                               if (_aiWorkoutPlan != null) {
-                                final nextPlan = _buildWeeklyPlan(_aiWorkoutPlan!);
+                                final nextPlan =
+                                    _buildWeeklyPlan(_aiWorkoutPlan!);
                                 _weeklyPlan = nextPlan;
                                 _initializePlanProgress(nextPlan, reset: true);
                               }
@@ -1855,18 +2171,26 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   ...dayPlan.items.map(
                                     (item) => _isExerciseTask(item)
                                         ? Padding(
-                                            padding: const EdgeInsets.only(bottom: 2),
+                                            padding: const EdgeInsets.only(
+                                                bottom: 2),
                                             child: CheckboxListTile(
-                                              value:
-                                                  _planProgress[_planProgressKey(dayPlan.day, item)] == true,
+                                              value: _planProgress[
+                                                      _planProgressKey(
+                                                          dayPlan.day, item)] ==
+                                                  true,
                                               dense: true,
                                               contentPadding: EdgeInsets.zero,
                                               controlAffinity:
-                                                  ListTileControlAffinity.leading,
-                                              title: Text(_translatePlanItemText(item)),
+                                                  ListTileControlAffinity
+                                                      .leading,
+                                              title: Text(
+                                                  _translatePlanItemText(item)),
                                               onChanged: (checked) {
                                                 setState(() {
-                                                  _planProgress[_planProgressKey(dayPlan.day, item)] =
+                                                  _planProgress[
+                                                          _planProgressKey(
+                                                              dayPlan.day,
+                                                              item)] =
                                                       checked == true;
                                                 });
                                                 _persistPlanProgress();
@@ -1874,8 +2198,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                             ),
                                           )
                                         : Padding(
-                                            padding: const EdgeInsets.only(bottom: 4),
-                                            child: Text('- ${_translatePlanItemText(item)}'),
+                                            padding: const EdgeInsets.only(
+                                                bottom: 4),
+                                            child: Text(
+                                                '- ${_translatePlanItemText(item)}'),
                                           ),
                                   ),
                                 ],
@@ -1909,12 +2235,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: _isSavingPlan ? null : _saveWeeklyPlanToJournal,
+                        onPressed:
+                            _isSavingPlan ? null : _saveWeeklyPlanToJournal,
                         icon: _isSavingPlan
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.save_outlined),
                         label: const Text('Lưu kế hoạch vào lịch sử tập luyện'),
@@ -2028,67 +2356,71 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   ),
                 ),
               ...filteredHistory.asMap().entries.map(
-                (pair) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Dismissible(
-                    key: ValueKey(
-                      '${pair.value.name}|${pair.value.date}|${pair.value.duration}|${pair.value.kcal}|${pair.value.timestampMs ?? pair.key}',
-                    ),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: colorScheme.errorContainer,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Icon(
-                            Icons.delete_outline_rounded,
-                            color: colorScheme.onErrorContainer,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Xóa',
-                            style: TextStyle(
-                              color: colorScheme.onErrorContainer,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    confirmDismiss: (_) async {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (dialogContext) => AlertDialog(
-                          title: const Text('Xóa mục lịch sử'),
-                          content: const Text('Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(dialogContext).pop(false),
-                              child: const Text('Hủy'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.of(dialogContext).pop(true),
-                              child: const Text('Xóa'),
-                            ),
-                          ],
+                    (pair) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Dismissible(
+                        key: ValueKey(
+                          '${pair.value.name}|${pair.value.date}|${pair.value.duration}|${pair.value.kcal}|${pair.value.timestampMs ?? pair.key}',
                         ),
-                      );
-                      return ok == true;
-                    },
-                    onDismissed: (_) => _deleteHistoryAt(pair.key, filteredHistory),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => _showHistoryDetails(pair.value),
-                      child: HistoryTile(item: pair.value),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Icon(
+                                Icons.delete_outline_rounded,
+                                color: colorScheme.onErrorContainer,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Xóa',
+                                style: TextStyle(
+                                  color: colorScheme.onErrorContainer,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        confirmDismiss: (_) async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: const Text('Xóa mục lịch sử'),
+                              content: const Text(
+                                  'Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(false),
+                                  child: const Text('Hủy'),
+                                ),
+                                FilledButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(true),
+                                  child: const Text('Xóa'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return ok == true;
+                        },
+                        onDismissed: (_) =>
+                            _deleteHistoryAt(pair.key, filteredHistory),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => _showHistoryDetails(pair.value),
+                          child: HistoryTile(item: pair.value),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
               const SizedBox(height: 90),
             ],
           ),

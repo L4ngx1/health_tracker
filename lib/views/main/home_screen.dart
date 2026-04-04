@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../controllers/home_controller.dart';
 import '../../controllers/tracking_controller.dart';
@@ -34,14 +35,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final HomeController _homeController = HomeController();
   static const _prefGoalKm = 'home.movementGoalKm';
   static const _prefDistanceHistory = 'home.distanceHistoryKm';
-  static const _prefWorkoutHistory = 'workout.history.v1';
   static const _prefMigrationDone = 'home.migration.v1';
   static const _prefTodayResetDone = 'home.movementTodayResetDone';
   static const _prefWeightKg = 'profile.weightKg';
   static const _prefWeightMigrationDone = 'profile.weight.migration.v1';
-    static const _prefWeightLastUpdatedEpochMs =
+  static const _prefWeightLastUpdatedEpochMs =
       'profile.weightLastUpdatedEpochMs';
-    static const _prefWeightMonthlyPromptSeenMonth =
+  static const _prefWeightMonthlyPromptSeenMonth =
       'profile.weightMonthlyPromptSeenMonth';
   static const _prefWaterGoalMl = 'home.waterGoalMl';
   static const _prefWaterIntakeMl = 'home.waterIntakeMl';
@@ -72,6 +72,13 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _lastWaterDrinkAt;
   DateTime? _lastWaterReminderAt;
   Timer? _waterReminderTimer;
+  Timer? _heroBannerTimer;
+  final PageController _heroBannerController = PageController();
+  int _heroBannerIndex = 0;
+  final PageController _explorePageController = PageController(
+    viewportFraction: 0.94,
+  );
+  int _explorePageIndex = 0;
 
   String get _userScope {
     final user = FirebaseAuth.instance.currentUser;
@@ -125,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(_loadWeight());
     unawaited(_loadHydrationData());
     _startWaterReminderLoop();
+    _startHeroBannerAutoSlide();
   }
 
   Future<void> _startTrackingWithPermissionFlow() async {
@@ -344,7 +352,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final shouldPrompt = _weightKg == null ||
         lastUpdatedEpoch == null ||
         now
-                .difference(DateTime.fromMillisecondsSinceEpoch(lastUpdatedEpoch))
+                .difference(
+                    DateTime.fromMillisecondsSinceEpoch(lastUpdatedEpoch))
                 .inDays >=
             30;
     if (!shouldPrompt) return;
@@ -400,6 +409,121 @@ class _HomeScreenState extends State<HomeScreen> {
       return 'Bạn còn thiếu $remaining ml hôm nay. Uống 150-200ml ngay.';
     }
     return 'Uống 150-200ml nước để duy trì đủ nước.';
+  }
+
+  void _startHeroBannerAutoSlide() {
+    _heroBannerTimer?.cancel();
+    _heroBannerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_heroBannerController.hasClients) return;
+      const totalBanners = 3;
+      final next = (_heroBannerIndex + 1) % totalBanners;
+      _heroBannerController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  List<_HomeHeroBanner> _homeHeroBanners() {
+    return [
+      _HomeHeroBanner(
+        label: AppStrings.overviewHealthTitle(context),
+        title: _isEnglish
+            ? 'Health is built day by day'
+            : 'Sống khỏe bắt đầu từ hôm nay',
+        subtitle: _isEnglish
+            ? 'Keep your daily rhythm stable to improve sleep and energy.'
+            : 'Giữ nhịp sinh hoạt ổn định để cải thiện giấc ngủ và năng lượng.',
+      ),
+      _HomeHeroBanner(
+        label: _isEnglish ? 'DAILY FOCUS' : 'TRỌNG TÂM HÔM NAY',
+        title: _isEnglish
+            ? 'Great. You are on the right track'
+            : 'Bạn xứng đáng với một cơ thể tốt hơn',
+        subtitle: _isEnglish
+            ? 'Keep your hydration and sleep stable to improve workout quality.'
+            : 'Giữ ổn định nước uống và giấc ngủ để nâng chất lượng buổi tập.',
+      ),
+      _HomeHeroBanner(
+        label: _isEnglish ? 'CONSISTENCY' : 'SỰ ĐỀU ĐẶN',
+        title: _isEnglish
+            ? 'Small steps create big changes'
+            : 'Yêu bản thân bằng cách giữ gìn sức khỏe',
+        subtitle: _isEnglish
+            ? 'A 10-minute walk today is better than skipping the whole day.'
+            : 'Đi bộ 10 phút hôm nay vẫn tốt hơn bỏ trống cả ngày.',
+      ),
+    ];
+  }
+
+  List<_ExploreWorkoutItem> _exploreWorkouts() {
+    return [
+      _ExploreWorkoutItem(
+        label: AppStrings.trainingLabel(context),
+        title: AppStrings.yogaMorningTitle(context).replaceAll('\n', ' '),
+        subtitle: AppStrings.yogaMorningSubtitle(context),
+        icon: Icons.self_improvement,
+        youtubeUrl: 'https://www.youtube.com/watch?v=v7AYKMP6rOE',
+      ),
+      _ExploreWorkoutItem(
+        label: _isEnglish ? 'WORKOUT' : 'LUYỆN TẬP',
+        title: _isEnglish ? '12-minute cardio dance' : '12 phút cardio dance',
+        subtitle: _isEnglish
+            ? 'Boost your heart rate and burn calories quickly'
+            : 'Tăng nhịp tim và đốt calo hiệu quả',
+        icon: Icons.directions_run,
+        youtubeUrl: 'https://www.youtube.com/watch?v=ml6cT4AZdqI',
+      ),
+      _ExploreWorkoutItem(
+        label: _isEnglish ? 'HIIT' : 'HIIT',
+        title: _isEnglish ? '15-minute fat burn HIIT' : '15 phút HIIT đốt mỡ',
+        subtitle: _isEnglish
+            ? 'Short, intense session for busy days'
+            : 'Bài tập cường độ cao, phù hợp ngày bận rộn',
+        icon: Icons.flash_on,
+        youtubeUrl: 'https://www.youtube.com/watch?v=UBMk30rjy0o',
+      ),
+      _ExploreWorkoutItem(
+        label: _isEnglish ? 'CORE' : 'CORE',
+        title: _isEnglish ? '7-minute plank challenge' : '7 phút plank core',
+        subtitle: _isEnglish
+            ? 'Strengthen abs and improve posture'
+            : 'Tăng sức mạnh bụng và cải thiện tư thế',
+        icon: Icons.fitness_center,
+        youtubeUrl: 'https://www.youtube.com/watch?v=pSHjTRCQxIw',
+      ),
+      _ExploreWorkoutItem(
+        label: _isEnglish ? 'RECOVERY' : 'PHỤC HỒI',
+        title: _isEnglish
+            ? '10-minute full body stretch'
+            : '10 phút giãn cơ toàn thân',
+        subtitle: _isEnglish
+            ? 'Relax muscles after work or workouts'
+            : 'Thư giãn cơ bắp sau làm việc hoặc tập nặng',
+        icon: Icons.accessibility_new,
+        youtubeUrl: 'https://www.youtube.com/watch?v=L_xrDAtykMI',
+      ),
+    ];
+  }
+
+  Future<void> _openExploreWorkout(String url) async {
+    final uri = Uri.parse(url);
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isEnglish
+                ? 'Cannot open YouTube link right now.'
+                : 'Không thể mở liên kết YouTube lúc này.',
+          ),
+        ),
+      );
+    }
   }
 
   (int minMl, int maxMl) _recommendedWaterRangeMl() {
@@ -512,9 +636,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final neededMlPerHour = remaining / hoursLeft;
 
     // Thresholds adjusted to keep intervals within 60-120 minutes (1-2 hours)
-    if (neededMlPerHour >= 400) return 60;  // Very behind - remind every hour
-    if (neededMlPerHour >= 300) return 75;  // Behind - remind every 75 min
-    if (neededMlPerHour >= 200) return 90;  // On pace - remind every 90 min
+    if (neededMlPerHour >= 400) return 60; // Very behind - remind every hour
+    if (neededMlPerHour >= 300) return 75; // Behind - remind every 75 min
+    if (neededMlPerHour >= 200) return 90; // On pace - remind every 90 min
     return 120; // Ahead or comfortable - remind every 2 hours
   }
 
@@ -715,9 +839,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        _isEnglish
-                            ? 'Water intake reminder'
-                            : 'Nhắc uống nước',
+                        _isEnglish ? 'Water intake reminder' : 'Nhắc uống nước',
                         style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
@@ -790,10 +912,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               remaining <= 0
                                   ? (_isEnglish
                                       ? 'Goal completed.'
-                                    : 'Bạn đã đạt mục tiêu hôm nay.')
+                                      : 'Bạn đã đạt mục tiêu hôm nay.')
                                   : (_isEnglish
                                       ? 'Remaining: $remaining ml'
-                                    : 'Còn thiếu: $remaining ml'),
+                                      : 'Còn thiếu: $remaining ml'),
                               style: TextStyle(
                                 color: colorScheme.onSurface
                                     .withValues(alpha: 0.8),
@@ -1019,13 +1141,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _trackingController.snapshot.removeListener(_syncTodayDistanceHistory);
     _trackingController.dispose();
     _waterReminderTimer?.cancel();
+    _heroBannerTimer?.cancel();
+    _heroBannerController.dispose();
+    _explorePageController.dispose();
     super.dispose();
   }
 
   String _dayKey(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
-    String _monthKey(DateTime dt) =>
+  String _monthKey(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}';
 
   String _todayResetKey(DateTime dt) =>
@@ -1645,123 +1770,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  int _currentWorkoutStreak(double todayKm) {
-    final now = DateTime.now();
-    final workoutDays = _daysWithWorkoutActivity();
-    var streak = 0;
-    for (var i = 0; i < 365; i++) {
-      final day = DateTime(now.year, now.month, now.day - i);
-      final key = _dayKey(day);
-      final km = i == 0 ? todayKm : (_distanceHistoryKm[key] ?? 0);
-      final reached = km + 0.0001 >= _dailyGoalKm || workoutDays.contains(key);
-      if (!reached) break;
-      streak += 1;
-    }
-    return streak;
-  }
-
-  Set<String> _daysWithWorkoutActivity() {
-    final prefs = _prefs;
-    if (prefs == null) return const <String>{};
-    final raw = prefs.getString(_accountKey(_prefWorkoutHistory)) ?? '';
-    if (raw.isEmpty) return const <String>{};
-
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return const <String>{};
-
-      final days = <String>{};
-      for (final item in decoded) {
-        if (item is! Map) continue;
-        final name = (item['name'] ?? '').toString().toLowerCase();
-        final isWeeklyPlan =
-            name.contains('kế hoạch tập tuần') || name.contains('ke hoach tap tuan');
-        final kcal = _extractNumber((item['kcal'] ?? '').toString());
-        if (isWeeklyPlan && kcal <= 0) {
-          continue;
-        }
-
-        final tsRaw = item['timestampMs'];
-        final ts = tsRaw is int ? tsRaw : int.tryParse('$tsRaw');
-        if (ts != null) {
-          days.add(_dayKey(DateTime.fromMillisecondsSinceEpoch(ts)));
-          continue;
-        }
-
-        final parsedDate = _parseDisplayDate((item['date'] ?? '').toString());
-        if (parsedDate != null) {
-          days.add(_dayKey(parsedDate));
-        }
-      }
-      return days;
-    } catch (_) {
-      return const <String>{};
-    }
-  }
-
-  int _extractNumber(String raw) {
-    final match = RegExp(r'(\d+(?:[\.,]\d+)?)').firstMatch(raw);
-    if (match == null) return 0;
-    final normalized = (match.group(1) ?? '').replaceAll(',', '.');
-    return (double.tryParse(normalized) ?? 0).round();
-  }
-
-  DateTime? _parseDisplayDate(String raw) {
-    final match = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(raw.trim());
-    if (match == null) return null;
-    final day = int.tryParse(match.group(1) ?? '');
-    final month = int.tryParse(match.group(2) ?? '');
-    final year = int.tryParse(match.group(3) ?? '');
-    if (day == null || month == null || year == null) return null;
-    return DateTime(year, month, day);
-  }
-
-  String _motivationMessage({
-    required int streak,
-    required double todayKm,
-    required int steps,
-  }) {
-    final progress = _dailyGoalKm <= 0 ? 0.0 : (todayKm / _dailyGoalKm);
-
-    if (_isEnglish) {
-      if (streak >= 14) {
-        return 'Incredible consistency! $streak days in a row. You are building elite habits.';
-      }
-      if (streak >= 7) {
-        return 'Amazing streak: $streak days. Keep your rhythm and finish strong today.';
-      }
-      if (progress >= 1.0) {
-        return 'Goal completed today! Great work. Add a short cooldown walk to lock it in.';
-      }
-      if (progress >= 0.7) {
-        return 'You are very close. Another ${( (_dailyGoalKm - todayKm) * 1000).clamp(100, 5000).round()} m and you are done.';
-      }
-      if (steps >= 6000) {
-        return 'Solid effort so far. Keep moving and you can still close today at full goal.';
-      }
-      return 'Every step counts. Start with a 10-minute walk and build momentum.';
-    }
-
-    if (streak >= 14) {
-      return 'Bạn đang giữ phong độ rất ấn tượng: $streak ngày liên tiếp. Quá xuất sắc!';
-    }
-    if (streak >= 7) {
-      return 'Tuyệt vời! Bạn đã có streak $streak ngày. Cố gắng giữ nhịp này.';
-    }
-    if (progress >= 1.0) {
-      return 'Bạn đã hoàn thành mục tiêu hôm nay. Tập rất chăm chỉ!';
-    }
-    if (progress >= 0.7) {
-      final remainMeters =
-          ((_dailyGoalKm - todayKm) * 1000).clamp(100, 5000).round();
-      return 'Sắp đạt mục tiêu rồi, chỉ còn khoảng $remainMeters m nữa. Cố lên!';
-    }
-    if (steps >= 6000) {
-      return 'Bạn đang làm rất tốt. Tăng thêm một chút là sẽ về đích hôm nay.';
-    }
-    return 'Mỗi bước nhỏ đều có ý nghĩa. Thử đi bộ 10 phút để khởi động động lực.';
-  }
-
   Future<void> _showMovementSheet({
     required double distanceKm,
     required int steps,
@@ -2219,7 +2227,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? (_isEnglish ? 'Goal completed today.' : 'Đã đạt mục tiêu hôm nay')
           : (_isEnglish
               ? '$remaining ml remaining'
-            : 'Còn thiếu $remaining ml');
+              : 'Còn thiếu $remaining ml');
       metrics[1] = MetricItem(
         title: AppStrings.homeMetricWaterTitle(context),
         value: (_waterIntakeMl / 1000).toStringAsFixed(1),
@@ -2241,6 +2249,21 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     final colorScheme = Theme.of(context).colorScheme;
+    final exploreItems = _exploreWorkouts();
+    final exploreGradients = <List<Color>>[
+      [
+        colorScheme.primary.withValues(alpha: 0.22),
+        colorScheme.secondary.withValues(alpha: 0.16),
+      ],
+      [
+        colorScheme.secondary.withValues(alpha: 0.22),
+        colorScheme.primary.withValues(alpha: 0.14),
+      ],
+      [
+        colorScheme.tertiary.withValues(alpha: 0.22),
+        colorScheme.primary.withValues(alpha: 0.14),
+      ],
+    ];
 
     return SafeArea(
       child: Container(
@@ -2252,7 +2275,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2288,105 +2314,79 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      AppStrings.overviewHealthTitle(context),
-                      style: TextStyle(
-                        color: colorScheme.onPrimary.withValues(alpha: 0.82),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      AppStrings.overviewMotivation(context),
-                      style: TextStyle(
-                        color: colorScheme.onPrimary,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        height: 1.05,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      AppStrings.overviewSubtitle(context),
-                      style: TextStyle(
-                        color: colorScheme.onPrimary.withValues(alpha: 0.82),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              ValueListenableBuilder<TrackingSnapshot>(
-                valueListenable: _trackingController.snapshot,
-                builder: (context, snapshot, _) {
-                  final distanceKm = snapshot.distanceMeters / 1000.0;
-                  final streak = _currentWorkoutStreak(distanceKm);
-                  final message = _motivationMessage(
-                    streak: streak,
-                    todayKm: distanceKm,
-                    steps: snapshot.steps,
-                  );
-
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.shadow.withValues(alpha: 0.12),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withValues(alpha: 0.14),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.local_fire_department,
-                            color: colorScheme.primary,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
+                    SizedBox(
+                      height: 142,
+                      child: PageView.builder(
+                        controller: _heroBannerController,
+                        itemCount: _homeHeroBanners().length,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _heroBannerIndex = index;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final banner = _homeHeroBanners()[index];
+                          return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _isEnglish
-                                    ? 'Current streak: $streak day${streak == 1 ? '' : 's'}'
-                                    : 'Streak hiện tại: $streak ngày',
+                                banner.label,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: colorScheme.primary,
+                                  color: colorScheme.onPrimary
+                                      .withValues(alpha: 0.82),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 10),
                               Text(
-                                message,
+                                banner.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: colorScheme.onSurface.withValues(alpha: 0.82),
-                                  height: 1.25,
+                                  color: colorScheme.onPrimary,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.05,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                banner.subtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colorScheme.onPrimary
+                                      .withValues(alpha: 0.82),
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                      ],
+                          );
+                        },
+                      ),
                     ),
-                  );
-                },
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children:
+                          List.generate(_homeHeroBanners().length, (index) {
+                        final active = _heroBannerIndex == index;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: active ? 18 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: active
+                                ? colorScheme.onPrimary
+                                : colorScheme.onPrimary.withValues(alpha: 0.45),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               ValueListenableBuilder<TrackingSnapshot>(
@@ -2462,69 +2462,182 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: 18),
-              Text(
-                AppStrings.exploreMore(context),
-                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      AppStrings.exploreMore(context),
+                      style:
+                          TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: colorScheme.surface,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 76,
-                      height: 76,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: colorScheme.surfaceContainerHighest,
-                      ),
-                      child: Icon(
-                        Icons.self_improvement,
-                        color: colorScheme.primary,
-                        size: 34,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppStrings.trainingLabel(context),
-                            style: TextStyle(
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.72,
+              SizedBox(
+                height: 214,
+                child: PageView.builder(
+                  controller: _explorePageController,
+                  itemCount: exploreItems.length,
+                  padEnds: false,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _explorePageIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final item = exploreItems[index];
+                    final gradient =
+                        exploreGradients[index % exploreGradients.length];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(24),
+                        elevation: 0,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: () => _openExploreWorkout(item.youtubeUrl),
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(24),
+                              gradient: LinearGradient(
+                                colors: [
+                                  colorScheme.surface,
+                                  gradient[0],
+                                  gradient[1],
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              fontSize: 11,
+                              border: Border.all(
+                                color:
+                                    colorScheme.outline.withValues(alpha: 0.20),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.shadow
+                                      .withValues(alpha: 0.12),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 82,
+                                  height: 82,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(18),
+                                    color: colorScheme.surface.withValues(
+                                      alpha: 0.72,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    item.icon,
+                                    color: colorScheme.primary,
+                                    size: 36,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.label,
+                                        style: TextStyle(
+                                          color:
+                                              colorScheme.onSurface.withValues(
+                                            alpha: 0.70,
+                                          ),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.6,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        item.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 29,
+                                          height: 0.98,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        item.subtitle,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primary.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          'YouTube',
+                                          style: TextStyle(
+                                            color: colorScheme.primary,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: colorScheme.primary
+                                      .withValues(alpha: 0.14),
+                                  child: Icon(
+                                    Icons.play_arrow_rounded,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          SizedBox(height: 3),
-                          Text(
-                            AppStrings.yogaMorningTitle(context),
-                            style: TextStyle(
-                              fontSize: 32,
-                              height: 0.95,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Text(AppStrings.yogaMorningSubtitle(context)),
-                        ],
+                        ),
                       ),
-                    ),
-                    CircleAvatar(
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.chevron_right,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(exploreItems.length, (index) {
+                  final active = _explorePageIndex == index;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: active ? 18 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: active
+                          ? colorScheme.primary
+                          : colorScheme.outline.withValues(alpha: 0.35),
+                    ),
+                  );
+                }),
               ),
               const SizedBox(height: 14),
             ],
@@ -2533,4 +2646,32 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+class _ExploreWorkoutItem {
+  const _ExploreWorkoutItem({
+    required this.label,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.youtubeUrl,
+  });
+
+  final String label;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String youtubeUrl;
+}
+
+class _HomeHeroBanner {
+  const _HomeHeroBanner({
+    required this.label,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String label;
+  final String title;
+  final String subtitle;
 }

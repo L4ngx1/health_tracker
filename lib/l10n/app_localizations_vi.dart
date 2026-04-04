@@ -494,7 +494,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get overviewHealthTitle => 'TỔNG QUAN SỨC KHỎE';
 
   @override
-  String get overviewMotivation => 'Tuyệt vời! Bạn\nđang đi đúng\nhướng.';
+  String get overviewMotivation => 'Bạn xứng đáng với\nmột cơ thể\ntốt hơn';
 
   @override
   String get overviewSubtitle =>

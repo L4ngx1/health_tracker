@@ -69,15 +69,14 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: AppPalette.background,
-      colorScheme:
-          ColorScheme.fromSeed(
-            seedColor: AppPalette.primary,
-            brightness: Brightness.light,
-          ).copyWith(
-            primary: AppPalette.primary,
-            secondary: AppPalette.accent,
-            surface: AppPalette.surface,
-          ),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppPalette.primary,
+        brightness: Brightness.light,
+      ).copyWith(
+        primary: AppPalette.primary,
+        secondary: AppPalette.accent,
+        surface: AppPalette.surface,
+      ),
       textTheme: vietnamese.copyWith(
         displayLarge: vietnamese.displayLarge?.copyWith(
           color: AppPalette.textMain,
@@ -149,6 +148,24 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
+      scrollbarTheme: ScrollbarThemeData(
+        radius: const Radius.circular(999),
+        thickness: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return 8;
+          }
+          return 6;
+        }),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return AppPalette.primary.withValues(alpha: 0.88);
+          }
+          return AppPalette.primary.withValues(alpha: 0.58);
+        }),
+        trackColor: WidgetStatePropertyAll(
+          AppPalette.primary.withValues(alpha: 0.12),
+        ),
+      ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: _SmoothPageTransitionsBuilder(),
@@ -204,6 +221,24 @@ class AppTheme {
         style: ButtonStyle(
           animationDuration: const Duration(milliseconds: 120),
           overlayColor: _pressOverlay(AppPalette.primary),
+        ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        radius: const Radius.circular(999),
+        thickness: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return 8;
+          }
+          return 6;
+        }),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return AppPalette.primary.withValues(alpha: 0.92);
+          }
+          return AppPalette.primary.withValues(alpha: 0.65);
+        }),
+        trackColor: WidgetStatePropertyAll(
+          AppPalette.primary.withValues(alpha: 0.18),
         ),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
