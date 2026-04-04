@@ -1,5 +1,4 @@
 ﻿﻿import 'package:flutter/material.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/backend/notification_record.dart';
@@ -327,15 +326,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 .where((item) => item.isImportant)
                 .toList(growable: false);
             final unreadAll = allItems
-              .where((item) => !(item.isRead || _optimisticReadIds.contains(item.id)))
-              .length;
+                .where((item) =>
+                    !(item.isRead || _optimisticReadIds.contains(item.id)))
+                .length;
             final importantCount = importantItems.length;
 
             return Column(
               children: [
                 Container(
                   margin: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerLowest,
                     borderRadius: BorderRadius.circular(14),
@@ -503,7 +504,8 @@ class _NotificationList extends StatelessWidget {
                   context: context,
                   builder: (dialogContext) => AlertDialog(
                     title: const Text('Xóa thông báo'),
-                    content: const Text('Bạn có chắc muốn xóa thông báo này không?'),
+                    content:
+                        const Text('Bạn có chắc muốn xóa thông báo này không?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -529,7 +531,8 @@ class _NotificationList extends StatelessWidget {
             ),
             child: ListTile(
               onTap: () => onTap(item),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               leading: CircleAvatar(
                 backgroundColor: item.isImportant
                     ? colorScheme.errorContainer

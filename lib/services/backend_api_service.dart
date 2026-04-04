@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-﻿import 'package:firebase_auth/firebase_auth.dart';
-=======
 import 'package:firebase_auth/firebase_auth.dart';
->>>>>>> origin/main
 
 import '../models/backend/calorie_record.dart';
 import '../models/backend/notification_record.dart';

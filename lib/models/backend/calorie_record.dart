@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-=======
 import 'package:cloud_firestore/cloud_firestore.dart';
->>>>>>> origin/main
 
 class CalorieRecord {
   const CalorieRecord({
@@ -31,9 +27,8 @@ class CalorieRecord {
 
   static CalorieRecord fromMap(String id, Map<String, dynamic> map) {
     final dynamic recordedAt = map['recordedAt'];
-    final DateTime when = recordedAt is Timestamp
-        ? recordedAt.toDate()
-        : DateTime.now();
+    final DateTime when =
+        recordedAt is Timestamp ? recordedAt.toDate() : DateTime.now();
 
     return CalorieRecord(
       id: id,

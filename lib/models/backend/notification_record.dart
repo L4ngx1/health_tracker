@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-=======
 import 'package:cloud_firestore/cloud_firestore.dart';
->>>>>>> origin/main
 
 class NotificationRecord {
   const NotificationRecord({
@@ -39,9 +35,8 @@ class NotificationRecord {
     final dynamic createdAtRaw = map['createdAt'];
     final dynamic readAtRaw = map['readAt'];
 
-    final createdAt = createdAtRaw is Timestamp
-        ? createdAtRaw.toDate()
-        : DateTime.now();
+    final createdAt =
+        createdAtRaw is Timestamp ? createdAtRaw.toDate() : DateTime.now();
     final readAt = readAtRaw is Timestamp ? readAtRaw.toDate() : null;
 
     return NotificationRecord(
