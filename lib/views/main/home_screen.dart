@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -813,6 +813,7 @@ class _HomeScreenState extends State<HomeScreen> {
             final remaining = (_waterGoalMl - _waterIntakeMl).clamp(0, 10000);
             final now = DateTime.now();
             final smartMinutes = _smartReminderIntervalMinutes(now);
+
             return Container(
               decoration: BoxDecoration(
                 color: colorScheme.surface,
@@ -823,310 +824,295 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
               child: SafeArea(
                 top: false,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 46,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: colorScheme.outlineVariant,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        _isEnglish ? 'Water intake reminder' : 'Nhắc uống nước',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _isEnglish
-                            ? 'Recommended: 1.5 - 2.5L/day or 30-35 ml/kg.'
-                            : 'Mức cơ bản: 1.5 - 2.5L/ngày, hoặc 30-35 ml/kg.',
-                        style: TextStyle(
-                          color: colorScheme.onSurface.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _isEnglish
-                            ? 'Your recommendation: ${(minMl / 1000).toStringAsFixed(1)} - ${(maxMl / 1000).toStringAsFixed(1)} L/day.'
-                            : 'Gợi ý cho bạn: ${(minMl / 1000).toStringAsFixed(1)} - ${(maxMl / 1000).toStringAsFixed(1)} L/ngày.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _isEnglish
-                            ? (_weightKg == null
-                                ? 'Enter your weight for a more accurate ml/kg recommendation.'
-                                : 'Calculated from your weight: ${_weightKg!.toStringAsFixed(1)} kg.')
-                            : (_weightKg == null
-                                ? 'Hãy nhập cân nặng để tính gợi ý ml/kg chính xác hơn.'
-                                : 'Đang tính theo cân nặng: ${_weightKg!.toStringAsFixed(1)} kg.'),
-                        style: TextStyle(
-                          color: colorScheme.onSurface.withValues(alpha: 0.66),
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxHeight = constraints.maxHeight * 0.85;
+                    return ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: maxHeight),
+                      child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '${(_waterIntakeMl / 1000).toStringAsFixed(1)} / ${(_waterGoalMl / 1000).toStringAsFixed(1)} L',
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.w900,
-                                height: 1,
+                            Center(
+                              child: Container(
+                                width: 46,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.outlineVariant,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(999),
-                              child: LinearProgressIndicator(
-                                value: progress,
-                                minHeight: 10,
-                                backgroundColor: colorScheme.outlineVariant,
+                            const SizedBox(height: 14),
+                            Text(
+                              _isEnglish
+                                  ? 'Water intake reminder'
+                                  : 'Nhắc uống nước',
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _isEnglish
+                                  ? 'Recommended: 1.5 - 2.5L/day or 30-35 ml/kg.'
+                                  : 'Mức cơ bản: 1.5 - 2.5L/ngày, hoặc 30-35 ml/kg.',
+                              style: TextStyle(
+                                color: colorScheme.onSurface
+                                    .withValues(alpha: 0.72),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _isEnglish
+                                  ? 'Your recommendation: ${(minMl / 1000).toStringAsFixed(1)} - ${(maxMl / 1000).toStringAsFixed(1)} L/day.'
+                                  : 'Gợi ý cho bạn: ${(minMl / 1000).toStringAsFixed(1)} - ${(maxMl / 1000).toStringAsFixed(1)} L/ngày.',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
                                 color: colorScheme.primary,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 2),
                             Text(
-                              remaining <= 0
-                                  ? (_isEnglish
-                                      ? 'Goal completed.'
-                                      : 'Bạn đã đạt mục tiêu hôm nay.')
-                                  : (_isEnglish
-                                      ? 'Remaining: $remaining ml'
-                                      : 'Còn thiếu: $remaining ml'),
+                              _isEnglish
+                                  ? (_weightKg == null
+                                      ? 'Enter your weight for a more accurate ml/kg recommendation.'
+                                      : 'Calculated from your weight: ${_weightKg!.toStringAsFixed(1)} kg.')
+                                  : (_weightKg == null
+                                      ? 'Hãy nhập cân nặng để tính gợi ý ml/kg chính xác hơn.'
+                                      : 'Đang tính theo cân nặng: ${_weightKg!.toStringAsFixed(1)} kg.'),
                               style: TextStyle(
                                 color: colorScheme.onSurface
-                                    .withValues(alpha: 0.8),
+                                    .withValues(alpha: 0.66),
+                                fontSize: 12,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          FilledButton.tonal(
-                            onPressed: () async {
-                              await _addWaterIntake(150);
-                              setModalState(() {});
-                            },
-                            child: const Text('+150 ml'),
-                          ),
-                          FilledButton.tonal(
-                            onPressed: () async {
-                              await _addWaterIntake(200);
-                              setModalState(() {});
-                            },
-                            child: const Text('+200 ml'),
-                          ),
-                          FilledButton.tonal(
-                            onPressed: () async {
-                              await _addWaterIntake(300);
-                              setModalState(() {});
-                            },
-                            child: const Text('+300 ml'),
-                          ),
-                          FilledButton.tonal(
-                            onPressed: () async {
-                              await _addWaterIntake(-150);
-                              setModalState(() {});
-                            },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colorScheme.errorContainer,
-                              foregroundColor: colorScheme.onErrorContainer,
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${(_waterIntakeMl / 1000).toStringAsFixed(1)} / ${(_waterGoalMl / 1000).toStringAsFixed(1)} L',
+                                    style: const TextStyle(
+                                      fontSize: 30,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      minHeight: 10,
+                                      backgroundColor:
+                                          colorScheme.outlineVariant,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    remaining <= 0
+                                        ? (_isEnglish
+                                            ? 'Goal completed.'
+                                            : 'Bạn đã đạt mục tiêu hôm nay.')
+                                        : (_isEnglish
+                                            ? 'Remaining: $remaining ml'
+                                            : 'Còn thiếu: $remaining ml'),
+                                    style: TextStyle(
+                                      color: colorScheme.onSurface
+                                          .withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: const Text('-150 ml'),
-                          ),
-                          FilledButton.tonal(
-                            onPressed: () async {
-                              await _addWaterIntake(-200);
-                              setModalState(() {});
-                            },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colorScheme.errorContainer,
-                              foregroundColor: colorScheme.onErrorContainer,
+                            const SizedBox(height: 14),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilledButton.tonal(
+                                  onPressed: () async {
+                                    await _addWaterIntake(150);
+                                    setModalState(() {});
+                                  },
+                                  child: const Text('+150 ml'),
+                                ),
+                                FilledButton.tonal(
+                                  onPressed: () async {
+                                    await _addWaterIntake(200);
+                                    setModalState(() {});
+                                  },
+                                  child: const Text('+200 ml'),
+                                ),
+                                FilledButton.tonal(
+                                  onPressed: () async {
+                                    await _addWaterIntake(300);
+                                    setModalState(() {});
+                                  },
+                                  child: const Text('+300 ml'),
+                                ),
+                              ],
                             ),
-                            child: const Text('-200 ml'),
-                          ),
-                          FilledButton.tonal(
-                            onPressed: () async {
-                              await _addWaterIntake(-300);
-                              setModalState(() {});
-                            },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colorScheme.errorContainer,
-                              foregroundColor: colorScheme.onErrorContainer,
-                            ),
-                            child: const Text('-300 ml'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _isEnglish
-                            ? 'Custom daily goal: $draftGoal ml'
-                            : 'Mục tiêu tự nhập: $draftGoal ml',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      Slider(
-                        value: draftGoal.toDouble(),
-                        min: 1000,
-                        max: 5000,
-                        divisions: 40,
-                        label: '$draftGoal ml',
-                        onChanged: (value) {
-                          setModalState(() {
-                            draftGoal = value.round();
-                          });
-                        },
-                      ),
-                      Row(
-                        children: [
-                          OutlinedButton(
-                            onPressed: () async {
-                              final recommend = await _pickRecommendedGoalMl();
-                              if (recommend == null) return;
-                              setModalState(() {
-                                draftGoal = recommend;
-                              });
-                              await _updateWaterGoal(recommend);
-                            },
-                            child: Text(
+                            const SizedBox(height: 16),
+                            Text(
                               _isEnglish
-                                  ? 'Use recommendation'
-                                  : 'Dùng mức gợi ý',
+                                  ? 'Custom daily goal: $draftGoal ml'
+                                  : 'Mục tiêu tự nhập: $draftGoal ml',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w800),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton(
-                            onPressed: () async {
-                              await _updateWaterGoal(
-                                draftGoal,
-                                syncImmediately: true,
-                              );
-                              if (!context.mounted) return;
-                              Navigator.of(context).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
+                            Slider(
+                              value: draftGoal.toDouble(),
+                              min: 1000,
+                              max: 5000,
+                              divisions: 40,
+                              label: '$draftGoal ml',
+                              onChanged: (value) {
+                                setModalState(() {
+                                  draftGoal = value.round();
+                                });
+                              },
+                            ),
+                            Row(
+                              children: [
+                                OutlinedButton(
+                                  onPressed: () async {
+                                    final recommend =
+                                        await _pickRecommendedGoalMl();
+                                    if (recommend == null) return;
+                                    setModalState(() {
+                                      draftGoal = recommend;
+                                    });
+                                    await _updateWaterGoal(recommend);
+                                  },
+                                  child: Text(
                                     _isEnglish
-                                        ? 'Hydration goal saved.'
-                                        : 'Đã lưu mục tiêu nước.',
+                                        ? 'Use recommendation'
+                                        : 'Dùng mức gợi ý',
                                   ),
                                 ),
-                              );
-                            },
-                            child: Text(AppStrings.save(context)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _waterReminderEnabled,
-                        onChanged: (v) async {
-                          setState(() {
-                            _waterReminderEnabled = v;
-                          });
-                          setModalState(() {});
-                          await _saveHydrationData();
-                        },
-                        title: Text(
-                          _isEnglish
-                              ? 'Hydration reminder'
-                              : 'Nhắc nhở uống nước',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: Text(
-                          _isEnglish
-                              ? 'Smart mode adjusts reminders by remaining water and time left.'
-                              : 'Chế độ thông minh điều chỉnh tần suất theo lượng thiếu và thời gian còn lại.',
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _isEnglish
-                            ? 'Manual cap: every $draftInterval minutes (smart: $smartMinutes minutes).'
-                            : 'Ngưỡng tay: mỗi $draftInterval phút (thông minh đề xuất: $smartMinutes phút).',
-                        style: TextStyle(
-                          color: colorScheme.onSurface.withValues(alpha: 0.75),
-                        ),
-                      ),
-                      Slider(
-                        value: draftInterval.toDouble(),
-                        min: 45,
-                        max: 180,
-                        divisions: 9,
-                        label: '$draftInterval min',
-                        onChanged: (value) {
-                          setModalState(() {
-                            draftInterval = value.round();
-                          });
-                        },
-                        onChangeEnd: (value) async {
-                          _waterManualIntervalMinutes = value.round();
-                          await _saveHydrationData();
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      // Hydration guidelines
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _isEnglish ? 'Hydration Tips' : 'Mẹo Uống Nước',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: colorScheme.onPrimaryContainer,
+                                const SizedBox(width: 8),
+                                FilledButton(
+                                  onPressed: () async {
+                                    await _updateWaterGoal(
+                                      draftGoal,
+                                      syncImmediately: true,
+                                    );
+                                    if (!context.mounted) return;
+                                    Navigator.of(context).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          _isEnglish
+                                              ? 'Hydration goal saved.'
+                                              : 'Đã lưu mục tiêu nước.',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(AppStrings.save(context)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              value: _waterReminderEnabled,
+                              onChanged: (v) async {
+                                setState(() {
+                                  _waterReminderEnabled = v;
+                                });
+                                setModalState(() {});
+                                await _saveHydrationData();
+                              },
+                              title: Text(
+                                _isEnglish
+                                    ? 'Hydration reminder'
+                                    : 'Nhắc nhở uống nước',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              subtitle: Text(
+                                _isEnglish
+                                    ? 'Smart mode adjusts reminders by remaining water and time left.'
+                                    : 'Chế độ thông minh điều chỉnh tần suất theo lượng thiếu và thời gian còn lại.',
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               _isEnglish
-                                  ? '• Drink 150-200 ml per session\n• Space drinks 1-2 hours apart\n• Sip slowly for better absorption\n• Avoid large amounts at once'
-                                  : '• Uống 150-200 ml mỗi lần\n• Cách nhau 1-2 giờ một lần\n• Uống từ từ để hấp thụ tốt\n• Tránh uống quá nhiều một lúc',
+                                  ? 'Manual cap: every $draftInterval minutes (smart: $smartMinutes minutes).'
+                                  : 'Ngưỡng tay: mỗi $draftInterval phút (thông minh đề xuất: $smartMinutes phút).',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.onPrimaryContainer,
-                                height: 1.6,
+                                color: colorScheme.onSurface
+                                    .withValues(alpha: 0.75),
+                              ),
+                            ),
+                            Slider(
+                              value: draftInterval.toDouble(),
+                              min: 45,
+                              max: 180,
+                              divisions: 9,
+                              label: '$draftInterval min',
+                              onChanged: (value) {
+                                setModalState(() {
+                                  draftInterval = value.round();
+                                });
+                              },
+                              onChangeEnd: (value) async {
+                                _waterManualIntervalMinutes = value.round();
+                                await _saveHydrationData();
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isEnglish
+                                        ? 'Hydration Tips'
+                                        : 'Mẹo Uống Nước',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _isEnglish
+                                        ? '• Drink 150-200 ml per session\n• Space drinks 1-2 hours apart\n• Sip slowly for better absorption\n• Avoid large amounts at once'
+                                        : '• Uống 150-200 ml mỗi lần\n• Cách nhau 1-2 giờ một lần\n• Uống từ từ để hấp thụ tốt\n• Tránh uống quá nhiều một lúc',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onPrimaryContainer,
+                                      height: 1.6,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
             );
@@ -2449,7 +2435,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         return;
                       }
 
-                      if (index == 1) {
+                      if (item.title ==
+                          AppStrings.homeMetricWaterTitle(context)) {
                         _showHydrationSheet();
                         return;
                       }

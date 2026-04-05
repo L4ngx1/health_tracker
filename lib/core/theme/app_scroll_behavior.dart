@@ -34,13 +34,7 @@ class AppScrollBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    return Scrollbar(
-      controller: details.controller,
-      interactive: true,
-      thumbVisibility: details.controller != null,
-      radius: const Radius.circular(999),
-      thickness: 6,
-      child: child,
-    );
+    // Hide scrollbar visuals globally while keeping scroll interactions intact.
+    return child;
   }
 }

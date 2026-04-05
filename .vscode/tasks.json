@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Health Tracker on Android",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"run",
+				"-d",
+				"R5CY737QB7W"
+			],
+			"isBackground": true
+		}
+	]
+}
