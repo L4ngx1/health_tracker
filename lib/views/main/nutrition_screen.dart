@@ -711,7 +711,8 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  color: colorScheme.surfaceVariant.withValues(alpha: 0.06),
+                  color: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.06),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,7 +727,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: _selectedGoalLabel,
+                      initialValue: _selectedGoalLabel,
                       decoration: InputDecoration(
                         labelText: 'Mục tiêu',
                         border: OutlineInputBorder(
@@ -749,7 +750,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _selectedLevelLabel,
+                      initialValue: _selectedLevelLabel,
                       decoration: InputDecoration(
                         labelText: 'Trình độ',
                         border: OutlineInputBorder(

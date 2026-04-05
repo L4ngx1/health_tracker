@@ -1432,33 +1432,41 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final isAdvanced = level.contains('nâng cao');
 
     if (goal.contains('giảm mỡ')) {
-      if (isAdvanced)
+      if (isAdvanced) {
         return firstExercise ? '4 hiệp x 12-15 lần' : '4 hiệp x 10-12 lần';
-      if (isBeginner)
+      }
+      if (isBeginner) {
         return firstExercise ? '3 hiệp x 10-12 lần' : '3 hiệp x 8-10 lần';
+      }
       return firstExercise ? '4 hiệp x 10-12 lần' : '3 hiệp x 10-12 lần';
     }
 
     if (goal.contains('tăng cơ')) {
-      if (isAdvanced)
+      if (isAdvanced) {
         return firstExercise ? '5 hiệp x 6-8 lần' : '4 hiệp x 8-10 lần';
-      if (isBeginner)
+      }
+      if (isBeginner) {
         return firstExercise ? '3 hiệp x 8-10 lần' : '3 hiệp x 10-12 lần';
+      }
       return firstExercise ? '4 hiệp x 8-10 lần' : '4 hiệp x 10-12 lần';
     }
 
     if (goal.contains('sức bền')) {
-      if (isAdvanced)
+      if (isAdvanced) {
         return firstExercise ? '4 hiệp x 15-20 lần' : '4 hiệp x 12-15 lần';
-      if (isBeginner)
+      }
+      if (isBeginner) {
         return firstExercise ? '3 hiệp x 12-15 lần' : '3 hiệp x 10-12 lần';
+      }
       return firstExercise ? '4 hiệp x 12-15 lần' : '3 hiệp x 12-15 lần';
     }
 
-    if (isAdvanced)
+    if (isAdvanced) {
       return firstExercise ? '4 hiệp x 10-12 lần' : '4 hiệp x 8-10 lần';
-    if (isBeginner)
+    }
+    if (isBeginner) {
       return firstExercise ? '3 hiệp x 8-10 lần' : '3 hiệp x 8-10 lần';
+    }
     return firstExercise ? '4 hiệp x 8-10 lần' : '3 hiệp x 10-12 lần';
   }
 

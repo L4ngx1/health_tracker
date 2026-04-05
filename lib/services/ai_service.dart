@@ -506,10 +506,12 @@ Cân nặng: ...
 
   String _toViExerciseName(String input) {
     final lower = input.toLowerCase();
-    if (lower.contains('squat bodyweight'))
+    if (lower.contains('squat bodyweight')) {
       return 'Squat với trọng lượng cơ thể';
-    if (lower.contains('push-up') || lower.contains('push up'))
+    }
+    if (lower.contains('push-up') || lower.contains('push up')) {
       return 'Hít đất';
+    }
     if (lower.contains('plank')) return 'Plank (giữ thân người)';
     if (lower.contains('dumbbell row')) return 'Kéo tạ đơn';
     if (lower.contains('glute bridge')) return 'Nâng hông';
