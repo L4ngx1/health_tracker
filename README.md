@@ -18,6 +18,127 @@ chi so hang ngay va cac goi y cai thien thoi quen song.
 - Dashboard tong hop tien do suc khoe.
 - Local notifications va cac banner nhac nho.
 
+## Phan chia cong viec (doi chieu thuc te)
+
+Du lieu doi chieu duoc tong hop theo lich su commit tren nhanh `main`.
+
+### Mapping tai khoan GitHub
+
+- Tran Duc Trung: `DDuc-Trung`, `leminhhieu05102005-glith`
+- Ta Anh Tuan: `tatuan2005`, `taanhtuan2005`
+- Nguyen Xuan Lang: `L4ngx1`
+- Ho Dien Dat: `D1Da-1103`
+- Hoang Viet Trung: `lwlwlwlwsss`
+
+### Bang phan chia va tien do
+
+<table>
+	<thead>
+		<tr>
+			<th>Thanh vien</th>
+			<th>Vai tro</th>
+			<th>Nhiem vu chinh</th>
+			<th>Chi tiet cong viec phan cong</th>
+			<th>Cong viec thuc te lam</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td rowspan="3"><b>Tran Duc Trung</b></td>
+			<td rowspan="3">UI/UX + Camera AI (Frontend)</td>
+			<td rowspan="3">Thiet ke giao dien va tich hop nhan dien do an</td>
+			<td>- Thiet ke UI (Home, theo doi suc khoe, nhap du lieu) + tich hop camera chup mon an</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Gui anh len API</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Nhan va hien thi ket qua (calories)</td>
+			<td align="center">&#9745;</td>
+		</tr>
+
+		<tr>
+			<td rowspan="3"><b>Ta Anh Tuan</b></td>
+			<td rowspan="3">Sensor &amp; Tracking (Hardware)</td>
+			<td rowspan="3">Xu ly du lieu tu phan cung</td>
+			<td>- Dem buoc chan (accelerometer)</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Theo doi giac ngu</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Xu ly chay nen (background service)</td>
+			<td align="center">&#9745;</td>
+		</tr>
+
+		<tr>
+			<td rowspan="3"><b>Ho Dien Dat</b></td>
+			<td rowspan="3">AI &amp; Xu ly thong minh</td>
+			<td rowspan="3">Xay dung he thong AI va logic goi y</td>
+			<td>- Xay API nhan dien do an (anh -&gt; ten + calories)</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Xay logic goi y tap luyen</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Goi y che do an uong phu hop</td>
+			<td align="center">&#9745;</td>
+		</tr>
+
+		<tr>
+			<td rowspan="4"><b>Nguyen Xuan Lang</b></td>
+			<td rowspan="4">Backend &amp; Database</td>
+			<td rowspan="4">Quan ly du lieu va he thong</td>
+			<td>- Xay dung dang ky / dang nhap</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Thiet ke database</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Luu tru du lieu (calories, steps, sleep, weight)</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Xay API de frontend su dung</td>
+			<td align="center">&#9745;</td>
+		</tr>
+
+		<tr>
+			<td rowspan="5"><b>Hoang Viet Trung</b></td>
+			<td rowspan="5">Logic nghiep vu + Tien ich</td>
+			<td rowspan="5">Phat trien tinh nang ho tro nguoi dung</td>
+			<td>- Nhac uong nuoc</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Lap lich tap luyen</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Quan ly can nang</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Voice -&gt; text ghi chu</td>
+			<td align="center">&#9745;</td>
+		</tr>
+		<tr>
+			<td>- Gamification (streak, badge)</td>
+			<td align="center">&#9745;</td>
+		</tr>
+	</tbody>
+</table>
+
+
+
 ## Cong nghe su dung
 
 - Flutter + Dart
