@@ -34,13 +34,7 @@ class AppScrollBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    return Scrollbar(
-      // Let each scrollable provide notifications without binding one shared
-      // controller, which avoids multi-ScrollPosition assertions.
-      interactive: false,
-      radius: const Radius.circular(999),
-      thickness: 6,
-      child: child,
-    );
+    // Hide scrollbar visuals globally while keeping scroll interactions intact.
+    return child;
   }
 }
