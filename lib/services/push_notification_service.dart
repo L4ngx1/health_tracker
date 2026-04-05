@@ -174,7 +174,23 @@ class PushNotificationService {
       return;
     }
 
-    final token = await _messaging.getToken();
+    String? token;
+    try {
+      token = await _messaging.getToken();
+    } on FirebaseException catch (e) {
+      // On web, blocked notification permission is expected and should not
+      // break auth or other user flows.
+      if (e.code == 'permission-blocked' || e.code == 'permission-default') {
+        debugPrint('Skip FCM token sync: ${e.code}.');
+        return;
+      }
+      debugPrint('Get FCM token failed: ${e.code} - ${e.message ?? ''}');
+      return;
+    } catch (e) {
+      debugPrint('Get FCM token failed: $e');
+      return;
+    }
+
     if (token == null || token.trim().isEmpty) {
       return;
     }

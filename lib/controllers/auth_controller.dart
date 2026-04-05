@@ -264,18 +264,17 @@ class AuthController {
           return _l10n.authErrorGoogleGeneral(e.description ?? e.code.name);
       }
     } on FirebaseAuthException catch (e) {
-      debugPrint(
-        _l10n.authLogGoogleFirebaseException(e.code, e.message ?? ''),
-      );
       if (_isCancelLikeError(e.code) || _isCancelLikeError(e.message ?? '')) {
         return googleSignInCanceled;
       }
+      debugPrint(
+        _l10n.authLogGoogleFirebaseException(e.code, e.message ?? ''),
+      );
       return _friendlyError(e);
     } on UnimplementedError {
       return _l10n.authErrorGoogleUnsupportedPlatform;
     } catch (e) {
       final raw = e.toString();
-      debugPrint(_l10n.authLogGoogleSignInError(raw));
       if (raw.contains('INVALID_CERT_HASH') ||
           raw.contains('DEVELOPER_ERROR')) {
         return _l10n.authErrorGoogleShaMismatch;
@@ -283,6 +282,7 @@ class AuthController {
       if (_isCancelLikeError(raw)) {
         return googleSignInCanceled;
       }
+      debugPrint(_l10n.authLogGoogleSignInError(raw));
       return _l10n.authErrorGoogleGeneral(raw);
     }
   }
