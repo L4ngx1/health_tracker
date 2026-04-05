@@ -93,6 +93,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
             padding: EdgeInsets.only(
+              right: 12,
               bottom: MediaQuery.of(context).viewInsets.bottom + 16,
             ),
             child: Form(

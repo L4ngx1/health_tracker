@@ -82,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
             padding: EdgeInsets.only(
+              right: 12,
               bottom: MediaQuery.of(context).viewInsets.bottom + 16,
             ),
             child: Form(

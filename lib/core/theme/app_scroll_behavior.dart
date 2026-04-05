@@ -35,9 +35,9 @@ class AppScrollBehavior extends MaterialScrollBehavior {
     ScrollableDetails details,
   ) {
     return Scrollbar(
-      controller: details.controller,
-      interactive: true,
-      thumbVisibility: details.controller != null,
+      // Let each scrollable provide notifications without binding one shared
+      // controller, which avoids multi-ScrollPosition assertions.
+      interactive: false,
       radius: const Radius.circular(999),
       thickness: 6,
       child: child,

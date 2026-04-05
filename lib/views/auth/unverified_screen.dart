@@ -68,6 +68,7 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
             padding: EdgeInsets.only(
+              right: 12,
               bottom: MediaQuery.of(context).viewInsets.bottom + 16,
             ),
             child: Column(
