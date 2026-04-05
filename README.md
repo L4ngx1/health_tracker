@@ -58,7 +58,6 @@ Du lieu doi chieu duoc tong hop theo lich su commit tren nhanh `main`.
 			<td>- Nhan va hien thi ket qua (calories)</td>
 			<td align="center">&#9745;</td>
 		</tr>
-
 		<tr>
 			<td rowspan="3"><b>Ta Anh Tuan</b></td>
 			<td rowspan="3">Sensor &amp; Tracking (Hardware)</td>
@@ -74,7 +73,6 @@ Du lieu doi chieu duoc tong hop theo lich su commit tren nhanh `main`.
 			<td>- Xu ly chay nen (background service)</td>
 			<td align="center">&#9745;</td>
 		</tr>
-
 		<tr>
 			<td rowspan="3"><b>Ho Dien Dat</b></td>
 			<td rowspan="3">AI &amp; Xu ly thong minh</td>
@@ -90,7 +88,6 @@ Du lieu doi chieu duoc tong hop theo lich su commit tren nhanh `main`.
 			<td>- Goi y che do an uong phu hop</td>
 			<td align="center">&#9745;</td>
 		</tr>
-
 		<tr>
 			<td rowspan="4"><b>Nguyen Xuan Lang</b></td>
 			<td rowspan="4">Backend &amp; Database</td>
@@ -110,7 +107,6 @@ Du lieu doi chieu duoc tong hop theo lich su commit tren nhanh `main`.
 			<td>- Xay API de frontend su dung</td>
 			<td align="center">&#9745;</td>
 		</tr>
-
 		<tr>
 			<td rowspan="5"><b>Hoang Viet Trung</b></td>
 			<td rowspan="5">Logic nghiep vu + Tien ich</td>
