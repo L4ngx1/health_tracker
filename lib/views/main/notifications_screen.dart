@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../core/theme/responsive.dart';
 import '../../models/backend/notification_record.dart';
 import '../../services/backend_api_service.dart';
 
@@ -268,137 +269,170 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           backgroundColor: colorScheme.surface,
           surfaceTintColor: colorScheme.surface,
+          forceMaterialTransparency: false,
           scrolledUnderElevation: 0,
           elevation: 0,
-          title: const Text('Thông báo'),
-          centerTitle: false,
-          actions: [
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'all') {
-                  _markAllRead();
-                  return;
-                }
-                if (value == 'important') {
-                  _markAllRead(onlyImportant: true);
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem<String>(
-                  value: 'all',
-                  child: Text('Đánh dấu tất cả đã đọc'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'important',
-                  child: Text('Đánh dấu Quan trọng đã đọc'),
-                ),
-              ],
+          titleSpacing: 0,
+          title: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 920 : 760,
+              ),
+              child: Row(
+                children: [
+                  if (Navigator.of(context).canPop())
+                    IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back),
+                    )
+                  else
+                    const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Thông báo',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'all') {
+                        _markAllRead();
+                        return;
+                      }
+                      if (value == 'important') {
+                        _markAllRead(onlyImportant: true);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<String>(
+                        value: 'all',
+                        child: Text('Đánh dấu tất cả đã đọc'),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'important',
+                        child: Text('Đánh dấu Quan trọng đã đọc'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
-        body: StreamBuilder<List<NotificationRecord>>(
-          stream: _backendApiService.watchMyNotifications(limit: 200),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        body: Container(
+          color: colorScheme.surface,
+          child: StreamBuilder<List<NotificationRecord>>(
+            stream: _backendApiService.watchMyNotifications(limit: 200),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            final user = FirebaseAuth.instance.currentUser;
-            if (user == null) {
-              return const Center(
-                child: Text('Vui lòng đăng nhập để xem thông báo.'),
-              );
-            }
+              final user = FirebaseAuth.instance.currentUser;
+              if (user == null) {
+                return const Center(
+                  child: Text('Vui lòng đăng nhập để xem thông báo.'),
+                );
+              }
 
-            if (snapshot.hasError) {
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('Lỗi tải thông báo: ${snapshot.error}'),
+                  ),
+                );
+              }
+
+              final allItems = snapshot.data ?? const <NotificationRecord>[];
+              final importantItems = allItems
+                  .where((item) => item.isImportant)
+                  .toList(growable: false);
+              final unreadAll = allItems
+                  .where((item) =>
+                      !(item.isRead || _optimisticReadIds.contains(item.id)))
+                  .length;
+              final importantCount = importantItems.length;
+
               return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Lỗi tải thông báo: ${snapshot.error}'),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: Responsive.isDesktop(context) ? 920 : 760,
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerLowest,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: colorScheme.outlineVariant),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.mark_email_unread_rounded,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                unreadAll <= 0
+                                    ? 'Bạn đã đọc tất cả thông báo.'
+                                    : 'Bạn có $unreadAll thông báo chưa đọc.',
+                                style: TextStyle(
+                                  color: colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (unreadAll > 0)
+                              TextButton(
+                                onPressed: _markAllRead,
+                                child: const Text('Đọc tất cả'),
+                              ),
+                          ],
+                        ),
+                      ),
+                      TabBar(
+                        tabs: [
+                          Tab(text: 'Tất cả (${allItems.length})'),
+                          Tab(text: 'Quan trọng ($importantCount)'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            _NotificationList(
+                              items: allItems,
+                              onTap: _openNotificationDetail,
+                              onDelete: _deleteNotification,
+                              optimisticReadIds: _optimisticReadIds,
+                              timeFormatter: _relativeTime,
+                              textNormalizer: _normalizeLegacyText,
+                            ),
+                            _NotificationList(
+                              items: importantItems,
+                              onTap: _openNotificationDetail,
+                              onDelete: _deleteNotification,
+                              optimisticReadIds: _optimisticReadIds,
+                              timeFormatter: _relativeTime,
+                              textNormalizer: _normalizeLegacyText,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
-            }
-
-            final allItems = snapshot.data ?? const <NotificationRecord>[];
-            final importantItems = allItems
-                .where((item) => item.isImportant)
-                .toList(growable: false);
-            final unreadAll = allItems
-                .where((item) =>
-                    !(item.isRead || _optimisticReadIds.contains(item.id)))
-                .length;
-            final importantCount = importantItems.length;
-
-            return Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colorScheme.outlineVariant),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.mark_email_unread_rounded,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          unreadAll <= 0
-                              ? 'Bạn đã đọc tất cả thông báo.'
-                              : 'Bạn có $unreadAll thông báo chưa đọc.',
-                          style: TextStyle(
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      if (unreadAll > 0)
-                        TextButton(
-                          onPressed: _markAllRead,
-                          child: const Text('Đọc tất cả'),
-                        ),
-                    ],
-                  ),
-                ),
-                TabBar(
-                  tabs: [
-                    Tab(text: 'Tất cả (${allItems.length})'),
-                    Tab(text: 'Quan trọng ($importantCount)'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _NotificationList(
-                        items: allItems,
-                        onTap: _openNotificationDetail,
-                        onDelete: _deleteNotification,
-                        optimisticReadIds: _optimisticReadIds,
-                        timeFormatter: _relativeTime,
-                        textNormalizer: _normalizeLegacyText,
-                      ),
-                      _NotificationList(
-                        items: importantItems,
-                        onTap: _openNotificationDetail,
-                        onDelete: _deleteNotification,
-                        optimisticReadIds: _optimisticReadIds,
-                        timeFormatter: _relativeTime,
-                        textNormalizer: _normalizeLegacyText,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+            },
+          ),
         ),
         backgroundColor: colorScheme.surface,
       ),

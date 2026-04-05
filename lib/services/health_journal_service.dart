@@ -149,7 +149,8 @@ class HealthJournalService {
     final prefs = await SharedPreferences.getInstance();
     final sorted = map.values.toList(growable: false)
       ..sort((a, b) => b.date.compareTo(a.date));
-    final capped = sorted.take(365).map((e) => e.toMap()).toList(growable: false);
+    final capped =
+        sorted.take(365).map((e) => e.toMap()).toList(growable: false);
     await prefs.setString(_scoped(_prefHealthDaily), jsonEncode(capped));
   }
 
@@ -177,8 +178,8 @@ class HealthJournalService {
 
       workoutSessions += 1;
       final kcalRaw = (item['kcal'] ?? '').toString().replaceAll(',', '.');
-      final kcal = double.tryParse(kcalRaw) ??
-          (int.tryParse(kcalRaw) ?? 0).toDouble();
+      final kcal =
+          double.tryParse(kcalRaw) ?? (int.tryParse(kcalRaw) ?? 0).toDouble();
       workoutCalories += kcal.round();
     }
 

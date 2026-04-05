@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import 'core/localization/app_strings.dart';
 import 'core/localization/locale_service.dart';
 import 'l10n/app_localizations.dart';
@@ -34,25 +36,35 @@ class _HealthTrackerAppState extends State<HealthTrackerApp> {
         return ValueListenableBuilder<Locale>(
           valueListenable: LocaleService.instance.locale,
           builder: (context, locale, _) {
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              onGenerateTitle: (context) => AppStrings.appTitle(context),
-              scrollBehavior: const AppScrollBehavior(),
-              theme: AppTheme.light,
-              darkTheme: AppTheme.dark,
-              themeMode: themeMode,
-              locale: locale,
-              supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-              ],
-              home: const _AuthGate(),
-              onGenerateRoute: AppRoutes.onGenerateRoute,
-              // Fallback routes for safety
-              routes: AppRoutes.routes,
+            return ScreenUtilInit(
+              designSize:
+                  const Size(375, 812), // Ví dụ thiết kế theo iPhone 11/12
+              minTextAdapt: true,
+              splitScreenMode: true,
+              builder: (context, child) {
+                return MaterialApp(
+                  debugShowCheckedModeBanner: false,
+                  onGenerateTitle: (context) => AppStrings.appTitle(context),
+                  scrollBehavior: const AppScrollBehavior(),
+                  theme: AppTheme.light,
+                  darkTheme: AppTheme.dark,
+                  themeMode: themeMode,
+                  locale: locale,
+                  supportedLocales: AppLocalizations.supportedLocales,
+                  localizationsDelegates: const [
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                  ],
+                  home:
+                      child, // Khởi tạo AuthGate dưới dạng child của ScreenUtilInit
+                  onGenerateRoute: AppRoutes.onGenerateRoute,
+                  // Fallback routes for safety
+                  routes: AppRoutes.routes,
+                );
+              },
+              child: const _AuthGate(),
             );
           },
         );

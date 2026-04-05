@@ -15,6 +15,7 @@ import '../../models/backend/workout_record.dart';
 import '../../services/backend_api_service.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/workout_widgets.dart';
+import '../../core/theme/responsive.dart';
 
 class _DayWorkoutPlan {
   const _DayWorkoutPlan({required this.day, required this.items});
@@ -97,7 +98,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   int _selectedProgramFilter = -1; // -1 = tất cả
   Map<String, bool> _planProgress = <String, bool>{};
   final PageController _goalBannerController = PageController();
-  int _goalBannerIndex = 0;
+  final ValueNotifier<int> _goalBannerIndex = ValueNotifier<int>(0);
 
   static const List<(String label, String prompt)> _goalOptions = [
     ('Giảm mỡ', 'Giảm mỡ và nâng cao sức bền'),
@@ -139,6 +140,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _pendingDeleteSyncTimer?.cancel();
     _goalBannerTimer?.cancel();
     _goalBannerController.dispose();
+    _goalBannerIndex.dispose();
     _navController.removeListener(_onNavChanged);
     super.dispose();
   }
@@ -147,7 +149,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _goalBannerTimer?.cancel();
     _goalBannerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_goalBannerController.hasClients) return;
-      final target = (_goalBannerIndex + 1) % 3;
+      final target = (_goalBannerIndex.value + 1) % 3;
       _goalBannerController.animateToPage(
         target,
         duration: const Duration(milliseconds: 420),
@@ -1738,699 +1740,732 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             parent: AlwaysScrollableScrollPhysics(),
           ),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TopBar(
-                title: AppStrings.workoutScreenTitle(context),
-                onUserTap: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.profile),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 800 : 600,
               ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.primary,
-                      colorScheme.primary.withValues(alpha: 0.84),
-                    ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TopBar(
+                    title: AppStrings.workoutScreenTitle(context),
+                    onUserTap: () =>
+                        Navigator.of(context).pushNamed(AppRoutes.profile),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.18),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 122,
-                      child: PageView(
-                        controller: _goalBannerController,
-                        onPageChanged: (index) {
-                          setState(() {
-                            _goalBannerIndex = index;
-                          });
-                        },
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$weekSessions/$weekTargetSessions Buổi tập',
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary,
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '$weekKcal kcal đã đốt',
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Tiến độ ${(_planProgressRatio() * 100).round()}%',
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary
-                                      .withValues(alpha: 0.92),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Builder(
-                            builder: (context) {
-                              final streakDays = _aiPlanStreakDays();
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.local_fire_department,
-                                        color: colorScheme.onPrimary,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'AI Streak',
-                                        style: TextStyle(
-                                          color: colorScheme.onPrimary
-                                              .withValues(alpha: 0.9),
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Expanded(
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          '$streakDays Ngày tập luyện',
-                                          maxLines: 1,
-                                          style: TextStyle(
-                                            color: colorScheme.onPrimary,
-                                            fontSize: 34,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    _aiStreakDescription(),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: colorScheme.onPrimary
-                                          .withValues(alpha: 0.9),
-                                      fontSize: 12,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Calories theo ngày',
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary
-                                      .withValues(alpha: 0.92),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '$weekKcal kcal tuần này',
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary
-                                      .withValues(alpha: 0.86),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Expanded(
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: List.generate(7, (index) {
-                                    final weekday = DateTime.monday + index;
-                                    final labels = const [
-                                      'T2',
-                                      'T3',
-                                      'T4',
-                                      'T5',
-                                      'T6',
-                                      'T7',
-                                      'CN',
-                                    ];
-                                    final value =
-                                        weeklyCaloriesByDay[weekday] ?? 0;
-                                    final ratio = maxDailyCalories == 0
-                                        ? 0.0
-                                        : value / maxDailyCalories;
-                                    final barHeight = 6 + (ratio * 36);
-
-                                    return Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 2),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: [
-                                            Container(
-                                              height: barHeight,
-                                              decoration: BoxDecoration(
-                                                color: value > 0
-                                                    ? colorScheme.onPrimary
-                                                    : colorScheme.onPrimary
-                                                        .withValues(
-                                                            alpha: 0.28),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              labels[index],
-                                              style: TextStyle(
-                                                color: colorScheme.onPrimary
-                                                    .withValues(alpha: 0.92),
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ),
-                              ),
-                            ],
-                          ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.primary,
+                          colorScheme.primary.withValues(alpha: 0.84),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (index) {
-                        final active = _goalBannerIndex == index;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: active ? 18 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: active
-                                ? colorScheme.onPrimary
-                                : colorScheme.onPrimary.withValues(alpha: 0.45),
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // AI Workout Suggestion Section
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colorScheme.outlineVariant),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.auto_awesome, color: colorScheme.secondary),
-                        const SizedBox(width: 8),
-                        Text(
-                          AppStrings.aiWorkoutSuggestionTitle(context),
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withValues(alpha: 0.18),
+                          blurRadius: 18,
+                          offset: Offset(0, 8),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _weightKg == null
-                          ? 'Chưa cập nhật cân nặng. Gợi ý sẽ ở mức chung.'
-                          : 'Cân nặng hiện tại: ${_weightKg!.toStringAsFixed(1)} kg (gợi ý theo cân nặng).',
-                      style: TextStyle(
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Mục tiêu tập luyện',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(_goalOptions.length, (index) {
-                        final selected = _selectedGoalIndex == index;
-                        return ChoiceChip(
-                          label: Text(_goalOptions[index].$1),
-                          selected: selected,
-                          onSelected: (_) {
-                            setState(() {
-                              _selectedGoalIndex = index;
-                              _aiWorkoutPlan = null;
-                              _weeklyPlan = const [];
-                              _planProgress = <String, bool>{};
-                            });
-                            _persistPlanProgress();
-                            _clearSavedWeeklyPlan();
-                          },
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Trình độ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(_levelOptions.length, (index) {
-                        final selected = _selectedLevelIndex == index;
-                        return ChoiceChip(
-                          label: Text(_viLevelLabel(_levelOptions[index].$1)),
-                          selected: selected,
-                          onSelected: (_) {
-                            setState(() {
-                              _selectedLevelIndex = index;
-                              _aiWorkoutPlan = null;
-                              _weeklyPlan = const [];
-                              _planProgress = <String, bool>{};
-                            });
-                            _persistPlanProgress();
-                            _clearSavedWeeklyPlan();
-                          },
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        SizedBox(
+                          height: 122,
+                          child: PageView(
+                            controller: _goalBannerController,
+                            onPageChanged: (index) {
+                              _goalBannerIndex.value = index;
+                            },
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$weekSessions/$weekTargetSessions Buổi tập',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimary,
+                                      fontSize: 34,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '$weekKcal kcal đã đốt',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimary,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Tiến độ ${(_planProgressRatio() * 100).round()}%',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimary
+                                          .withValues(alpha: 0.92),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Builder(
+                                builder: (context) {
+                                  final streakDays = _aiPlanStreakDays();
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.local_fire_department,
+                                            color: colorScheme.onPrimary,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'AI Streak',
+                                            style: TextStyle(
+                                              color: colorScheme.onPrimary
+                                                  .withValues(alpha: 0.9),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Expanded(
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              '$streakDays Ngày tập luyện',
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                color: colorScheme.onPrimary,
+                                                fontSize: 34,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        _aiStreakDescription(),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: colorScheme.onPrimary
+                                              .withValues(alpha: 0.9),
+                                          fontSize: 12,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Calories theo ngày',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimary
+                                          .withValues(alpha: 0.92),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$weekKcal kcal tuần này',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimary
+                                          .withValues(alpha: 0.86),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: List.generate(7, (index) {
+                                        final weekday = DateTime.monday + index;
+                                        final labels = const [
+                                          'T2',
+                                          'T3',
+                                          'T4',
+                                          'T5',
+                                          'T6',
+                                          'T7',
+                                          'CN',
+                                        ];
+                                        final value =
+                                            weeklyCaloriesByDay[weekday] ?? 0;
+                                        final ratio = maxDailyCalories == 0
+                                            ? 0.0
+                                            : value / maxDailyCalories;
+                                        final barHeight = 6 + (ratio * 36);
+
+                                        return Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 2),
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
+                                              children: [
+                                                Container(
+                                                  height: barHeight,
+                                                  decoration: BoxDecoration(
+                                                    color: value > 0
+                                                        ? colorScheme.onPrimary
+                                                        : colorScheme.onPrimary
+                                                            .withValues(
+                                                                alpha: 0.28),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  labels[index],
+                                                  style: TextStyle(
+                                                    color: colorScheme.onPrimary
+                                                        .withValues(
+                                                            alpha: 0.92),
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ValueListenableBuilder<int>(
+                          valueListenable: _goalBannerIndex,
+                          builder: (context, currentIndex, _) {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(3, (index) {
+                                final active = currentIndex == index;
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 220),
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  width: active ? 18 : 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: active
+                                        ? colorScheme.onPrimary
+                                        : colorScheme.onPrimary
+                                            .withValues(alpha: 0.45),
+                                  ),
+                                );
+                              }),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // AI Workout Suggestion Section
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.auto_awesome,
+                                color: colorScheme.secondary),
+                            const SizedBox(width: 8),
+                            Text(
+                              AppStrings.aiWorkoutSuggestionTitle(context),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
                         Text(
-                          'Số buổi/tuần: $_sessionsPerWeek',
+                          _weightKg == null
+                              ? 'Chưa cập nhật cân nặng. Gợi ý sẽ ở mức chung.'
+                              : 'Cân nặng hiện tại: ${_weightKg!.toStringAsFixed(1)} kg (gợi ý theo cân nặng).',
+                          style: TextStyle(
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Mục tiêu tập luyện',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: colorScheme.onSurface,
                           ),
                         ),
-                        const Spacer(),
-                        DropdownButton<int>(
-                          value: _sessionsPerWeek,
-                          items: const [3, 4, 5]
-                              .map(
-                                (v) => DropdownMenuItem<int>(
-                                  value: v,
-                                  child: Text('$v buổi'),
-                                ),
-                              )
-                              .toList(growable: false),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _sessionsPerWeek = value;
-                              if (_aiWorkoutPlan != null) {
-                                final nextPlan =
-                                    _buildWeeklyPlan(_aiWorkoutPlan!);
-                                _weeklyPlan = nextPlan;
-                                _initializePlanProgress(nextPlan, reset: true);
-                              }
-                            });
-                            _persistPlanProgress();
-                            _persistSavedWeeklyPlan();
-                          },
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: List.generate(_goalOptions.length, (index) {
+                            final selected = _selectedGoalIndex == index;
+                            return ChoiceChip(
+                              label: Text(_goalOptions[index].$1),
+                              selected: selected,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedGoalIndex = index;
+                                  _aiWorkoutPlan = null;
+                                  _weeklyPlan = const [];
+                                  _planProgress = <String, bool>{};
+                                });
+                                _persistPlanProgress();
+                                _clearSavedWeeklyPlan();
+                              },
+                            );
+                          }),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (_isLoading)
-                      const Center(child: CircularProgressIndicator())
-                    else if (_weeklyPlan.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Builder(
-                            builder: (context) {
-                              final ratio = _planProgressRatio();
-                              final percent = (ratio * 100).round();
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Tiến độ kế hoạch: $percent%',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: LinearProgressIndicator(
-                                      value: ratio,
-                                      minHeight: 8,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
+                        const SizedBox(height: 10),
+                        Text(
+                          'Trình độ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurface,
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Kế hoạch theo ngày',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ..._weeklyPlan.map(
-                            (dayPlan) => Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(12),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children:
+                              List.generate(_levelOptions.length, (index) {
+                            final selected = _selectedLevelIndex == index;
+                            return ChoiceChip(
+                              label:
+                                  Text(_viLevelLabel(_levelOptions[index].$1)),
+                              selected: selected,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedLevelIndex = index;
+                                  _aiWorkoutPlan = null;
+                                  _weeklyPlan = const [];
+                                  _planProgress = <String, bool>{};
+                                });
+                                _persistPlanProgress();
+                                _clearSavedWeeklyPlan();
+                              },
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Text(
+                              'Số buổi/tuần: $_sessionsPerWeek',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: colorScheme.onSurface,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _viDayLabel(dayPlan.day),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: colorScheme.primary,
+                            ),
+                            const Spacer(),
+                            DropdownButton<int>(
+                              value: _sessionsPerWeek,
+                              items: const [3, 4, 5]
+                                  .map(
+                                    (v) => DropdownMenuItem<int>(
+                                      value: v,
+                                      child: Text('$v buổi'),
                                     ),
+                                  )
+                                  .toList(growable: false),
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() {
+                                  _sessionsPerWeek = value;
+                                  if (_aiWorkoutPlan != null) {
+                                    final nextPlan =
+                                        _buildWeeklyPlan(_aiWorkoutPlan!);
+                                    _weeklyPlan = nextPlan;
+                                    _initializePlanProgress(nextPlan,
+                                        reset: true);
+                                  }
+                                });
+                                _persistPlanProgress();
+                                _persistSavedWeeklyPlan();
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (_isLoading)
+                          const Center(child: CircularProgressIndicator())
+                        else if (_weeklyPlan.isNotEmpty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final ratio = _planProgressRatio();
+                                  final percent = (ratio * 100).round();
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Tiến độ kế hoạch: $percent%',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: LinearProgressIndicator(
+                                          value: ratio,
+                                          minHeight: 8,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Kế hoạch theo ngày',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._weeklyPlan.map(
+                                (dayPlan) => Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  const SizedBox(height: 6),
-                                  ...dayPlan.items.map(
-                                    (item) => _isExerciseTask(item)
-                                        ? Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 2),
-                                            child: CheckboxListTile(
-                                              value: _planProgress[
-                                                      _planProgressKey(
-                                                          dayPlan.day, item)] ==
-                                                  true,
-                                              dense: true,
-                                              contentPadding: EdgeInsets.zero,
-                                              controlAffinity:
-                                                  ListTileControlAffinity
-                                                      .leading,
-                                              title: Text(
-                                                  _translatePlanItemText(item)),
-                                              onChanged: (checked) {
-                                                setState(() {
-                                                  _planProgress[
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _viDayLabel(dayPlan.day),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ...dayPlan.items.map(
+                                        (item) => _isExerciseTask(item)
+                                            ? Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 2),
+                                                child: CheckboxListTile(
+                                                  value: _planProgress[
                                                           _planProgressKey(
                                                               dayPlan.day,
-                                                              item)] =
-                                                      checked == true;
-                                                });
-                                                _persistPlanProgress();
-                                              },
-                                            ),
-                                          )
-                                        : Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 4),
-                                            child: Text(
-                                                '- ${_translatePlanItemText(item)}'),
-                                          ),
+                                                              item)] ==
+                                                      true,
+                                                  dense: true,
+                                                  contentPadding:
+                                                      EdgeInsets.zero,
+                                                  controlAffinity:
+                                                      ListTileControlAffinity
+                                                          .leading,
+                                                  title: Text(
+                                                      _translatePlanItemText(
+                                                          item)),
+                                                  onChanged: (checked) {
+                                                    setState(() {
+                                                      _planProgress[
+                                                              _planProgressKey(
+                                                                  dayPlan.day,
+                                                                  item)] =
+                                                          checked == true;
+                                                    });
+                                                    _persistPlanProgress();
+                                                  },
+                                                ),
+                                              )
+                                            : Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 4),
+                                                child: Text(
+                                                    '- ${_translatePlanItemText(item)}'),
+                                              ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      Text(AppStrings.aiWorkoutSuggestionHint(context)),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: aiEnabled ? _getAIWorkout : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          aiEnabled
-                              ? AppStrings.aiGeneratePlanButton(context)
-                              : 'AI tam khoa: thieu GEMINI_API_KEY',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed:
-                            _isSavingPlan ? null : _saveWeeklyPlanToJournal,
-                        icon: _isSavingPlan
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: const Text('Lưu kế hoạch vào lịch sử tập luyện'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      AppStrings.programModesTitle(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Tất cả'),
-                    selected: _selectedProgramFilter == -1,
-                    onSelected: (_) {
-                      setState(() => _selectedProgramFilter = -1);
-                    },
-                  ),
-                  ...List.generate(programs.length, (index) {
-                    final selected = _selectedProgramFilter == index;
-                    return ChoiceChip(
-                      label: Text(programs[index].title),
-                      selected: selected,
-                      onSelected: (_) {
-                        setState(() => _selectedProgramFilter = index);
-                      },
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 12),
-              GridView.builder(
-                itemCount: shownPrograms.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 1.6,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemBuilder: (_, index) => InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => _logWorkoutSession(shownPrograms[index]),
-                  child: WorkoutCard(item: shownPrograms[index]),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                AppStrings.workoutHistoryTitle(context),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Tất cả'),
-                    selected: _historyFilterDays == 0,
-                    onSelected: (_) => setState(() => _historyFilterDays = 0),
-                  ),
-                  ChoiceChip(
-                    label: const Text('7 ngày'),
-                    selected: _historyFilterDays == 7,
-                    onSelected: (_) => setState(() => _historyFilterDays = 7),
-                  ),
-                  ChoiceChip(
-                    label: const Text('30 ngày'),
-                    selected: _historyFilterDays == 30,
-                    onSelected: (_) => setState(() => _historyFilterDays = 30),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: _history.isEmpty ? null : _confirmClearAllHistory,
-                  icon: const Icon(Icons.delete_sweep_outlined),
-                  label: const Text('Xóa toàn bộ'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (filteredHistory.isEmpty)
-                Text(
-                  'Chưa có dữ liệu cho bộ lọc này.',
-                  style: TextStyle(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              ...filteredHistory.asMap().entries.map(
-                    (pair) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Dismissible(
-                        key: ValueKey(
-                          '${pair.value.name}|${pair.value.date}|${pair.value.duration}|${pair.value.kcal}|${pair.value.timestampMs ?? pair.key}',
-                        ),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Icon(
-                                Icons.delete_outline_rounded,
-                                color: colorScheme.onErrorContainer,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Xóa',
-                                style: TextStyle(
-                                  color: colorScheme.onErrorContainer,
-                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
+                          )
+                        else
+                          Text(AppStrings.aiWorkoutSuggestionHint(context)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: aiEnabled ? _getAIWorkout : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primary,
+                              foregroundColor: colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              aiEnabled
+                                  ? AppStrings.aiGeneratePlanButton(context)
+                                  : 'AI tam khoa: thieu GEMINI_API_KEY',
+                            ),
                           ),
                         ),
-                        confirmDismiss: (_) async {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (dialogContext) => AlertDialog(
-                              title: const Text('Xóa mục lịch sử'),
-                              content: const Text(
-                                  'Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(dialogContext).pop(false),
-                                  child: const Text('Hủy'),
-                                ),
-                                FilledButton(
-                                  onPressed: () =>
-                                      Navigator.of(dialogContext).pop(true),
-                                  child: const Text('Xóa'),
-                                ),
-                              ],
-                            ),
-                          );
-                          return ok == true;
-                        },
-                        onDismissed: (_) =>
-                            _deleteHistoryAt(pair.key, filteredHistory),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => _showHistoryDetails(pair.value),
-                          child: HistoryTile(item: pair.value),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed:
+                                _isSavingPlan ? null : _saveWeeklyPlanToJournal,
+                            icon: _isSavingPlan
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.save_outlined),
+                            label: const Text(
+                                'Lưu kế hoạch vào lịch sử tập luyện'),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-              const SizedBox(height: 90),
-            ],
+
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          AppStrings.programModesTitle(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Tất cả'),
+                        selected: _selectedProgramFilter == -1,
+                        onSelected: (_) {
+                          setState(() => _selectedProgramFilter = -1);
+                        },
+                      ),
+                      ...List.generate(programs.length, (index) {
+                        final selected = _selectedProgramFilter == index;
+                        return ChoiceChip(
+                          label: Text(programs[index].title),
+                          selected: selected,
+                          onSelected: (_) {
+                            setState(() => _selectedProgramFilter = index);
+                          },
+                        );
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.builder(
+                    itemCount: shownPrograms.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 1.6,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemBuilder: (_, index) => InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => _logWorkoutSession(shownPrograms[index]),
+                      child: WorkoutCard(item: shownPrograms[index]),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppStrings.workoutHistoryTitle(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Tất cả'),
+                        selected: _historyFilterDays == 0,
+                        onSelected: (_) =>
+                            setState(() => _historyFilterDays = 0),
+                      ),
+                      ChoiceChip(
+                        label: const Text('7 ngày'),
+                        selected: _historyFilterDays == 7,
+                        onSelected: (_) =>
+                            setState(() => _historyFilterDays = 7),
+                      ),
+                      ChoiceChip(
+                        label: const Text('30 ngày'),
+                        selected: _historyFilterDays == 30,
+                        onSelected: (_) =>
+                            setState(() => _historyFilterDays = 30),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed:
+                          _history.isEmpty ? null : _confirmClearAllHistory,
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      label: const Text('Xóa toàn bộ'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (filteredHistory.isEmpty)
+                    Text(
+                      'Chưa có dữ liệu cho bộ lọc này.',
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ...filteredHistory.asMap().entries.map(
+                        (pair) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Dismissible(
+                            key: ValueKey(
+                              '${pair.value.name}|${pair.value.date}|${pair.value.duration}|${pair.value.kcal}|${pair.value.timestampMs ?? pair.key}',
+                            ),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: colorScheme.errorContainer,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: colorScheme.onErrorContainer,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Xóa',
+                                    style: TextStyle(
+                                      color: colorScheme.onErrorContainer,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            confirmDismiss: (_) async {
+                              final ok = await showDialog<bool>(
+                                context: context,
+                                builder: (dialogContext) => AlertDialog(
+                                  title: const Text('Xóa mục lịch sử'),
+                                  content: const Text(
+                                      'Bạn có chắc muốn xóa mục lịch sử buổi tập này?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(dialogContext)
+                                              .pop(false),
+                                      child: const Text('Hủy'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.of(dialogContext).pop(true),
+                                      child: const Text('Xóa'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return ok == true;
+                            },
+                            onDismissed: (_) =>
+                                _deleteHistoryAt(pair.key, filteredHistory),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () => _showHistoryDetails(pair.value),
+                              child: HistoryTile(item: pair.value),
+                            ),
+                          ),
+                        ),
+                      ),
+                  const SizedBox(height: 90),
+                ],
+              ),
+            ),
           ),
         ),
       ),

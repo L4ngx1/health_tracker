@@ -257,8 +257,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             final navigator = Navigator.of(context);
 
                             _setLoading(true);
-                            final error = await _controller
-                                .continueWithGoogle();
+                            final error =
+                                await _controller.continueWithGoogle();
                             if (!mounted) return;
                             _setLoading(false);
 

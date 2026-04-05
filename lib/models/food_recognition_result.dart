@@ -30,12 +30,12 @@ class FoodRecognitionResult {
   }
 
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'calories': calories,
-    'protein': protein,
-    'fat': fat,
-    'carbs': carbs,
-    'description': description,
-    'source': source,
-  };
+        'name': name,
+        'calories': calories,
+        'protein': protein,
+        'fat': fat,
+        'carbs': carbs,
+        'description': description,
+        'source': source,
+      };
 }

@@ -7,7 +7,7 @@ import '../services/backend_api_service.dart';
 
 class WorkoutController {
   WorkoutController({BackendApiService? backendApiService})
-    : _backendApiService = backendApiService ?? BackendApiService();
+      : _backendApiService = backendApiService ?? BackendApiService();
 
   final BackendApiService _backendApiService;
 

@@ -64,8 +64,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '607294559860',
     projectId: 'health-tracker-84761',
     storageBucket: 'health-tracker-84761.firebasestorage.app',
-    androidClientId: '607294559860-uoe9rl7qarr442j5k56ckrrb9urtpjka.apps.googleusercontent.com',
-    iosClientId: '607294559860-08fpcbstl63ttbdq141ibqjh7i7lnhij.apps.googleusercontent.com',
+    androidClientId:
+        '607294559860-uoe9rl7qarr442j5k56ckrrb9urtpjka.apps.googleusercontent.com',
+    iosClientId:
+        '607294559860-08fpcbstl63ttbdq141ibqjh7i7lnhij.apps.googleusercontent.com',
     iosBundleId: 'com.example.healthTracker',
   );
 
@@ -75,8 +77,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '607294559860',
     projectId: 'health-tracker-84761',
     storageBucket: 'health-tracker-84761.firebasestorage.app',
-    androidClientId: '607294559860-uoe9rl7qarr442j5k56ckrrb9urtpjka.apps.googleusercontent.com',
-    iosClientId: '607294559860-08fpcbstl63ttbdq141ibqjh7i7lnhij.apps.googleusercontent.com',
+    androidClientId:
+        '607294559860-uoe9rl7qarr442j5k56ckrrb9urtpjka.apps.googleusercontent.com',
+    iosClientId:
+        '607294559860-08fpcbstl63ttbdq141ibqjh7i7lnhij.apps.googleusercontent.com',
     iosBundleId: 'com.example.healthTracker',
   );
 

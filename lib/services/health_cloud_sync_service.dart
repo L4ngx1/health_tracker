@@ -25,7 +25,7 @@ class MovementConfigCloudData {
 
 class HealthCloudSyncService {
   HealthCloudSyncService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -68,13 +68,13 @@ class HealthCloudSyncService {
         .collection('health_tracking')
         .doc(_dayKey(DateTime.now()))
         .set({
-          'steps': steps,
-          'distanceMeters': distanceMeters,
-          'sleepMinutes': sleepMinutes,
-          'goalType': goalType,
-          'goalValue': goalValue,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      'steps': steps,
+      'distanceMeters': distanceMeters,
+      'sleepMinutes': sleepMinutes,
+      'goalType': goalType,
+      'goalValue': goalValue,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<MovementConfigCloudData?> loadMovementConfig({
@@ -118,9 +118,9 @@ class HealthCloudSyncService {
         .collection('health_tracking_config')
         .doc('movement')
         .set({
-          'dailyGoalKm': dailyGoalKm,
-          'distanceHistoryKm': distanceHistoryKm,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      'dailyGoalKm': dailyGoalKm,
+      'distanceHistoryKm': distanceHistoryKm,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

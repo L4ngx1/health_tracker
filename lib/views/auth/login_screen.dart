@@ -94,8 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        BrandIconOnly(),
-                        SizedBox(height: 10),
+                        const BrandIconOnly(),
+                        const SizedBox(height: 10),
                         Text(
                           AppStrings.appTitle(context),
                           style: TextStyle(
@@ -105,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 1.0,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           AppStrings.loginWelcomeBack(context),
                           style: TextStyle(
@@ -114,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: colorScheme.onSurface,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           AppStrings.loginSubtitle(context),
                           textAlign: TextAlign.center,
@@ -265,8 +265,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               final navigator = Navigator.of(context);
 
                               setState(() => _isLoading = true);
-                              final error = await _controller
-                                  .signInAnonymously();
+                              final error =
+                                  await _controller.signInAnonymously();
                               if (!mounted) return;
                               setState(() => _isLoading = false);
 

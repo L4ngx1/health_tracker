@@ -123,8 +123,7 @@ void main() {
       expect(weights, isNotEmpty);
       expect(weights.first.weightKg, 66.8);
 
-      final profileDoc =
-          await firestore.collection('users').doc('u1').get();
+      final profileDoc = await firestore.collection('users').doc('u1').get();
       expect(profileDoc.data()?['weightKg'], 66.8);
 
       await repository.deleteWeightRecord(uid: 'u1', recordId: id);

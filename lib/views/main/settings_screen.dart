@@ -4,6 +4,7 @@ import '../../core/localization/app_strings.dart';
 import '../../core/localization/locale_service.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/theme/responsive.dart';
 import '../../core/theme/theme_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -187,275 +188,296 @@ class _SettingsScreenState extends State<SettingsScreen>
               end: Alignment.bottomCenter,
             ),
           ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    ),
-                    Expanded(
-                      child: Text(
-                        AppStrings.settingsTitle(context),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 920 : 680,
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colorScheme.shadow.withValues(alpha: 0.18),
-                              blurRadius: 18,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppStrings.optionsTitle(context),
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                color: colorScheme.onSurface,
-                              ),
+                        Expanded(
+                          child: Text(
+                            AppStrings.settingsTitle(context),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: colorScheme.onSurface,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              AppStrings.optionsSubtitle(context),
-                              style: TextStyle(
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.72,
+                          ),
+                        ),
+                        const SizedBox(width: 48),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.shadow
+                                      .withValues(alpha: 0.18),
+                                  blurRadius: 18,
+                                  offset: Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppStrings.optionsTitle(context),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  AppStrings.optionsSubtitle(context),
+                                  style: TextStyle(
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.72,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(18),
+                              border:
+                                  Border.all(color: colorScheme.outlineVariant),
+                            ),
+                            child: Column(
+                              children: [
+                                ValueListenableBuilder<ThemeMode>(
+                                  valueListenable: ThemeService.instance.mode,
+                                  builder: (context, mode, _) {
+                                    return SwitchListTile(
+                                      value: mode == ThemeMode.dark,
+                                      activeThumbColor: colorScheme.primary,
+                                      title: Text(
+                                        AppStrings.darkModeTitle(context),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        AppStrings.darkModeSubtitle(context),
+                                      ),
+                                      onChanged: (v) => _setDarkMode(v),
+                                    );
+                                  },
+                                ),
+                                const Divider(height: 1),
+                                SwitchListTile(
+                                  value: _notifications,
+                                  activeThumbColor: colorScheme.primary,
+                                  title: Text(
+                                    AppStrings.notificationsTitle(context),
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  subtitle: Text(
+                                    AppStrings.notificationsSubtitle(context),
+                                  ),
+                                  onChanged: _updatingNotifications
+                                      ? null
+                                      : (v) => _setNotifications(v),
+                                ),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        _notificationPermissionStatus
+                                                    .isGranted ||
+                                                _notificationPermissionStatus
+                                                    .isLimited
+                                            ? Icons.verified_rounded
+                                            : Icons.warning_amber_rounded,
+                                        size: 18,
+                                        color: _notificationPermissionStatus
+                                                    .isGranted ||
+                                                _notificationPermissionStatus
+                                                    .isLimited
+                                            ? colorScheme.primary
+                                            : colorScheme.error,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          '${AppStrings.isEnglish(context) ? 'Permission' : 'Quyền'}: ${_notificationPermissionLabel()}',
+                                          style: TextStyle(
+                                            color: colorScheme.onSurface
+                                                .withValues(alpha: 0.8),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      if (!_notificationPermissionStatus
+                                              .isGranted &&
+                                          !_notificationPermissionStatus
+                                              .isLimited)
+                                        TextButton(
+                                          onPressed:
+                                              _handleNotificationPermissionAction,
+                                          child: Text(
+                                            (_notificationPermissionStatus
+                                                        .isPermanentlyDenied ||
+                                                    _notificationPermissionStatus
+                                                        .isRestricted)
+                                                ? (AppStrings.isEnglish(context)
+                                                    ? 'Open settings'
+                                                    : 'Mở cài đặt')
+                                                : (AppStrings.isEnglish(context)
+                                                    ? 'Allow'
+                                                    : 'Cấp quyền'),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(18),
+                              border:
+                                  Border.all(color: colorScheme.outlineVariant),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        AppStrings.languageTitle(context),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        AppStrings.languageSubtitle(context),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color:
+                                              colorScheme.onSurface.withValues(
+                                            alpha: 0.72,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                ValueListenableBuilder<Locale>(
+                                  valueListenable:
+                                      LocaleService.instance.locale,
+                                  builder: (context, locale, _) {
+                                    return DropdownButton<String>(
+                                      value: locale.languageCode,
+                                      underline: const SizedBox.shrink(),
+                                      items: [
+                                        DropdownMenuItem(
+                                          value: 'vi',
+                                          child: Text(
+                                            AppStrings.languageVietnamese(
+                                                context),
+                                          ),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'en',
+                                          child: Text(
+                                            AppStrings.languageEnglish(context),
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged: (v) {
+                                        if (v != null) _setLanguage(v);
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton.icon(
+                              onPressed: _loading ? null : _deleteAccount,
+                              icon: _loading
+                                  ? SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          colorScheme.onError,
+                                        ),
+                                      ),
+                                    )
+                                  : const Icon(Icons.delete_forever_outlined),
+                              label: Text(
+                                _loading
+                                    ? AppStrings.processing(context)
+                                    : AppStrings.deleteAccount(context),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorScheme.error,
+                                foregroundColor: colorScheme.onError,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                textStyle: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: colorScheme.outlineVariant),
-                        ),
-                        child: Column(
-                          children: [
-                            ValueListenableBuilder<ThemeMode>(
-                              valueListenable: ThemeService.instance.mode,
-                              builder: (context, mode, _) {
-                                return SwitchListTile(
-                                  value: mode == ThemeMode.dark,
-                                  activeThumbColor: colorScheme.primary,
-                                  title: Text(
-                                    AppStrings.darkModeTitle(context),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    AppStrings.darkModeSubtitle(context),
-                                  ),
-                                  onChanged: (v) => _setDarkMode(v),
-                                );
-                              },
-                            ),
-                            const Divider(height: 1),
-                            SwitchListTile(
-                              value: _notifications,
-                              activeThumbColor: colorScheme.primary,
-                              title: Text(
-                                AppStrings.notificationsTitle(context),
-                                style: TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              subtitle: Text(
-                                AppStrings.notificationsSubtitle(context),
-                              ),
-                              onChanged: _updatingNotifications
-                                  ? null
-                                  : (v) => _setNotifications(v),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _notificationPermissionStatus.isGranted ||
-                                            _notificationPermissionStatus
-                                                .isLimited
-                                        ? Icons.verified_rounded
-                                        : Icons.warning_amber_rounded,
-                                    size: 18,
-                                    color: _notificationPermissionStatus
-                                                .isGranted ||
-                                            _notificationPermissionStatus
-                                                .isLimited
-                                        ? colorScheme.primary
-                                        : colorScheme.error,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      '${AppStrings.isEnglish(context) ? 'Permission' : 'Quyền'}: ${_notificationPermissionLabel()}',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurface
-                                            .withValues(alpha: 0.8),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  if (!_notificationPermissionStatus.isGranted &&
-                                      !_notificationPermissionStatus.isLimited)
-                                    TextButton(
-                                      onPressed: _handleNotificationPermissionAction,
-                                      child: Text(
-                                        (_notificationPermissionStatus
-                                                    .isPermanentlyDenied ||
-                                                _notificationPermissionStatus
-                                                    .isRestricted)
-                                            ? (AppStrings.isEnglish(context)
-                                                ? 'Open settings'
-                                                : 'Mở cài đặt')
-                                            : (AppStrings.isEnglish(context)
-                                                ? 'Allow'
-                                                : 'Cấp quyền'),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: colorScheme.outlineVariant),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    AppStrings.languageTitle(context),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    AppStrings.languageSubtitle(context),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.72,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            ValueListenableBuilder<Locale>(
-                              valueListenable: LocaleService.instance.locale,
-                              builder: (context, locale, _) {
-                                return DropdownButton<String>(
-                                  value: locale.languageCode,
-                                  underline: const SizedBox.shrink(),
-                                  items: [
-                                    DropdownMenuItem(
-                                      value: 'vi',
-                                      child: Text(
-                                        AppStrings.languageVietnamese(context),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'en',
-                                      child: Text(
-                                        AppStrings.languageEnglish(context),
-                                      ),
-                                    ),
-                                  ],
-                                  onChanged: (v) {
-                                    if (v != null) _setLanguage(v);
-                                  },
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton.icon(
-                          onPressed: _loading ? null : _deleteAccount,
-                          icon: _loading
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      colorScheme.onError,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(Icons.delete_forever_outlined),
-                          label: Text(
-                            _loading
-                                ? AppStrings.processing(context)
-                                : AppStrings.deleteAccount(context),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.error,
-                            foregroundColor: colorScheme.onError,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            textStyle: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

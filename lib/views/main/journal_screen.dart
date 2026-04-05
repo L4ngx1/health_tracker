@@ -4,6 +4,7 @@ import '../../controllers/journal_controller.dart';
 import '../../controllers/main_navigation_controller.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/theme/responsive.dart';
 import '../../models/journal_entry_item.dart';
 import '../widgets/common_widgets.dart';
 
@@ -324,210 +325,221 @@ class _JournalScreenState extends State<JournalScreen> {
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TopBar(
-                title: AppStrings.journalScreenTitle(context),
-                onUserTap: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.profile),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 920 : 640,
               ),
-              const SizedBox(height: 22),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.16),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.journalFrameTitle(context),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(AppStrings.journalFrameSubtitle(context)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Ngày'),
-                          selected: _filterMode == _JournalFilterMode.day,
-                          onSelected: (_) {
-                            setState(
-                                () => _filterMode = _JournalFilterMode.day);
-                          },
-                        ),
-                        ChoiceChip(
-                          label: const Text('Tuần'),
-                          selected: _filterMode == _JournalFilterMode.week,
-                          onSelected: (_) {
-                            setState(
-                                () => _filterMode = _JournalFilterMode.week);
-                          },
-                        ),
-                        ChoiceChip(
-                          label: const Text('Tháng'),
-                          selected: _filterMode == _JournalFilterMode.month,
-                          onSelected: (_) {
-                            setState(
-                                () => _filterMode = _JournalFilterMode.month);
-                          },
+                  TopBar(
+                    title: AppStrings.journalScreenTitle(context),
+                    onUserTap: () =>
+                        Navigator.of(context).pushNamed(AppRoutes.profile),
+                  ),
+                  const SizedBox(height: 22),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withValues(alpha: 0.16),
+                          blurRadius: 18,
+                          offset: Offset(0, 8),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickAnchorDate,
-                      icon: const Icon(Icons.calendar_today_outlined),
-                      label: Text(_formatFilterLabel(_anchorDate)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppStrings.journalFrameTitle(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Text(AppStrings.journalFrameSubtitle(context)),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () {
-                      setState(() => _anchorDate = DateTime.now());
-                    },
-                    child: const Text('Hôm nay'),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Ngày'),
+                              selected: _filterMode == _JournalFilterMode.day,
+                              onSelected: (_) {
+                                setState(
+                                    () => _filterMode = _JournalFilterMode.day);
+                              },
+                            ),
+                            ChoiceChip(
+                              label: const Text('Tuần'),
+                              selected: _filterMode == _JournalFilterMode.week,
+                              onSelected: (_) {
+                                setState(() =>
+                                    _filterMode = _JournalFilterMode.week);
+                              },
+                            ),
+                            ChoiceChip(
+                              label: const Text('Tháng'),
+                              selected: _filterMode == _JournalFilterMode.month,
+                              onSelected: (_) {
+                                setState(() =>
+                                    _filterMode = _JournalFilterMode.month);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _pickAnchorDate,
+                          icon: const Icon(Icons.calendar_today_outlined),
+                          label: Text(_formatFilterLabel(_anchorDate)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _anchorDate = DateTime.now());
+                        },
+                        child: const Text('Hôm nay'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : filteredEntries.isEmpty
+                            ? const Center(
+                                child:
+                                    Text('Không có dữ liệu trong bộ lọc này.'),
+                              )
+                            : ListView.separated(
+                                physics: const BouncingScrollPhysics(
+                                  parent: AlwaysScrollableScrollPhysics(),
+                                ),
+                                padding: const EdgeInsets.only(bottom: 150),
+                                itemBuilder: (_, i) => InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () =>
+                                      _showEntryDetails(filteredEntries[i]),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.surface,
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: colorScheme.shadow.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          blurRadius: 10,
+                                          offset: Offset(0, 6),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: colorScheme
+                                              .surfaceContainerHighest,
+                                          child: Icon(
+                                            Icons.notes,
+                                            color: colorScheme.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                filteredEntries[i].title,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w700),
+                                              ),
+                                              if (filteredEntries[i].subtitle !=
+                                                  null) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  filteredEntries[i].subtitle!,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: colorScheme.onSurface
+                                                        .withValues(
+                                                            alpha: 0.72),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        if (filteredEntries[i].canManage)
+                                          PopupMenuButton<String>(
+                                            onSelected: (value) async {
+                                              if (value == 'edit') {
+                                                await _openNoteEditor(
+                                                    entry: filteredEntries[i]);
+                                                return;
+                                              }
+                                              if (value == 'delete') {
+                                                await _deleteEntry(
+                                                    filteredEntries[i]);
+                                              }
+                                            },
+                                            itemBuilder: (context) => const [
+                                              PopupMenuItem<String>(
+                                                value: 'edit',
+                                                child: Text('Sửa'),
+                                              ),
+                                              PopupMenuItem<String>(
+                                                value: 'delete',
+                                                child: Text('Xóa'),
+                                              ),
+                                            ],
+                                          )
+                                        else
+                                          const Icon(Icons.chevron_right),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                separatorBuilder: (context, index) =>
+                                    const SizedBox(height: 8),
+                                itemCount: filteredEntries.length,
+                              ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : filteredEntries.isEmpty
-                        ? const Center(
-                            child: Text('Không có dữ liệu trong bộ lọc này.'),
-                          )
-                        : ListView.separated(
-                            physics: const BouncingScrollPhysics(
-                              parent: AlwaysScrollableScrollPhysics(),
-                            ),
-                            padding: const EdgeInsets.only(bottom: 150),
-                            itemBuilder: (_, i) => InkWell(
-                              borderRadius: BorderRadius.circular(14),
-                              onTap: () =>
-                                  _showEntryDetails(filteredEntries[i]),
-                              child: Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: colorScheme.shadow.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      blurRadius: 10,
-                                      offset: Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor:
-                                          colorScheme.surfaceContainerHighest,
-                                      child: Icon(
-                                        Icons.notes,
-                                        color: colorScheme.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            filteredEntries[i].title,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w700),
-                                          ),
-                                          if (filteredEntries[i].subtitle !=
-                                              null) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              filteredEntries[i].subtitle!,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: colorScheme.onSurface
-                                                    .withValues(alpha: 0.72),
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    if (filteredEntries[i].canManage)
-                                      PopupMenuButton<String>(
-                                        onSelected: (value) async {
-                                          if (value == 'edit') {
-                                            await _openNoteEditor(
-                                                entry: filteredEntries[i]);
-                                            return;
-                                          }
-                                          if (value == 'delete') {
-                                            await _deleteEntry(
-                                                filteredEntries[i]);
-                                          }
-                                        },
-                                        itemBuilder: (context) => const [
-                                          PopupMenuItem<String>(
-                                            value: 'edit',
-                                            child: Text('Sửa'),
-                                          ),
-                                          PopupMenuItem<String>(
-                                            value: 'delete',
-                                            child: Text('Xóa'),
-                                          ),
-                                        ],
-                                      )
-                                    else
-                                      const Icon(Icons.chevron_right),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 8),
-                            itemCount: filteredEntries.length,
-                          ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

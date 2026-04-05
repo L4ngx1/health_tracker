@@ -53,10 +53,12 @@ class PushNotificationService {
 
     if (!enabled) {
       await _clearBackendTokenForCurrentUser();
-      try {
-        await _messaging.deleteToken();
-      } catch (e) {
-        debugPrint('Delete FCM token failed: $e');
+      if (!kIsWeb) {
+        try {
+          await _messaging.deleteToken();
+        } catch (e) {
+          debugPrint('Delete FCM token failed: $e');
+        }
       }
       await _tokenRefreshSub?.cancel();
       _tokenRefreshSub = null;
@@ -66,8 +68,9 @@ class PushNotificationService {
 
     await init();
     final settings = await _requestPermission();
-    final allowed = settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional;
+    final allowed =
+        settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional;
     if (!allowed) {
       return;
     }
@@ -96,8 +99,9 @@ class PushNotificationService {
 
     if (requestPermission) {
       final settings = await _requestPermission();
-      final allowed = settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
+      final allowed =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus == AuthorizationStatus.provisional;
       if (!allowed) {
         _initialized = true;
         return;
@@ -179,10 +183,12 @@ class PushNotificationService {
 
   Future<void> handleUserLogout() async {
     await _clearBackendTokenForCurrentUser();
-    try {
-      await _messaging.deleteToken();
-    } catch (e) {
-      debugPrint('Delete FCM token on logout failed: $e');
+    if (!kIsWeb) {
+      try {
+        await _messaging.deleteToken();
+      } catch (e) {
+        debugPrint('Delete FCM token on logout failed: $e');
+      }
     }
     await _tokenRefreshSub?.cancel();
     _tokenRefreshSub = null;

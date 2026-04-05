@@ -12,7 +12,7 @@ import '../services/health_journal_service.dart';
 
 class JournalController {
   JournalController({BackendApiService? backendApiService})
-    : _backendApiService = backendApiService ?? BackendApiService();
+      : _backendApiService = backendApiService ?? BackendApiService();
 
   final BackendApiService _backendApiService;
 
@@ -80,7 +80,8 @@ class JournalController {
     }
   }
 
-  Future<List<JournalEntryItem>> getFallbackEntries(BuildContext context) async {
+  Future<List<JournalEntryItem>> getFallbackEntries(
+      BuildContext context) async {
     final localizations = MaterialLocalizations.of(context);
     final frameSubtitle = AppStrings.journalFrameSubtitle(context);
     final frameTitle = AppStrings.journalFrameTitle(context);
@@ -155,7 +156,8 @@ class JournalController {
         subtitle = 'Lưu lúc: ${_formatDateTime(localizations, createdAt)}';
       }
       return (
-        sortAt: createdAt ?? scheduledAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+        sortAt:
+            createdAt ?? scheduledAt ?? DateTime.fromMillisecondsSinceEpoch(0),
         item: JournalEntryItem(
           title: title,
           subtitle: subtitle,

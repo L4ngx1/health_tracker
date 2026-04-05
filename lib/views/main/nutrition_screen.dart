@@ -13,6 +13,7 @@ import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/permission_queue.dart';
 import '../widgets/common_widgets.dart';
+import '../../core/theme/responsive.dart';
 
 class NutritionScreen extends StatefulWidget {
   const NutritionScreen({super.key});
@@ -440,439 +441,451 @@ class _NutritionScreenState extends State<NutritionScreen> {
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TopBar(
-                title: AppStrings.nutritionScreenTitle(context),
-                onUserTap: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.profile),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 800 : 600,
               ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  AppStrings.nutritionAiSubtitle(context),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: colorScheme.onSurface.withValues(alpha: 0.72),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TopBar(
+                    title: AppStrings.nutritionScreenTitle(context),
+                    onUserTap: () =>
+                        Navigator.of(context).pushNamed(AppRoutes.profile),
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Stack(
-                  children: [
-                    _buildPreviewBox(),
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.scrim.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          AppStrings.aiReadyTag(context),
-                          style: TextStyle(
-                            color: colorScheme.onPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      AppStrings.nutritionAiSubtitle(context),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.72),
                       ),
                     ),
-                    if (_selectedImageBytes != null)
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: colorScheme.scrim.withValues(alpha: 0.45),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            onPressed: _retakePhoto,
-                            tooltip: AppStrings.retakePhotoTooltip(context),
-                            icon: Icon(
-                              Icons.replay_rounded,
-                              color: colorScheme.onPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // Hiển thị kết quả phân tích AI
-              if (_isAnalyzing)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(
-                    child: Column(
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Stack(
                       children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 10),
-                        Text('Đang phân tích món ăn...'),
-                      ],
-                    ),
-                  ),
-                ),
-
-              if (!aiEnabled)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(top: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'AI dang tam khoa do thieu GEMINI_API_KEY trong assets/env/.env',
-                    style: TextStyle(
-                      color: colorScheme.onErrorContainer,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-
-              if (_analysisResult != null)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.symmetric(vertical: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: colorScheme.primary.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _analysisResult!.name,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onPrimaryContainer,
-                              ),
-                            ),
-                          ),
-                          Container(
+                        _buildPreviewBox(),
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(20),
+                              color: colorScheme.scrim.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
-                              '${_analysisResult!.calories.toInt()} kcal',
+                              AppStrings.aiReadyTag(context),
                               style: TextStyle(
                                 color: colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                      if (_analysisResult!.description != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _analysisResult!.description!,
-                          style: TextStyle(
-                            color: colorScheme.onPrimaryContainer.withValues(
-                              alpha: 0.8,
+                        ),
+                        if (_selectedImageBytes != null)
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color:
+                                    colorScheme.scrim.withValues(alpha: 0.45),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                onPressed: _retakePhoto,
+                                tooltip: AppStrings.retakePhotoTooltip(context),
+                                icon: Icon(
+                                  Icons.replay_rounded,
+                                  color: colorScheme.onPrimary,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
 
-              const SizedBox(height: 14),
-              if (_selectedImageBytes == null) ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: (!aiEnabled || _isCapturing)
-                        ? null
-                        : _captureFromPreview,
-                    style: ElevatedButton.styleFrom(
-                      elevation: 3,
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                  // Hiển thị kết quả phân tích AI
+                  if (_isAnalyzing)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 10),
+                            Text('Đang phân tích món ăn...'),
+                          ],
+                        ),
                       ),
                     ),
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: Text(
-                      _isCapturing
-                          ? AppStrings.capturingPhoto(context)
-                          : isCameraReady
-                              ? AppStrings.capturePhoto(context)
-                              : (AppStrings.isEnglish(context)
-                                  ? 'Open camera'
-                                  : 'Mở camera'),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 18),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: aiEnabled ? _pickFoodImage : null,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 56),
-                    side: BorderSide(color: colorScheme.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  icon: Icon(
-                    Icons.photo_library_outlined,
-                    color: colorScheme.primary,
-                  ),
-                  label: Text(
-                    AppStrings.pickFromLibrary(context),
-                    style: TextStyle(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
 
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: colorScheme.secondary.withValues(alpha: 0.22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.16),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: colorScheme.secondary.withValues(
-                        alpha: 0.38,
+                  if (!aiEnabled)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
-                        Icons.lightbulb_outline,
-                        color: colorScheme.primary,
+                      child: Text(
+                        'AI dang tam khoa do thieu GEMINI_API_KEY trong assets/env/.env',
+                        style: TextStyle(
+                          color: colorScheme.onErrorContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
+
+                  if (_analysisResult != null)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            AppStrings.tipTitle(context),
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _analysisResult!.name,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '${_analysisResult!.calories.toInt()} kcal',
+                                  style: TextStyle(
+                                    color: colorScheme.onPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_analysisResult!.description != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _analysisResult!.description!,
+                              style: TextStyle(
+                                color:
+                                    colorScheme.onPrimaryContainer.withValues(
+                                  alpha: 0.8,
+                                ),
+                              ),
                             ),
-                          ),
-                          Text(
-                            AppStrings.tipDescription(context),
-                          ),
+                          ],
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              // Gợi ý chế độ ăn uống
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.06),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Gợi ý chế độ ăn theo tuần',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedGoalLabel,
-                      decoration: InputDecoration(
-                        labelText: 'Mục tiêu',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                        isDense: true,
-                      ),
-                      items: _goalOptions
-                          .map((o) => DropdownMenuItem(
-                              value: o['label'], child: Text(o['label']!)))
-                          .toList(),
-                      onChanged: (v) {
-                        final found = _goalOptions.firstWhere(
-                            (o) => o['label'] == v,
-                            orElse: () => {});
-                        setState(() {
-                          _selectedGoalLabel = v;
-                          _selectedGoalPrompt = found['prompt'];
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedLevelLabel,
-                      decoration: InputDecoration(
-                        labelText: 'Trình độ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                        isDense: true,
-                      ),
-                      items: _levelOptions
-                          .map((o) => DropdownMenuItem(
-                              value: o['label'], child: Text(o['label']!)))
-                          .toList(),
-                      onChanged: (v) {
-                        final found = _levelOptions.firstWhere(
-                            (o) => o['label'] == v,
-                            orElse: () => {});
-                        setState(() {
-                          _selectedLevelLabel = v;
-                          _selectedLevelPrompt = found['prompt'];
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 10),
+
+                  const SizedBox(height: 14),
+                  if (_selectedImageBytes == null) ...[
                     SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isGeneratingDiet
+                      child: ElevatedButton.icon(
+                        onPressed: (!aiEnabled || _isCapturing)
                             ? null
-                            : _generateDietRecommendations,
+                            : _captureFromPreview,
                         style: ElevatedButton.styleFrom(
                           elevation: 3,
                           backgroundColor: colorScheme.primary,
                           foregroundColor: colorScheme.onPrimary,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30)),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
                         ),
-                        child: _isGeneratingDiet
-                            ? Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    'Đang tạo gợi ý...',
+                        icon: const Icon(Icons.camera_alt_outlined),
+                        label: Text(
+                          _isCapturing
+                              ? AppStrings.capturingPhoto(context)
+                              : isCameraReady
+                                  ? AppStrings.capturePhoto(context)
+                                  : (AppStrings.isEnglish(context)
+                                      ? 'Open camera'
+                                      : 'Mở camera'),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: aiEnabled ? _pickFoodImage : null,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 56),
+                        side: BorderSide(color: colorScheme.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.photo_library_outlined,
+                        color: colorScheme.primary,
+                      ),
+                      label: Text(
+                        AppStrings.pickFromLibrary(context),
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: colorScheme.secondary.withValues(alpha: 0.22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withValues(alpha: 0.16),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: colorScheme.secondary.withValues(
+                            alpha: 0.38,
+                          ),
+                          child: Icon(
+                            Icons.lightbulb_outline,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                AppStrings.tipTitle(context),
+                                style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              Text(
+                                AppStrings.tipDescription(context),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Gợi ý chế độ ăn uống
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.06),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Gợi ý chế độ ăn theo tuần',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedGoalLabel,
+                          decoration: InputDecoration(
+                            labelText: 'Mục tiêu',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            isDense: true,
+                          ),
+                          items: _goalOptions
+                              .map((o) => DropdownMenuItem(
+                                  value: o['label'], child: Text(o['label']!)))
+                              .toList(),
+                          onChanged: (v) {
+                            final found = _goalOptions.firstWhere(
+                                (o) => o['label'] == v,
+                                orElse: () => {});
+                            setState(() {
+                              _selectedGoalLabel = v;
+                              _selectedGoalPrompt = found['prompt'];
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedLevelLabel,
+                          decoration: InputDecoration(
+                            labelText: 'Trình độ',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            isDense: true,
+                          ),
+                          items: _levelOptions
+                              .map((o) => DropdownMenuItem(
+                                  value: o['label'], child: Text(o['label']!)))
+                              .toList(),
+                          onChanged: (v) {
+                            final found = _levelOptions.firstWhere(
+                                (o) => o['label'] == v,
+                                orElse: () => {});
+                            setState(() {
+                              _selectedLevelLabel = v;
+                              _selectedLevelPrompt = found['prompt'];
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _isGeneratingDiet
+                                ? null
+                                : _generateDietRecommendations,
+                            style: ElevatedButton.styleFrom(
+                              elevation: 3,
+                              backgroundColor: colorScheme.primary,
+                              foregroundColor: colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30)),
+                            ),
+                            child: _isGeneratingDiet
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        height: 16,
+                                        width: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        'Đang tạo gợi ý...',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 18),
+                                      ),
+                                    ],
+                                  )
+                                : const Text(
+                                    'Tạo gợi ý ăn theo tuần',
                                     style: TextStyle(
                                         fontWeight: FontWeight.w800,
                                         fontSize: 18),
                                   ),
-                                ],
-                              )
-                            : const Text(
-                                'Tạo gợi ý ăn theo tuần',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w800, fontSize: 18),
-                              ),
-                      ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (_isGeneratingDiet)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const CircularProgressIndicator(),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Đang lấy gợi ý chế độ ăn từ AI...',
+                                  style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (_dietRecommendation != null)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Kế hoạch tuần',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                SelectableText(
+                                  _dietRecommendation!,
+                                  style:
+                                      TextStyle(color: colorScheme.onSurface),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Text(
+                            'Chọn mục tiêu và trình độ, sau đó nhấn tạo gợi ý để nhận thực đơn tuần bằng AI.',
+                            style:
+                                TextStyle(color: colorScheme.onSurfaceVariant),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    if (_isGeneratingDiet)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Đang lấy gợi ý chế độ ăn từ AI...',
-                              style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      )
-                    else if (_dietRecommendation != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Kế hoạch tuần',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            SelectableText(
-                              _dietRecommendation!,
-                              style: TextStyle(color: colorScheme.onSurface),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Text(
-                        'Chọn mục tiêu và trình độ, sau đó nhấn tạo gợi ý để nhận thực đơn tuần bằng AI.',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
-                      ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),

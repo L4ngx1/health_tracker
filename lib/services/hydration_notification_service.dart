@@ -53,15 +53,15 @@ class HydrationNotificationService {
   Future<void> requestPermissionIfNeeded() async {
     await PermissionQueue.instance.enqueue(() async {
       final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin>();
       await android?.requestNotificationsPermission();
 
       final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+          IOSFlutterLocalNotificationsPlugin>();
       await ios?.requestPermissions(alert: true, badge: true, sound: true);
 
       final macos = _plugin.resolvePlatformSpecificImplementation<
-        MacOSFlutterLocalNotificationsPlugin>();
+          MacOSFlutterLocalNotificationsPlugin>();
       await macos?.requestPermissions(alert: true, badge: true, sound: true);
     });
   }
@@ -70,7 +70,12 @@ class HydrationNotificationService {
     required String title,
     required String body,
   }) async {
-    await showLocalNotification(title: title, body: body, channelId: 'hydration_reminders', channelName: 'Hydration reminders', channelDescription: 'Water intake reminders');
+    await showLocalNotification(
+        title: title,
+        body: body,
+        channelId: 'hydration_reminders',
+        channelName: 'Hydration reminders',
+        channelDescription: 'Water intake reminders');
   }
 
   Future<void> showLocalNotification({

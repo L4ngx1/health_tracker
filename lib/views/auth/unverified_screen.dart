@@ -40,7 +40,8 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
     if (verified) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(AppStrings.emailVerifiedSuccess(context))));
+      ).showSnackBar(
+          SnackBar(content: Text(AppStrings.emailVerifiedSuccess(context))));
       Navigator.of(context).pushReplacementNamed(AppRoutes.main);
       return;
     }
@@ -130,7 +131,9 @@ class _UnverifiedScreenState extends State<UnverifiedScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextButton(onPressed: _signOut, child: Text(AppStrings.logout(context))),
+                TextButton(
+                    onPressed: _signOut,
+                    child: Text(AppStrings.logout(context))),
               ],
             ),
           ),

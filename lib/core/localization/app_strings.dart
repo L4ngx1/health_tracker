@@ -307,7 +307,8 @@ class AppStrings {
     String distance,
     String steps,
     String calories,
-  ) => _l10n(context).todayStats(distance, steps, calories);
+  ) =>
+      _l10n(context).todayStats(distance, steps, calories);
   static String dailyGoalLabel(BuildContext context, String goal) =>
       _l10n(context).dailyGoalLabel(goal);
   static String last7DaysHistory(BuildContext context) =>
@@ -337,7 +338,8 @@ class AppStrings {
     String steps,
     String calories,
     String goal,
-  ) => _l10n(context).distanceSubtitle(steps, calories, goal);
+  ) =>
+      _l10n(context).distanceSubtitle(steps, calories, goal);
   static String sleepRecentTitle(BuildContext context) =>
       _l10n(context).sleepRecentTitle;
   static String sleepScoringSleep(BuildContext context) =>

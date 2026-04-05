@@ -47,9 +47,8 @@ class TopBar extends StatelessWidget {
         final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
         final photoUrl = user?.photoURL?.trim();
         final hasAvatar = photoUrl != null && photoUrl.isNotEmpty;
-        final resolvedPhotoUrl = hasAvatar
-            ? _cacheBustedAvatarUrl(photoUrl)
-            : null;
+        final resolvedPhotoUrl =
+            hasAvatar ? _cacheBustedAvatarUrl(photoUrl) : null;
 
         return Row(
           children: [
@@ -85,7 +84,8 @@ class TopBar extends StatelessWidget {
                             },
                           ),
                         )
-                      : Icon(Icons.person, color: colorScheme.primary, size: 18),
+                      : Icon(Icons.person,
+                          color: colorScheme.primary, size: 18),
                 ),
               ),
             ),
@@ -103,7 +103,8 @@ class TopBar extends StatelessWidget {
             ),
             InkWell(
               onTap: onNotificationTap ??
-                  () => Navigator.of(context).pushNamed(AppRoutes.notifications),
+                  () =>
+                      Navigator.of(context).pushNamed(AppRoutes.notifications),
               borderRadius: BorderRadius.circular(16),
               child: Padding(
                 padding: const EdgeInsets.all(6),

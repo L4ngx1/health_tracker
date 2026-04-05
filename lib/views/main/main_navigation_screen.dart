@@ -5,6 +5,7 @@ import 'dart:ui';
 import '../../controllers/main_navigation_controller.dart';
 import '../../core/localization/app_strings.dart';
 import '../../models/bottom_nav_item.dart';
+import '../../core/theme/responsive.dart';
 import 'home_screen.dart';
 import 'journal_screen.dart';
 import 'notes_screen.dart';
@@ -40,7 +41,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final unselectedColor =
         Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.72) ??
-        colorScheme.onSurface.withValues(alpha: 0.72);
+            colorScheme.onSurface.withValues(alpha: 0.72);
     final items = [
       BottomNavItem(
         label: AppStrings.navHome(context),
@@ -81,18 +82,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   child: Stack(
                     children: List.generate(pages.length, (i) {
                       final active = controller.index == i;
-                      return IgnorePointer(
-                        ignoring: !active,
-                        child: RepaintBoundary(
-                          child: AnimatedOpacity(
-                            opacity: active ? 1 : 0,
-                            duration: const Duration(milliseconds: 240),
-                            curve: Curves.easeOut,
-                            child: AnimatedSlide(
-                              offset: active ? Offset.zero : const Offset(0.028, 0),
-                              duration: const Duration(milliseconds: 280),
-                              curve: Curves.easeOutCubic,
-                              child: pages[i],
+                      return Positioned.fill(
+                        child: IgnorePointer(
+                          ignoring: !active,
+                          child: RepaintBoundary(
+                            child: AnimatedOpacity(
+                              opacity: active ? 1 : 0,
+                              duration: const Duration(milliseconds: 240),
+                              curve: Curves.easeOut,
+                              child: AnimatedSlide(
+                                offset: active
+                                    ? Offset.zero
+                                    : const Offset(0.028, 0),
+                                duration: const Duration(milliseconds: 280),
+                                curve: Curves.easeOutCubic,
+                                child: SizedBox.expand(child: pages[i]),
+                              ),
                             ),
                           ),
                         ),
@@ -105,6 +110,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   child: SafeArea(
                     top: false,
                     child: Container(
+                      width: Responsive.isDesktop(context) ? 600 : null,
                       margin: const EdgeInsets.fromLTRB(14, 0, 14, 24),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(30),
@@ -129,10 +135,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
-                              color: colorScheme.surface.withValues(alpha: 0.68),
+                              color:
+                                  colorScheme.surface.withValues(alpha: 0.68),
                               borderRadius: BorderRadius.circular(30),
                               border: Border.all(
-                                color: colorScheme.outlineVariant.withValues(alpha: 0.32),
+                                color: colorScheme.outlineVariant
+                                    .withValues(alpha: 0.32),
                                 width: 1.2,
                               ),
                             ),
@@ -145,25 +153,31 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                   return Expanded(
                                     child: AnimatedScale(
                                       scale: _pressedIndex == i ? 0.92 : 1,
-                                      duration: const Duration(milliseconds: 120),
+                                      duration:
+                                          const Duration(milliseconds: 120),
                                       curve: Curves.easeOut,
                                       child: Material(
                                         color: Colors.transparent,
                                         child: InkWell(
-                                          borderRadius: BorderRadius.circular(20),
-                                          splashColor: colorScheme.primary.withValues(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          splashColor:
+                                              colorScheme.primary.withValues(
                                             alpha: 0.18,
                                           ),
-                                          highlightColor: colorScheme.primary.withValues(
+                                          highlightColor:
+                                              colorScheme.primary.withValues(
                                             alpha: 0.10,
                                           ),
                                           onHighlightChanged: (isPressed) {
                                             setState(() {
-                                              _pressedIndex = isPressed ? i : null;
+                                              _pressedIndex =
+                                                  isPressed ? i : null;
                                             });
                                           },
                                           onTap: () {
-                                            FocusManager.instance.primaryFocus?.unfocus();
+                                            FocusManager.instance.primaryFocus
+                                                ?.unfocus();
                                             if (controller.index != i) {
                                               HapticFeedback.selectionClick();
                                             }
@@ -175,23 +189,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                               vertical: 4,
                                             ),
                                             child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 180),
+                                              duration: const Duration(
+                                                  milliseconds: 180),
                                               curve: Curves.easeOut,
                                               decoration: BoxDecoration(
                                                 color: selected
-                                                    ? colorScheme.primary.withValues(
+                                                    ? colorScheme.primary
+                                                        .withValues(
                                                         alpha: 0.18,
                                                       )
                                                     : Colors.transparent,
-                                                borderRadius: BorderRadius.circular(18),
+                                                borderRadius:
+                                                    BorderRadius.circular(18),
                                               ),
                                               child: Padding(
-                                                padding: const EdgeInsets.only(top: 6),
+                                                padding: const EdgeInsets.only(
+                                                    top: 6),
                                                 child: Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
                                                   children: [
                                                     Icon(
-                                                      selected ? item.activeIcon : item.icon,
+                                                      selected
+                                                          ? item.activeIcon
+                                                          : item.icon,
                                                       size: 22,
                                                       color: selected
                                                           ? colorScheme.primary
@@ -206,7 +227,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                                                             ? FontWeight.w700
                                                             : FontWeight.w500,
                                                         color: selected
-                                                            ? colorScheme.primary
+                                                            ? colorScheme
+                                                                .primary
                                                             : unselectedColor,
                                                       ),
                                                     ),

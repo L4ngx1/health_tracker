@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +23,8 @@ import '../../services/permission_queue.dart';
 import '../../services/widget_sync_service.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/health_widgets.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../core/theme/responsive.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -74,11 +76,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _waterReminderTimer;
   Timer? _heroBannerTimer;
   final PageController _heroBannerController = PageController();
-  int _heroBannerIndex = 0;
-  final PageController _explorePageController = PageController(
-    viewportFraction: 0.94,
-  );
-  int _explorePageIndex = 0;
+  final ValueNotifier<int> _heroBannerIndex = ValueNotifier<int>(0);
+  final PageController _explorePageController = PageController();
+  final ValueNotifier<int> _explorePageIndex = ValueNotifier<int>(0);
 
   String get _userScope {
     final user = FirebaseAuth.instance.currentUser;
@@ -416,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _heroBannerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_heroBannerController.hasClients) return;
       const totalBanners = 3;
-      final next = (_heroBannerIndex + 1) % totalBanners;
+      final next = (_heroBannerIndex.value + 1) % totalBanners;
       _heroBannerController.animateToPage(
         next,
         duration: const Duration(milliseconds: 380),
@@ -1144,6 +1144,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _heroBannerTimer?.cancel();
     _heroBannerController.dispose();
     _explorePageController.dispose();
+    _heroBannerIndex.dispose();
+    _explorePageIndex.dispose();
     super.dispose();
   }
 
@@ -2249,6 +2251,9 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     final colorScheme = Theme.of(context).colorScheme;
+    final bool isDesktop = Responsive.isDesktop(context);
+    final bool isTablet = Responsive.isTablet(context);
+    final heroBanners = _homeHeroBanners();
     final exploreItems = _exploreWorkouts();
     final exploreGradients = <List<Color>>[
       [
@@ -2278,369 +2283,403 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 150),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TopBar(
-                title: AppStrings.homeTopTitle(context),
-                onUserTap: () async {
-                  await Navigator.of(context).pushNamed(AppRoutes.profile);
-                  await _loadWeight();
-                },
-              ),
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.primary,
-                      colorScheme.primary.withValues(alpha: 0.84),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.shadow.withValues(alpha: 0.18),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 142,
-                      child: PageView.builder(
-                        controller: _heroBannerController,
-                        itemCount: _homeHeroBanners().length,
-                        onPageChanged: (index) {
-                          setState(() {
-                            _heroBannerIndex = index;
-                          });
-                        },
-                        itemBuilder: (context, index) {
-                          final banner = _homeHeroBanners()[index];
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                banner.label,
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary
-                                      .withValues(alpha: 0.82),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                banner.title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.05,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                banner.subtitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary
-                                      .withValues(alpha: 0.82),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children:
-                          List.generate(_homeHeroBanners().length, (index) {
-                        final active = _heroBannerIndex == index;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          width: active ? 18 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: active
-                                ? colorScheme.onPrimary
-                                : colorScheme.onPrimary.withValues(alpha: 0.45),
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              ValueListenableBuilder<TrackingSnapshot>(
-                valueListenable: _trackingController.snapshot,
-                builder: (context, snapshot, _) {
-                  final distanceKm = snapshot.distanceMeters / 1000.0;
-                  final distanceText = distanceKm.toStringAsFixed(2);
-                  final estimatedSteps = snapshot.steps;
-                  final estimatedCalories = snapshot.caloriesKcal.round();
-                  final sleepHours = snapshot.sleepMinutes ~/ 60;
-                  final sleepRemaining = snapshot.sleepMinutes % 60;
-                  final sleepText = '${sleepHours}h ${sleepRemaining}m';
-
-                  final distanceMetric = MetricItem(
-                    title: AppStrings.distanceTodayTitle(context),
-                    value: distanceText,
-                    unit: 'km',
-                    subtitle: AppStrings.distanceSubtitle(
-                      context,
-                      _formatNumber(estimatedSteps),
-                      _formatNumber(estimatedCalories),
-                      _dailyGoalKm.toStringAsFixed(1),
-                    ),
-                  );
-
-                  final sleepMetric = MetricItem(
-                    title: AppStrings.sleepRecentTitle(context),
-                    value: sleepText,
-                    unit: '',
-                    subtitle: snapshot.isSleeping
-                        ? AppStrings.sleepScoringSleep(context)
-                        : AppStrings.sleepScoringAwake(context),
-                    showProgress: true,
-                    progress: (snapshot.sleepMinutes / 480).clamp(0.0, 1.0),
-                  );
-
-                  final otherMetrics =
-                      metrics.length > 1 ? metrics.sublist(1) : <MetricItem>[];
-                  if (otherMetrics.isNotEmpty) {
-                    otherMetrics[otherMetrics.length - 1] = sleepMetric;
-                  } else {
-                    otherMetrics.add(sleepMetric);
-                  }
-
-                  return HealthGrid(
-                    metrics: [distanceMetric, ...otherMetrics],
-                    onMetricTap: (index, item) {
-                      if (index == 0) {
-                        _showMovementSheet(
-                          distanceKm: distanceKm,
-                          steps: estimatedSteps,
-                          calories: estimatedCalories,
-                        );
-                        return;
-                      }
-
-                      if (item.title ==
-                          AppStrings.homeMetricWeightTitle(context)) {
-                        _editWeight();
-                        return;
-                      }
-
-                      if (index == 1) {
-                        _showHydrationSheet();
-                        return;
-                      }
-
-                      if (item.showProgress && index != 0) {
-                        _showSleepHistorySheet(context);
-                      }
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 18),
-              Row(
+          padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 150.h),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxWidth: Responsive.isDesktop(context) ? 800 : 600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      AppStrings.exploreMore(context),
-                      style:
-                          TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
-                    ),
+                  TopBar(
+                    title: AppStrings.homeTopTitle(context),
+                    onUserTap: () async {
+                      await Navigator.of(context).pushNamed(AppRoutes.profile);
+                      await _loadWeight();
+                    },
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 214,
-                child: PageView.builder(
-                  controller: _explorePageController,
-                  itemCount: exploreItems.length,
-                  padEnds: false,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _explorePageIndex = index;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    final item = exploreItems[index];
-                    final gradient =
-                        exploreGradients[index % exploreGradients.length];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: Material(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(24),
-                        elevation: 0,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(24),
-                          onTap: () => _openExploreWorkout(item.youtubeUrl),
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              gradient: LinearGradient(
-                                colors: [
-                                  colorScheme.surface,
-                                  gradient[0],
-                                  gradient[1],
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color:
-                                    colorScheme.outline.withValues(alpha: 0.20),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colorScheme.shadow
-                                      .withValues(alpha: 0.12),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 82,
-                                  height: 82,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    color: colorScheme.surface.withValues(
-                                      alpha: 0.72,
-                                    ),
+                  SizedBox(height: 14.h),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(isDesktop ? 22 : 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22.r),
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.primary,
+                          colorScheme.primary.withValues(alpha: 0.84),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withValues(alpha: 0.18),
+                          blurRadius: 18.r,
+                          offset: Offset(0, 8.h),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RepaintBoundary(
+                          child: SizedBox(
+                            height: isDesktop ? 260 : (isTablet ? 208 : 168),
+                            child: PageView.builder(
+                              controller: _heroBannerController,
+                              itemCount: heroBanners.length,
+                              onPageChanged: (index) {
+                                _heroBannerIndex.value = index;
+                              },
+                              itemBuilder: (context, index) {
+                                final banner = heroBanners[index];
+                                return Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isDesktop ? 18 : 8,
                                   ),
-                                  child: Icon(
-                                    item.icon,
-                                    color: colorScheme.primary,
-                                    size: 36,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        item.label,
+                                        banner.label,
                                         style: TextStyle(
-                                          color:
-                                              colorScheme.onSurface.withValues(
-                                            alpha: 0.70,
-                                          ),
-                                          fontSize: 10,
+                                          color: colorScheme.onPrimary
+                                              .withValues(alpha: 0.82),
                                           fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.6,
+                                          fontSize: isDesktop ? 18 : 12,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      SizedBox(height: isDesktop ? 12 : 8),
                                       Text(
-                                        item.title,
-                                        maxLines: 2,
+                                        banner.title,
+                                        maxLines: isDesktop ? 3 : 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 29,
-                                          height: 0.98,
-                                          fontWeight: FontWeight.w900,
+                                          color: colorScheme.onPrimary,
+                                          fontSize: isDesktop
+                                              ? 58
+                                              : (isTablet ? 44 : 28),
+                                          fontWeight: FontWeight.w800,
+                                          height: 0.95,
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
+                                      SizedBox(height: isDesktop ? 14 : 8),
                                       Text(
-                                        item.subtitle,
-                                        maxLines: 2,
+                                        banner.subtitle,
+                                        maxLines: isDesktop ? 2 : 1,
                                         overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: colorScheme.primary.withValues(
-                                            alpha: 0.12,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                        ),
-                                        child: Text(
-                                          'YouTube',
-                                          style: TextStyle(
-                                            color: colorScheme.primary,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                        style: TextStyle(
+                                          fontSize: isDesktop ? 17 : 14,
+                                          color: colorScheme.onPrimary
+                                              .withValues(alpha: 0.82),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                CircleAvatar(
-                                  radius: 18,
-                                  backgroundColor: colorScheme.primary
-                                      .withValues(alpha: 0.14),
-                                  child: Icon(
-                                    Icons.play_arrow_rounded,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(exploreItems.length, (index) {
-                  final active = _explorePageIndex == index;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: active ? 18 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: active
-                          ? colorScheme.primary
-                          : colorScheme.outline.withValues(alpha: 0.35),
+                        SizedBox(height: 8.h),
+                        ValueListenableBuilder<int>(
+                          valueListenable: _heroBannerIndex,
+                          builder: (context, currentIndex, _) {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children:
+                                  List.generate(heroBanners.length, (index) {
+                                final active = currentIndex == index;
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 220),
+                                  margin: EdgeInsets.symmetric(horizontal: 3.w),
+                                  width: active ? 18.w : 8.w,
+                                  height: 8.h,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20.r),
+                                    color: active
+                                        ? colorScheme.onPrimary
+                                        : colorScheme.onPrimary
+                                            .withValues(alpha: 0.45),
+                                  ),
+                                );
+                              }),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  );
-                }),
+                  ),
+                  SizedBox(height: 12.h),
+                  ValueListenableBuilder<TrackingSnapshot>(
+                    valueListenable: _trackingController.snapshot,
+                    builder: (context, snapshot, _) {
+                      final distanceKm = snapshot.distanceMeters / 1000.0;
+                      final distanceText = distanceKm.toStringAsFixed(2);
+                      final estimatedSteps = snapshot.steps;
+                      final estimatedCalories = snapshot.caloriesKcal.round();
+                      final sleepHours = snapshot.sleepMinutes ~/ 60;
+                      final sleepRemaining = snapshot.sleepMinutes % 60;
+                      final sleepText = '${sleepHours}h ${sleepRemaining}m';
+
+                      final distanceMetric = MetricItem(
+                        title: AppStrings.distanceTodayTitle(context),
+                        value: distanceText,
+                        unit: 'km',
+                        subtitle: AppStrings.distanceSubtitle(
+                          context,
+                          _formatNumber(estimatedSteps),
+                          _formatNumber(estimatedCalories),
+                          _dailyGoalKm.toStringAsFixed(1),
+                        ),
+                      );
+
+                      final sleepMetric = MetricItem(
+                        title: AppStrings.sleepRecentTitle(context),
+                        value: sleepText,
+                        unit: '',
+                        subtitle: snapshot.isSleeping
+                            ? AppStrings.sleepScoringSleep(context)
+                            : AppStrings.sleepScoringAwake(context),
+                        showProgress: true,
+                        progress: (snapshot.sleepMinutes / 480).clamp(0.0, 1.0),
+                      );
+
+                      final otherMetrics = metrics.length > 1
+                          ? metrics.sublist(1)
+                          : <MetricItem>[];
+                      if (otherMetrics.isNotEmpty) {
+                        otherMetrics[otherMetrics.length - 1] = sleepMetric;
+                      } else {
+                        otherMetrics.add(sleepMetric);
+                      }
+
+                      return HealthGrid(
+                        metrics: [distanceMetric, ...otherMetrics],
+                        onMetricTap: (index, item) {
+                          if (index == 0) {
+                            _showMovementSheet(
+                              distanceKm: distanceKm,
+                              steps: estimatedSteps,
+                              calories: estimatedCalories,
+                            );
+                            return;
+                          }
+
+                          if (item.title ==
+                              AppStrings.homeMetricWeightTitle(context)) {
+                            _editWeight();
+                            return;
+                          }
+
+                          if (index == 1) {
+                            _showHydrationSheet();
+                            return;
+                          }
+
+                          if (item.showProgress && index != 0) {
+                            _showSleepHistorySheet(context);
+                          }
+                        },
+                      );
+                    },
+                  ),
+                  SizedBox(height: 18.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          AppStrings.exploreMore(context),
+                          style: TextStyle(
+                              fontSize: isDesktop ? 52 : (isTablet ? 40 : 30),
+                              fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isDesktop ? 14 : 10),
+                  RepaintBoundary(
+                    child: SizedBox(
+                      height: isDesktop ? 264 : (isTablet ? 236 : 214),
+                      child: PageView.builder(
+                        controller: _explorePageController,
+                        itemCount: exploreItems.length,
+                        padEnds: true,
+                        onPageChanged: (index) {
+                          _explorePageIndex.value = index;
+                        },
+                        itemBuilder: (context, index) {
+                          final item = exploreItems[index];
+                          final gradient =
+                              exploreGradients[index % exploreGradients.length];
+                          return Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(24),
+                            elevation: 0,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(24),
+                              onTap: () => _openExploreWorkout(item.youtubeUrl),
+                              child: Ink(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(24),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      colorScheme.surface,
+                                      gradient[0],
+                                      gradient[1],
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  border: Border.all(
+                                    color: colorScheme.outline
+                                        .withValues(alpha: 0.20),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colorScheme.shadow
+                                          .withValues(alpha: 0.12),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                padding: EdgeInsets.all(isDesktop ? 20 : 14),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: isDesktop ? 100 : 82,
+                                      height: isDesktop ? 100 : 82,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(18),
+                                        color: colorScheme.surface.withValues(
+                                          alpha: 0.72,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        item.icon,
+                                        color: colorScheme.primary,
+                                        size: isDesktop ? 44 : 36,
+                                      ),
+                                    ),
+                                    SizedBox(width: isDesktop ? 16 : 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.label,
+                                            style: TextStyle(
+                                              color: colorScheme.onSurface
+                                                  .withValues(
+                                                alpha: 0.70,
+                                              ),
+                                              fontSize: isDesktop ? 14 : 10,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.6,
+                                            ),
+                                          ),
+                                          SizedBox(height: isDesktop ? 8 : 4),
+                                          Text(
+                                            item.title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: isDesktop ? 38 : 29,
+                                              height: 0.98,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                          SizedBox(height: isDesktop ? 10 : 6),
+                                          Text(
+                                            item.subtitle,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: isDesktop ? 17 : 13,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: isDesktop ? 14 : 10,
+                                              vertical: isDesktop ? 6 : 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.primary
+                                                  .withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              'YouTube',
+                                              style: TextStyle(
+                                                color: colorScheme.primary,
+                                                fontSize: isDesktop ? 14 : 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(width: isDesktop ? 14 : 8),
+                                    CircleAvatar(
+                                      radius: isDesktop ? 24 : 18,
+                                      backgroundColor: colorScheme.primary
+                                          .withValues(alpha: 0.14),
+                                      child: Icon(
+                                        Icons.play_arrow_rounded,
+                                        color: colorScheme.primary,
+                                        size: isDesktop ? 30 : 24,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _explorePageIndex,
+                    builder: (context, currentIndex, _) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(exploreItems.length, (index) {
+                          final active = currentIndex == index;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            margin: EdgeInsets.symmetric(
+                                horizontal: isDesktop ? 5 : 3),
+                            width: active
+                                ? (isDesktop ? 24 : 18)
+                                : (isDesktop ? 10 : 8),
+                            height: isDesktop ? 10 : 8,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              color: active
+                                  ? colorScheme.primary
+                                  : colorScheme.outline.withValues(alpha: 0.35),
+                            ),
+                          );
+                        }),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                ],
               ),
-              const SizedBox(height: 14),
-            ],
+            ),
           ),
         ),
       ),

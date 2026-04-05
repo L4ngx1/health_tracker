@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import '../../controllers/auth_controller.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/theme/responsive.dart';
 import '../../services/backend_api_service.dart';
 import '../../services/cloudflare_r2_upload_service.dart';
 
@@ -204,7 +205,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final bytes = await picked.readAsBytes();
     final optimized = _processAvatar(bytes);
-    final key = 'avatars/${user.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final key =
+        'avatars/${user.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg';
 
     setState(() => _loading = true);
     String? error;
@@ -235,7 +237,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -262,290 +265,329 @@ class _ProfileScreenState extends State<ProfileScreen> {
               end: Alignment.bottomCenter,
             ),
           ),
-          child: Stack(
-            children: [
-              Column(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 920 : 680,
+              ),
+              child: Stack(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                        ),
-                        Expanded(
-                          child: Text(
-                            AppStrings.profileScreenTitle(context),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pushNamed(AppRoutes.settings),
-                          icon: const Icon(Icons.settings_outlined),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                      child: Column(
-                        children: [
-                          Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colorScheme.shadow.withValues(alpha: 0.16),
-                              blurRadius: 18,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Column(
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                        child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant,
-                                  width: 2,
-                                ),
-                              ),
-                              child: InkWell(
-                                onTap: _changeProfilePhoto,
-                                borderRadius: BorderRadius.circular(50),
-                                child: _buildAvatar(user, colorScheme),
-                              ),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon:
+                                  const Icon(Icons.arrow_back_ios_new_rounded),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              user?.displayName?.trim().isNotEmpty == true
-                                  ? user!.displayName!.trim()
-                                  : AppStrings.userFallback(context),
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              user?.email ?? AppStrings.noEmail(context),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.72,
+                            Expanded(
+                              child: Text(
+                                AppStrings.profileScreenTitle(context),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: colorScheme.onSurface,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            _statusChip(user, colorScheme),
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 46,
-                              child: OutlinedButton.icon(
-                                onPressed: _editProfile,
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: colorScheme.primary),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.edit_outlined),
-                                label: Text(
-                                  AppStrings.editProfile(context),
-                                  style: TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 46,
-                              child: OutlinedButton.icon(
-                                onPressed: _changeProfilePhoto,
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: colorScheme.primary),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.photo_camera_outlined),
-                                label: Text(
-                                  'Thay ảnh đại diện',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                              ),
+                            IconButton(
+                              onPressed: () => Navigator.of(context)
+                                  .pushNamed(AppRoutes.settings),
+                              icon: const Icon(Icons.settings_outlined),
                             ),
                           ],
                         ),
                       ),
-                          const SizedBox(height: 14),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surface,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: colorScheme.outlineVariant),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  AppStrings.accountInfo(context),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                    color: colorScheme.onSurface,
-                                  ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(22),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colorScheme.shadow
+                                          .withValues(alpha: 0.16),
+                                      blurRadius: 18,
+                                      offset: Offset(0, 8),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 12),
-                                Row(
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: colorScheme.outlineVariant,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: InkWell(
+                                        onTap: _changeProfilePhoto,
+                                        borderRadius: BorderRadius.circular(50),
+                                        child: _buildAvatar(user, colorScheme),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      user?.displayName?.trim().isNotEmpty ==
+                                              true
+                                          ? user!.displayName!.trim()
+                                          : AppStrings.userFallback(context),
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w900,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      user?.email ??
+                                          AppStrings.noEmail(context),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: colorScheme.onSurface.withValues(
+                                          alpha: 0.72,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _statusChip(user, colorScheme),
+                                    const SizedBox(height: 14),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 46,
+                                      child: OutlinedButton.icon(
+                                        onPressed: _editProfile,
+                                        style: OutlinedButton.styleFrom(
+                                          side: BorderSide(
+                                              color: colorScheme.primary),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                        ),
+                                        icon: const Icon(Icons.edit_outlined),
+                                        label: Text(
+                                          AppStrings.editProfile(context),
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 46,
+                                      child: OutlinedButton.icon(
+                                        onPressed: _changeProfilePhoto,
+                                        style: OutlinedButton.styleFrom(
+                                          side: BorderSide(
+                                              color: colorScheme.primary),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                            Icons.photo_camera_outlined),
+                                        label: Text(
+                                          'Thay ảnh đại diện',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                      color: colorScheme.outlineVariant),
+                                ),
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      Icons.fingerprint,
-                                      size: 18,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.72,
+                                    Text(
+                                      AppStrings.accountInfo(context),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: colorScheme.onSurface,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        AppStrings.uidPrefix(context, user?.uid ?? '-'),
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface.withValues(
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.fingerprint,
+                                          size: 18,
+                                          color:
+                                              colorScheme.onSurface.withValues(
                                             alpha: 0.72,
                                           ),
                                         ),
-                                      ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            AppStrings.uidPrefix(
+                                                context, user?.uid ?? '-'),
+                                            style: TextStyle(
+                                              color: colorScheme.onSurface
+                                                  .withValues(
+                                                alpha: 0.72,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.email_outlined,
-                                      size: 18,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.72,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        user?.email ?? '-',
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface.withValues(
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.email_outlined,
+                                          size: 18,
+                                          color:
+                                              colorScheme.onSurface.withValues(
                                             alpha: 0.72,
                                           ),
                                         ),
-                                      ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            user?.email ?? '-',
+                                            style: TextStyle(
+                                              color: colorScheme.onSurface
+                                                  .withValues(
+                                                alpha: 0.72,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.shadow.withValues(alpha: 0.16),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: _loading
+                            ? Container(
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainer,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: const Center(
+                                    child: CircularProgressIndicator()),
+                              )
+                            : SizedBox(
+                                height: 56,
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (c) => AlertDialog(
+                                        title: Text(
+                                            AppStrings.logoutConfirmTitle(
+                                                context)),
+                                        content: Text(
+                                            AppStrings.logoutConfirmContent(
+                                                context)),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(c).pop(false),
+                                            child: Text(
+                                                AppStrings.cancel(context)),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.of(c).pop(true),
+                                            child: Text(
+                                                AppStrings.logout(context)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm != true) return;
+                                    setState(() => _loading = true);
+                                    await _controller.signOut();
+                                    if (!context.mounted) return;
+                                    Navigator.of(context)
+                                        .pushNamedAndRemoveUntil(
+                                      AppRoutes.login,
+                                      (r) => false,
+                                    );
+                                  },
+                                  icon: const Icon(Icons.logout_rounded,
+                                      size: 20),
+                                  label: Text(
+                                    AppStrings.logout(context),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: colorScheme.error,
+                                    foregroundColor: colorScheme.onError,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                   ),
                 ],
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.shadow.withValues(alpha: 0.16),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: _loading
-                        ? Container(
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainer,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: const Center(child: CircularProgressIndicator()),
-                          )
-                        : SizedBox(
-                            height: 56,
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (c) => AlertDialog(
-                                    title: Text(AppStrings.logoutConfirmTitle(context)),
-                                    content: Text(AppStrings.logoutConfirmContent(context)),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.of(c).pop(false),
-                                        child: Text(AppStrings.cancel(context)),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.of(c).pop(true),
-                                        child: Text(AppStrings.logout(context)),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm != true) return;
-                                setState(() => _loading = true);
-                                await _controller.signOut();
-                                if (!context.mounted) return;
-                                Navigator.of(context).pushNamedAndRemoveUntil(
-                                  AppRoutes.login,
-                                  (r) => false,
-                                );
-                              },
-                              icon: const Icon(Icons.logout_rounded, size: 20),
-                              label: Text(
-                                AppStrings.logout(context),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                elevation: 0,
-                                backgroundColor: colorScheme.error,
-                                foregroundColor: colorScheme.onError,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                              ),
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

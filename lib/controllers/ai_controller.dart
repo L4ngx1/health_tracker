@@ -26,7 +26,8 @@ class AIController {
     );
   }
 
-  Future<String> getPersonalizedDiet(String condition, String preferences) async {
+  Future<String> getPersonalizedDiet(
+      String condition, String preferences) async {
     return await _aiService.getDietRecommendations(condition, preferences);
   }
 }
