@@ -2402,9 +2402,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: AppStrings.sleepRecentTitle(context),
                     value: sleepText,
                     unit: '',
-                    subtitle: snapshot.isSleeping
-                        ? AppStrings.sleepScoringSleep(context)
-                        : AppStrings.sleepScoringAwake(context),
+                    subtitle: '',
                     showProgress: true,
                     progress: (snapshot.sleepMinutes / 480).clamp(0.0, 1.0),
                   );

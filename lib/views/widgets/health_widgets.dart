@@ -125,17 +125,19 @@ class MetricCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                SizedBox(height: veryCompact ? 4 : 8),
-                Text(
-                  item.subtitle,
-                  maxLines: item.showProgress ? 2 : 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: subtitleSize,
-                    color: colorScheme.onSurface.withValues(alpha: 0.72),
-                    height: 1.2,
+                if (item.subtitle.isNotEmpty) ...[
+                  SizedBox(height: veryCompact ? 4 : 8),
+                  Text(
+                    item.subtitle,
+                    maxLines: item.showProgress ? 2 : 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: subtitleSize,
+                      color: colorScheme.onSurface.withValues(alpha: 0.72),
+                      height: 1.2,
+                    ),
                   ),
-                ),
+                ],
                 if (item.showProgress) ...[
                   const Spacer(),
                   ClipRRect(
